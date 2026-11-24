@@ -46,6 +46,6 @@ class WaveformView(context: Context) : View(context) {
             val x = slot * (i + 0.5f)
             canvas.drawLine(x, centre - half, x, centre + half, paint)
         }
-        postInvalidateOnAnimation()
+        postInvalidateDelayed(33) // about 30 fps is plenty for a 26 dp waveform
     }
 }

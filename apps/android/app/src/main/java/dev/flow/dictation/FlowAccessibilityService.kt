@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.util.Log
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -30,15 +32,28 @@ class FlowAccessibilityService : AccessibilityService() {
         FlowBubbleService.active?.refreshVisibility()
     }
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val settings by lazy { FlowSettings(this) }
+    private var lastApp = ""
+    private val refresh = Runnable { FlowBubbleService.active?.refreshVisibility() }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && !event.isPassword)
-            event.packageName?.toString()?.let { FlowSettings(this).recentApp = it }
-        FlowBubbleService.active?.refreshVisibility()
+        // Remember the app for per-app tone, but write to disk only when it changes.
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED && !event.isPassword) {
+            val app = event.packageName?.toString()
+            if (app != null && app != lastApp) { lastApp = app; settings.recentApp = app }
+        }
+        // Window events arrive in bursts. With no bubble running there is nothing to update, and
+        // otherwise one scan per burst is enough, so idle use costs almost no CPU or battery.
+        if (FlowBubbleService.active == null) return
+        handler.removeCallbacks(refresh)
+        handler.postDelayed(refresh, 120)
     }
 
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        handler.removeCallbacks(refresh)
         if (active === this) active = null
         FlowBubbleService.active?.refreshVisibility()
         super.onDestroy()
