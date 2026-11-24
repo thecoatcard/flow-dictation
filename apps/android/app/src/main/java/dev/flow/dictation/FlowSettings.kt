@@ -13,12 +13,16 @@ import javax.crypto.spec.GCMParameterSpec
 enum class CleanupLevel { NONE, AUTO, LIGHT, MEDIUM }
 enum class Tone { CASUAL, PROFESSIONAL, LITERAL, CODE }
 
+/** How spoken Hindi is written: Roman letters ("Hinglish") or Devanagari. Other languages are untouched. */
+enum class HindiOutput { HINGLISH, DEVANAGARI }
+
 data class DictationPreferences(
     val level: CleanupLevel,
     val tone: Tone,
     val dictionary: List<String>,
     val style: String,
-    val snippets: Map<String, String>
+    val snippets: Map<String, String>,
+    val hindi: HindiOutput = HindiOutput.HINGLISH,
 )
 
 class FlowSettings(context: Context) {
@@ -28,6 +32,10 @@ class FlowSettings(context: Context) {
     var bubbleEnabled: Boolean
         get() = prefs.getBoolean("bubble-enabled", true)
         set(value) { prefs.edit().putBoolean("bubble-enabled", value).apply() }
+
+    var hindiOutput: HindiOutput
+        get() = enumValue(prefs.getString("hindi-output", null), HindiOutput.HINGLISH)
+        set(value) { prefs.edit().putString("hindi-output", value.name).apply() }
 
     var cleanupLevel: CleanupLevel
         get() = enumValue(prefs.getString("cleanup-level", null), CleanupLevel.LIGHT)
@@ -101,7 +109,7 @@ class FlowSettings(context: Context) {
         }
 
     fun snapshot(appId: String? = null) = DictationPreferences(
-        cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets
+        cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets, hindiOutput
     )
 
     fun apiKey(): String? {

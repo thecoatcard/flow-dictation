@@ -3,7 +3,7 @@ import { repairSentenceBoundary, resolveTimeBacktrack } from './backtrack';
 import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
 import { guardOutput } from './guard';
-import { buildSystemPrompt, buildUserMessage } from './prompt';
+import { buildSystemPrompt, buildUserMessage, TRANSLITERATE_PROMPT } from './prompt';
 import { detectCommand, joinSegments, segmentTranscript, type Command } from './segments';
 
 export type PipelineResult =
@@ -18,6 +18,8 @@ export interface PipelineOptions {
   /** Called when cleanup failed and the raw text was used instead. */
   onError?: (e: unknown) => void;
 }
+
+const DEVANAGARI = /[ऀ-ॿ]/;
 
 async function cleanOne(text: string, system: string, o: PipelineOptions): Promise<string> {
   const ctl = new AbortController();
@@ -53,8 +55,18 @@ export async function processTranscript(
       ? transcript
       : repairSentenceBoundary(resolveTimeBacktrack(transcript));
   const segments = segmentTranscript(text, o.config.snippets);
-  if (o.config.cleanupLevel === 'none')
-    return { kind: 'insert', text: joinSegments(segments).trim() };
+  if (o.config.cleanupLevel === 'none') {
+    // None skips the editing model, but Hindi must still come out in Roman letters when asked.
+    const wantsRoman = o.config.hindiOutput === 'hinglish';
+    const romanized = await Promise.all(
+      segments.map(async (s) =>
+        wantsRoman && s.kind === 'text' && DEVANAGARI.test(s.text)
+          ? { ...s, text: await cleanOne(s.text, TRANSLITERATE_PROMPT, o) }
+          : s,
+      ),
+    );
+    return { kind: 'insert', text: joinSegments(romanized).trim() };
+  }
   const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));
   const cleaned = await Promise.all(
     segments.map(async (s) =>

@@ -225,6 +225,7 @@ function registerSettings({ store, vault, mic, usage }: Services, overlay: Overl
       appTones: c.appTones,
       defaultTone: c.defaultTone,
       cleanupLevel: c.cleanupLevel,
+      hindiOutput: c.hindiOutput,
       snippets: c.snippets,
       style: c.style,
       recentApps: c.app.recentApps,
@@ -238,6 +239,7 @@ function registerSettings({ store, vault, mic, usage }: Services, overlay: Overl
       if (patch.appTones) c.appTones = patch.appTones;
       if (patch.defaultTone) c.defaultTone = patch.defaultTone;
       if (patch.cleanupLevel) c.cleanupLevel = patch.cleanupLevel;
+      if (patch.hindiOutput) c.hindiOutput = patch.hindiOutput;
       if (patch.snippets) c.snippets = patch.snippets;
       if (typeof patch.style === 'string') c.style = patch.style;
     });

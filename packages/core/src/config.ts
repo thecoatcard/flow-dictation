@@ -1,5 +1,7 @@
 export type Tone = 'casual' | 'professional' | 'literal' | 'code';
 export type CleanupLevel = 'none' | 'auto' | 'light' | 'medium';
+/** How spoken Hindi is written: Roman letters ("Hinglish") or Devanagari. English and other languages are untouched. */
+export type HindiOutput = 'hinglish' | 'devanagari';
 
 export interface DictionaryEntry {
   term: string;
@@ -39,6 +41,7 @@ export interface FlowConfig {
   defaultTone: Tone;
   /** How much the cleanup model may edit; None bypasses it entirely. */
   cleanupLevel: CleanupLevel;
+  hindiOutput: HindiOutput;
   snippets: Snippet[];
   /** Free-text description of how the user writes. */
   style: string;
@@ -66,6 +69,7 @@ export function defaultConfig(): FlowConfig {
     appTones: {},
     defaultTone: 'casual',
     cleanupLevel: 'light',
+    hindiOutput: 'hinglish',
     snippets: [],
     style: '',
   };
@@ -127,6 +131,8 @@ export function migrateConfig(raw: unknown): FlowConfig {
     raw.cleanupLevel === 'medium'
   )
     out.cleanupLevel = raw.cleanupLevel;
+  if (raw.hindiOutput === 'hinglish' || raw.hindiOutput === 'devanagari')
+    out.hindiOutput = raw.hindiOutput;
   if (Array.isArray(raw.snippets)) {
     for (const s of raw.snippets) {
       if (

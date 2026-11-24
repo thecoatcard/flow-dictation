@@ -197,6 +197,20 @@ class MainActivity : Activity() {
             status.text = "Cleanup level saved."
         }
 
+        val hindi = column.section("HINDI")
+        hindi.label("Choose how spoken Hindi is written. English stays English, and other languages are written as spoken.")
+        val hindiHelp = mapOf(
+            HindiOutput.HINGLISH to "Hindi speech is typed in English letters, like \"main kal office jaunga\".",
+            HindiOutput.DEVANAGARI to "Hindi speech is typed in Devanagari, like \"मैं कल ऑफिस जाऊँगा\".",
+        )
+        val hindiHint = hindi.label(hindiHelp.getValue(settings.hindiOutput))
+        val hindiChoices = HindiOutput.entries
+        hindi.segmented(listOf("Hinglish (Roman)", "Devanagari (हिन्दी)"), hindiChoices.indexOf(settings.hindiOutput)) { index ->
+            settings.hindiOutput = hindiChoices[index]
+            hindiHint.text = hindiHelp.getValue(hindiChoices[index])
+            status.text = "Hindi style saved."
+        }
+
         val controls = column.section("DICTATION")
         controls.label("Default app tone", 18f)
         val tones = Tone.entries

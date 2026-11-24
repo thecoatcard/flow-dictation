@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.6.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.7.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.6.apk
+adb install -r .\Flow-Android-0.1.7.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -85,6 +85,7 @@ Drag the bubble to move it; it snaps to the nearest screen edge. **Reset bubble 
 All of these are on the main screen and match the Windows app.
 
 - **Auto cleanup** sets how much Flow edits after transcription, for every app. **None** pastes the raw transcript. **Auto** leaves clean speech alone and uses a light edit only when needed. **Light** removes fillers, repeats and false starts and fixes grammar with minimal rewriting. **Medium** also rewords tangled phrases. The choice saves as soon as you tap it.
+- **Hindi** chooses how spoken Hindi is written. **Hinglish (Roman)** is the default: when you speak Hindi, Flow types it in English letters, like "main kal office jaunga" or "kya haal hai", and keeps any English words as English. **Devanagari** types Hindi in Devanagari instead. Speech that is entirely English stays English, and other languages are written as you speak them. This works with every cleanup level, including None, which makes only the script change. The choice saves as soon as you tap it.
 - **Default app tone** and **tone by app**: Casual, Professional, Literal or Code. Add apps one per line as `package=tone`, for example `com.whatsapp=casual`. The most recent text field's package is shown to copy from.
 - **Dictionary**: names and terms to always spell exactly, one per line. Add an optional note after a bar, like `Spring Boot | Java framework`; the note is passed to the cleanup model, as on the Windows app.
 - **Snippets**: `my email => me@example.com`, one per line.

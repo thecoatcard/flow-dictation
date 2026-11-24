@@ -1,6 +1,7 @@
 package dev.flow.dictation
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -34,6 +35,16 @@ class CleanupPromptTest {
             golden.getValue("light-casual-personal"),
             prompt(CleanupLevel.LIGHT, Tone.CASUAL, listOf("Spring Boot | Java framework", "Angular"), "Short sentences. No exclamation marks.")
         )
+    }
+
+    @Test fun hindiRulesMatchDesktop() {
+        // Hinglish is the default, so "light-casual" above already covers it.
+        assertEquals(
+            golden.getValue("light-casual-devanagari"),
+            DictationPipeline.prompt(DictationPreferences(CleanupLevel.LIGHT, Tone.CASUAL, emptyList(), "", emptyMap(), HindiOutput.DEVANAGARI))
+        )
+        assertEquals(golden.getValue("transliterate"), DictationPipeline.transliteratePrompt)
+        assertTrue(prompt(CleanupLevel.LIGHT, Tone.CASUAL).contains("write spoken Hindi in Roman letters (Hinglish)"))
     }
 
     @Test fun guardMatchesDesktop() {

@@ -11,13 +11,14 @@ Status: built and unit-tested; dictation confirmed working against the live API 
 mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup -> paste at cursor, then your clipboard is restored.
 
 - Auto cleanup offers **None** (raw transcript), **Auto** (chooses the smallest needed edit for each dictation), **Light** (fillers, false starts, grammar) and **Medium** (also rephrases tangled speech for clarity). Light remains the default for existing and new settings. Auto makes its choice in the same cleanup request, without an extra API call. The cleanup step treats what you said as text to edit, never as instructions.
+- **Hindi** is typed as Hinglish (Hindi in English letters, like "main kal office jaunga") by default. English stays English and other languages are written as spoken. Settings can switch Hindi to Devanagari.
 - If cleanup fails or is slow, the raw transcript is inserted instead.
 - Per-app tone (casual / professional / literal / code), a dictionary, snippets, spoken commands ("new line", "new paragraph", "delete that") and a writing-style paragraph are all editable in Settings.
 
 ## Download and install (Windows)
 
-1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.6/Flow.Setup.0.0.4.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
-2. Run `Flow.Setup.0.0.4.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
+1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.7/Flow.Setup.0.0.5.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
+2. Run `Flow.Setup.0.0.5.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
 3. Get a [Google AI API key](https://aistudio.google.com/apikey). On first launch, paste it into Flow Settings, press **Test**, then use **Record 5 seconds** to check your microphone.
 4. Hold **Right Ctrl** (default), speak, and release to insert text.
 
@@ -28,14 +29,14 @@ The floating icon can be dragged to another position. In the default mode it fad
 ## Releases
 
 - [Latest release](https://github.com/thecoatcard/flow-dictation/releases/latest): one page with the Windows installer, the Android APK and the source code. For the phone build, follow the [Android guide](docs/android.md).
-- [Android 0.1.6 APK](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.6/Flow-Android-0.1.6.apk) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.6/Flow-Android-0.1.6.apk.sha256)
-- [Windows setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.6/Flow.Setup.0.0.4.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.6/Flow.Setup.0.0.4.exe.sha256)
+- [Android 0.1.7 APK](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.7/Flow-Android-0.1.7.apk) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.7/Flow-Android-0.1.7.apk.sha256)
+- [Windows setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.7/Flow.Setup.0.0.5.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.7/Flow.Setup.0.0.5.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
 
 ```powershell
-gh release download v0.1.6 --repo thecoatcard/flow-dictation --pattern '*.exe'
-Start-Process -FilePath '.\Flow.Setup.0.0.4.exe'
+gh release download v0.1.7 --repo thecoatcard/flow-dictation --pattern '*.exe'
+Start-Process -FilePath '.\Flow.Setup.0.0.5.exe'
 ```
 
 `git clone` downloads the source code; use the installer link above if you only want to run Flow.
@@ -57,7 +58,7 @@ To build the Windows setup installer from the cloned repository:
 ```powershell
 pnpm test
 pnpm --filter @flow/desktop dist
-Start-Process -FilePath '.\apps\desktop\release\Flow Setup 0.0.4.exe'
+Start-Process -FilePath '.\apps\desktop\release\Flow.Setup.0.0.5.exe'
 ```
 
 The installer is written to `apps/desktop/release/`. To update an existing clone, run `git pull --ff-only` and `pnpm install` before rebuilding.

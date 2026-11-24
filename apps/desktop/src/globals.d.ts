@@ -31,12 +31,14 @@ interface SettingsDto {
 
 type Tone = 'casual' | 'professional' | 'literal' | 'code';
 type CleanupLevel = 'none' | 'auto' | 'light' | 'medium';
+type HindiOutput = 'hinglish' | 'devanagari';
 
 interface PersonalDto {
   dictionary: Array<{ term: string; hint?: string }>;
   appTones: Record<string, Tone>;
   defaultTone: Tone;
   cleanupLevel: CleanupLevel;
+  hindiOutput: HindiOutput;
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];

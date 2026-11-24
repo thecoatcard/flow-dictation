@@ -299,6 +299,14 @@
     $('cleanupHelp').textContent = cleanupHelp[value as CleanupLevel];
     savePersonal({ cleanupLevel: value as CleanupLevel }, '', 'Cleanup level saved');
   });
+  const hindiHelp: Record<HindiOutput, string> = {
+    hinglish: 'Hindi speech is typed in English letters, like “main kal office jaunga”.',
+    devanagari: 'Hindi speech is typed in Devanagari, like “मैं कल ऑफिस जाऊँगा”.',
+  };
+  const setHindiOutput = seg('hindiOutput', (value) => {
+    $('hindiHelp').textContent = hindiHelp[value as HindiOutput];
+    savePersonal({ hindiOutput: value as HindiOutput }, '', 'Hindi style saved');
+  });
   let fresh = ''; // key of the row the user just added, so only that row animates in
 
   function listRow(
@@ -353,6 +361,8 @@
     personal = p;
     setCleanupLevel(p.cleanupLevel);
     $('cleanupHelp').textContent = cleanupHelp[p.cleanupLevel];
+    setHindiOutput(p.hindiOutput);
+    $('hindiHelp').textContent = hindiHelp[p.hindiOutput];
     toneSelect($<HTMLSelectElement>('deftone'), p.defaultTone);
     toneSelect($<HTMLSelectElement>('apptone'), 'professional');
     $('recent').replaceChildren(...p.recentApps.map((a) => new Option(a, a)));
