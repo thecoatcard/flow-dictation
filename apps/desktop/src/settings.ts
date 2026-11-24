@@ -290,6 +290,7 @@
   let personal: PersonalDto;
   const cleanupHelp: Record<CleanupLevel, string> = {
     none: 'Paste the raw transcript. Spoken line breaks and saved snippets still work.',
+    auto: 'Leave clean speech alone; use Light for small fixes and Medium only when wording is tangled.',
     light:
       'Remove fillers, accidental repeats and clear false starts; fix grammar with minimal rewriting.',
     medium: 'Also reword tangled phrases for clarity and concision while keeping your meaning.',

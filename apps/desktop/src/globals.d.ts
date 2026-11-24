@@ -30,7 +30,7 @@ interface SettingsDto {
 }
 
 type Tone = 'casual' | 'professional' | 'literal' | 'code';
-type CleanupLevel = 'none' | 'light' | 'medium';
+type CleanupLevel = 'none' | 'auto' | 'light' | 'medium';
 
 interface PersonalDto {
   dictionary: Array<{ term: string; hint?: string }>;

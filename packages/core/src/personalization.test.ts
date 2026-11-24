@@ -8,8 +8,10 @@ import { summarizeStyle } from './style';
 describe('summarizeStyle', () => {
   it('sends samples as delimited data and caps the result', async () => {
     let seen = '';
+    let system = '';
     const client: CleanupClient = {
-      generate: async (_s, user) => {
+      generate: async (instructions, user) => {
+        system = instructions;
         seen = user;
         return 'x'.repeat(2000);
       },
@@ -18,6 +20,7 @@ describe('summarizeStyle', () => {
     expect(out).toHaveLength(800);
     expect(seen.match(/<\/samples>/g)).toHaveLength(1);
     expect(seen.match(/<sample>/g)).toHaveLength(2);
+    expect(system).toContain('Do not suggest a cleanup level');
   });
 
   it('rejects empty input and empty model output', async () => {
@@ -78,6 +81,13 @@ describe('export/import', () => {
     const current = { ...defaultConfig(), cleanupLevel: 'medium' as const };
     const old = { ...exportPersonalization(defaultConfig()), cleanupLevel: undefined };
     expect(importPersonalization(current, old).cleanupLevel).toBe('medium');
+  });
+
+  it('round-trips Auto through personalization export', () => {
+    const config = { ...defaultConfig(), cleanupLevel: 'auto' as const };
+    expect(importPersonalization(defaultConfig(), exportPersonalization(config)).cleanupLevel).toBe(
+      'auto',
+    );
   });
 });
 

@@ -1,5 +1,5 @@
 export type Tone = 'casual' | 'professional' | 'literal' | 'code';
-export type CleanupLevel = 'none' | 'light' | 'medium';
+export type CleanupLevel = 'none' | 'auto' | 'light' | 'medium';
 
 export interface DictionaryEntry {
   term: string;
@@ -120,7 +120,12 @@ export function migrateConfig(raw: unknown): FlowConfig {
     }
   }
   if (isTone(raw.defaultTone)) out.defaultTone = raw.defaultTone;
-  if (raw.cleanupLevel === 'none' || raw.cleanupLevel === 'light' || raw.cleanupLevel === 'medium')
+  if (
+    raw.cleanupLevel === 'none' ||
+    raw.cleanupLevel === 'auto' ||
+    raw.cleanupLevel === 'light' ||
+    raw.cleanupLevel === 'medium'
+  )
     out.cleanupLevel = raw.cleanupLevel;
   if (Array.isArray(raw.snippets)) {
     for (const s of raw.snippets) {

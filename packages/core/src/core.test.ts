@@ -65,10 +65,34 @@ describe('prompt', () => {
     expect(medium).toContain('keep every substantive fact');
   });
 
+  it('makes Auto choose within one edit request and keeps tone subordinate', async () => {
+    const config = { ...defaultConfig(), cleanupLevel: 'auto' as const };
+    const prompt = buildSystemPrompt(config, 'professional');
+    expect(prompt).toContain('Mode: Auto');
+    expect(prompt).toContain('If it is already clear, copy its words unchanged');
+    expect(prompt).toContain('apply Light');
+    expect(prompt).toContain('apply Medium to the smallest affected span');
+    expect(prompt).toContain('Do not choose Medium because the topic is formal');
+    expect(prompt).toContain('must not change the selected cleanup level');
+    let calls = 0;
+    const client: CleanupClient = {
+      generate: async (system) => {
+        calls++;
+        expect(system).toContain('Mode: Auto');
+        return 'Meet at 7 p.m.';
+      },
+    };
+    expect(await processTranscript('Meet at 7 p.m.', { config, client })).toEqual({
+      kind: 'insert',
+      text: 'Meet at 7 p.m.',
+    });
+    expect(calls).toBe(1);
+  });
+
   it('instructs clear backtracking, punctuation, lists, and protected tokens', () => {
     const prompt = buildSystemPrompt(defaultConfig(), 'casual');
     for (const rule of [
-      'clear backtracking',
+      'clear self-correction',
       'I actually enjoyed it',
       'deliberate repetition',
       'Explicit punctuation takes precedence',
@@ -149,6 +173,7 @@ describe('pipeline failure policy', () => {
 describe('cleanup levels', () => {
   it('defaults to Light and migrates valid levels without changing old configs', () => {
     expect(defaultConfig().cleanupLevel).toBe('light');
+    expect(migrateConfig({ cleanupLevel: 'auto' }).cleanupLevel).toBe('auto');
     expect(migrateConfig({ cleanupLevel: 'medium' }).cleanupLevel).toBe('medium');
     expect(migrateConfig({ cleanupLevel: 'invalid' }).cleanupLevel).toBe('light');
   });
@@ -245,8 +270,8 @@ describe('per-app tone end to end', () => {
     for (const appId of ['Slack.exe', 'OUTLOOK', 'code']) {
       await processTranscript('hi there', { config, client, appId });
     }
-    expect(systems[0]).toContain('Tone: casual');
-    expect(systems[1]).toContain('Tone: professional');
+    expect(systems[0]).toContain('App formatting: casual');
+    expect(systems[1]).toContain('App formatting: professional');
     expect(systems[2]).toContain('code context');
     expect(systems.every((s) => s.includes('- Spring Boot'))).toBe(true);
   });
