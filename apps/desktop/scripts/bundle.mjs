@@ -11,7 +11,7 @@ const result = await build({
   format: 'cjs',
   target: 'node20',
   sourcemap: true,
-  external: ['electron', 'uiohook-napi', 'koffi', 'active-win'],
+  external: ['electron', 'electron-updater', 'uiohook-napi', 'koffi', 'active-win'],
   logLevel: 'warning',
   // Written with node's fs: esbuild's own file writes fail with "Access is denied" on some Windows setups.
   write: false,

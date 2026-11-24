@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -30,6 +31,7 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Floating dictation button that stays available beside the keyboard until the user stops it" />
         </service>
+        <receiver android:name=".UpdateReceiver" android:exported="false" />
         <service android:name=".FlowAccessibilityService"
             android:exported="true"
             android:label="Flow text insertion"

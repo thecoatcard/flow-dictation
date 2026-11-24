@@ -37,6 +37,15 @@ class FlowSettings(context: Context) {
         get() = enumValue(prefs.getString("hindi-output", null), HindiOutput.HINGLISH)
         set(value) { prefs.edit().putString("hindi-output", value.name).apply() }
 
+    /** Version of an update that is already downloaded and verified, waiting for the user to install it. */
+    var readyUpdate: String
+        get() = prefs.getString("ready-update", "").orEmpty()
+        set(value) { prefs.edit().putString("ready-update", value).apply() }
+
+    var lastUpdateCheck: Long
+        get() = prefs.getLong("last-update-check", 0L)
+        set(value) { prefs.edit().putLong("last-update-check", value).apply() }
+
     var cleanupLevel: CleanupLevel
         get() = enumValue(prefs.getString("cleanup-level", null), CleanupLevel.LIGHT)
         set(value) { prefs.edit().putString("cleanup-level", value.name).apply() }

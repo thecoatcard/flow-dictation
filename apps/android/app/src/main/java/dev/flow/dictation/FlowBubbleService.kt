@@ -94,6 +94,12 @@ class FlowBubbleService : Service() {
     private var wave: WaveformView? = null
     private var cancelButton: ImageView? = null
     private var dockedRight = true
+    private val updateCheck = object : Runnable {
+        override fun run() {
+            scope.launch { checkForUpdate() }
+            handler.postDelayed(this, 24 * 60 * 60 * 1000L) // once a day, no wake locks
+        }
+    }
     private val audioBytes = java.util.concurrent.atomic.AtomicLong()
     private var params: WindowManager.LayoutParams? = null
     private var state = State.IDLE
@@ -122,6 +128,7 @@ class FlowBubbleService : Service() {
             if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
             createBubble()
             refreshVisibility()
+            handler.postDelayed(updateCheck, 60_000)
         } catch (_: SecurityException) { stopSelf() }
     }
 
@@ -150,7 +157,30 @@ class FlowBubbleService : Service() {
         } catch (_: Exception) { /* keep the current type; recording is still allowed while the overlay is visible */ }
     }
 
+    /** Looks for a newer release; on Wi-Fi it downloads and verifies it so installing is one tap. */
+    private suspend fun checkForUpdate() {
+        try {
+            val info = Updater.check(this) ?: return
+            settings.lastUpdateCheck = System.currentTimeMillis()
+            if (settings.readyUpdate != info.version || !Updater.readyFile(this, info.version).exists()) {
+                if (!isUnmetered()) return // wait for Wi-Fi rather than spend mobile data
+                Updater.download(this, info)
+                settings.readyUpdate = info.version
+            }
+            promote(micActive = state != State.IDLE) // refreshes the foreground notification, now showing the update
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) { /* offline or rate limited: try again tomorrow */ }
+    }
+
+    private fun isUnmetered(): Boolean {
+        val manager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        return manager.getNetworkCapabilities(manager.activeNetwork)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
+    }
+
     override fun onDestroy() {
+        handler.removeCallbacks(updateCheck)
         handler.removeCallbacks(fade)
         cancelActive()
         bubble?.let { runCatching { windows.removeView(it) } }
@@ -554,12 +584,16 @@ class FlowBubbleService : Service() {
     }
 
     private fun notification(message: String): Notification {
-        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val ready = settings.readyUpdate.takeIf { it.isNotEmpty() && Updater.isNewer(it, Updater.installedVersion(this)) }
+        val text = if (ready != null) "Update $ready is ready. Tap to install." else message
+        val open = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java).putExtra("install-update", ready != null), PendingIntent.FLAG_IMMUTABLE
+        )
         val stop = PendingIntent.getService(this, 1, Intent(this, FlowBubbleService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, "flow-bubble")
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Flow")
-            .setContentText(message)
+            .setContentText(text)
             .setContentIntent(open)
             .addAction(Notification.Action.Builder(null, "Stop", stop).build())
             .setOngoing(true)

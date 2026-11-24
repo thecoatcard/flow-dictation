@@ -47,6 +47,9 @@ class MainActivity : Activity() {
     private lateinit var testProgress: ProgressBar
     private lateinit var key: EditText
     private lateinit var usageText: TextView
+    private lateinit var updateText: TextView
+    private lateinit var updateButton: Button
+    private var pendingUpdate: UpdateInfo? = null
 
     private companion object {
         const val EXPORT_REQUEST = 41
@@ -298,6 +301,13 @@ class MainActivity : Activity() {
             else { settings.sttUsdPerHour = value; status.text = "Price saved."; refreshStatus() }
         }
 
+        val updates = column.section("UPDATES")
+        updateText = updates.label("Flow ${Updater.installedVersion(this)}")
+        updateButton = updates.button("Check for updates", primary = true) {
+            pendingUpdate?.let { installUpdate(it) } ?: checkUpdates(thenInstall = false)
+        }
+        updates.label("Flow looks for new versions on GitHub about once a day and downloads them over Wi-Fi. Android always asks you to confirm an install.")
+
         val backup = column.section("BACKUP")
         backup.label("Move your dictionary, tones, cleanup level, snippets and style between your phone and PC. Your API key stays behind. Import replaces your current settings.")
         backup.button("Export…") {
@@ -331,9 +341,63 @@ class MainActivity : Activity() {
         super.onResume()
         FlowBubbleService.ensureRunning(this) // on by default once the permissions are granted
         refreshStatus()
+        val fromNotification = intent.getBooleanExtra("install-update", false)
+        intent.removeExtra("install-update")
+        if (fromNotification || System.currentTimeMillis() - settings.lastUpdateCheck > 6 * 60 * 60 * 1000L)
+            checkUpdates(thenInstall = fromNotification)
     }
 
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
+
+    private fun checkUpdates(thenInstall: Boolean) {
+        updateButton.isEnabled = false
+        updateText.text = "Checking for updates…"
+        scope.launch {
+            try {
+                val info = Updater.check(this@MainActivity)
+                settings.lastUpdateCheck = System.currentTimeMillis()
+                pendingUpdate = info
+                if (info == null) {
+                    updateText.text = "Flow ${Updater.installedVersion(this@MainActivity)} is up to date."
+                    updateButton.text = "Check for updates"
+                } else {
+                    updateText.text = "Version ${info.version} is available."
+                    updateButton.text = "Download and install ${info.version}"
+                    updateButton.isEnabled = true
+                    if (thenInstall) installUpdate(info)
+                }
+            } catch (error: Exception) {
+                updateText.text = error.message ?: "Could not check for updates."
+            } finally {
+                updateButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun installUpdate(info: UpdateInfo) {
+        if (!packageManager.canRequestPackageInstalls()) {
+            startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+            updateText.text = "Allow Flow to install updates, come back, then tap again."
+            return
+        }
+        updateButton.isEnabled = false
+        scope.launch {
+            try {
+                val ready = Updater.readyFile(this@MainActivity, info.version)
+                val file = if (ready.exists() && settings.readyUpdate == info.version) ready else {
+                    updateText.text = "Downloading ${info.version}…"
+                    Updater.download(this@MainActivity, info)
+                }
+                settings.readyUpdate = info.version
+                updateText.text = "Installing ${info.version}…"
+                Updater.install(this@MainActivity, file)
+            } catch (error: Exception) {
+                updateText.text = error.message ?: "Could not install the update."
+            } finally {
+                updateButton.isEnabled = true
+            }
+        }
+    }
 
     private fun refreshStatus() {
         if (!::status.isInitialized) return

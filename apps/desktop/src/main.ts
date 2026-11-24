@@ -26,6 +26,7 @@ import { Inserter } from './inserter';
 import { Overlay } from './overlay-window';
 import { checkPermissions, openPermissionSettings } from './permissions';
 import { KeyVault } from './secret';
+import { checkForUpdatesNow, startAutoUpdate } from './updater';
 import { UsageStore } from './usage-store';
 
 const APP_NAME = 'Flow';
@@ -95,6 +96,7 @@ function createTray(dictation: Dictation): void {
         click: () => dictation.lastText && clipboard.writeText(dictation.lastText),
       },
       { label: 'Settings…', click: openSettings },
+      { label: 'Check for updates', click: () => void checkForUpdatesNow() },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ]),
@@ -340,6 +342,7 @@ if (!app.requestSingleInstanceLock()) {
     uIOhook.start();
 
     createTray(dictation);
+    startAutoUpdate();
     overlay.refresh(); // briefly shows the idle icon; the renderer fades it after inactivity
     if (!svc.vault.has()) openSettings(); // first run: go straight to setup
   });

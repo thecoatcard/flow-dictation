@@ -1,6 +1,6 @@
 {
   "name": "@flow/desktop",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": true,
   "description": "Flow: push-to-talk dictation",
   "author": "Flow",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "active-win": "^9.0.0",
+    "electron-updater": "^6.6.2",
     "koffi": "^3.3.8",
     "uiohook-napi": "^1.5.5"
   },
@@ -30,6 +31,13 @@
   },
   "build": {
     "appId": "dev.flow.dictation",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "thecoatcard",
+        "repo": "flow-dictation"
+      }
+    ],
     "productName": "Flow",
     "npmRebuild": false,
     "directories": {
@@ -58,7 +66,7 @@
       "icon": "assets/icon.png"
     },
     "nsis": {
-      "artifactName": "Flow Setup ${version}.exe",
+      "artifactName": "Flow.Setup.${version}.exe",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
