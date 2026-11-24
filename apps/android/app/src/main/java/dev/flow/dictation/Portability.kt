@@ -9,7 +9,13 @@ private const val EXPORT_KIND = "flow-personalization"
 fun FlowSettings.exportPersonalization(): String = JSONObject()
     .put("kind", EXPORT_KIND)
     .put("version", 1)
-    .put("dictionary", JSONArray().also { list -> dictionary.forEach { list.put(JSONObject().put("term", it)) } })
+    .put("dictionary", JSONArray().also { list ->
+        dictionary.forEach { line ->
+            val entry = JSONObject().put("term", line.substringBefore('|').trim())
+            line.substringAfter('|', "").trim().takeIf(String::isNotEmpty)?.let { entry.put("hint", it) }
+            list.put(entry)
+        }
+    })
     .put("appTones", JSONObject().also { map -> appTones.forEach { (app, tone) -> map.put(app, tone.name.lowercase()) } })
     .put("defaultTone", defaultTone.name.lowercase())
     .put("cleanupLevel", cleanupLevel.name.lowercase())
@@ -28,7 +34,12 @@ fun FlowSettings.importPersonalization(raw: String) {
     fun tone(value: String?) = Tone.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
 
     val terms = root.optJSONArray("dictionary")?.let { list ->
-        (0 until list.length()).mapNotNull { list.optJSONObject(it)?.optString("term")?.trim()?.takeIf(String::isNotEmpty) }
+        (0 until list.length()).mapNotNull {
+            val item = list.optJSONObject(it) ?: return@mapNotNull null
+            val term = item.optString("term").trim().takeIf(String::isNotEmpty) ?: return@mapNotNull null
+            val hint = item.optString("hint").trim()
+            if (hint.isEmpty()) term else "$term | $hint"
+        }
     }.orEmpty()
     val tones = root.optJSONObject("appTones")?.let { map ->
         map.keys().asSequence().mapNotNull { app -> tone(map.optString(app))?.let { app.trim().lowercase() to it } }

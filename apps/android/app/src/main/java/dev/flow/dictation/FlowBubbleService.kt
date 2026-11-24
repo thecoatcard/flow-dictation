@@ -152,7 +152,7 @@ class FlowBubbleService : Service() {
         val view = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
-            setPadding(14.dp, 12.dp, 14.dp, 12.dp)
+            setPadding(9.dp, 9.dp, 9.dp, 9.dp)
             background = GradientDrawable().apply {
                 setColor(SURFACE)
                 cornerRadius = 28.dp.toFloat()
@@ -178,7 +178,7 @@ class FlowBubbleService : Service() {
             setColorFilter(ACCENT)
             contentDescription = null
         }
-        view.addView(icon, LinearLayout.LayoutParams(32.dp, 32.dp))
+        view.addView(icon, LinearLayout.LayoutParams(22.dp, 22.dp))
         label = TextView(this).apply {
             setTextColor(Color.WHITE)
             textSize = 13.5f
@@ -309,7 +309,7 @@ class FlowBubbleService : Service() {
         audioBytes.set(0)
         bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         showStatus("Starting mic…")
-        val live = GeminiLiveTranscriber(key, settings.dictionary)
+        val live = GeminiLiveTranscriber(key, settings.dictionary.map { it.substringBefore('|').trim() })
         val mic = MicRecorder()
         val audioLock = Any()
         val pendingAudio = ArrayDeque<ByteArray>()
@@ -447,6 +447,9 @@ class FlowBubbleService : Service() {
         wave?.visibility = if (working) View.VISIBLE else View.GONE
         cancelButton?.visibility = if (working) View.VISIBLE else View.GONE
         val confirm = icon ?: return
+        // Idle is a 40 dp circle, a little smaller than WhatsApp's 48 dp mic button; the ✓ button is larger.
+        val size = if (working) 30.dp else 22.dp
+        if (confirm.layoutParams.width != size) confirm.layoutParams = LinearLayout.LayoutParams(size, size)
         if (working) {
             confirm.visibility = if (listening) View.VISIBLE else View.GONE
             confirm.setImageResource(R.drawable.ic_done)

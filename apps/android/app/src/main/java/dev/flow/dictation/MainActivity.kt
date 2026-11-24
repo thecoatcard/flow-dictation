@@ -202,9 +202,9 @@ class MainActivity : Activity() {
         val tonePicker = controls.picker(tones.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
         tonePicker.setSelection(tones.indexOf(settings.defaultTone))
         val personal = column.section("PERSONALIZATION")
-        personal.label("Dictionary: one spelling per line", 18f)
+        personal.label("Dictionary: one term per line, optional note after |", 18f)
         val dictionary = EditText(this).apply {
-            hint = "Spring Boot\nAngular"
+            hint = "Spring Boot | Java framework\nAngular"
             minLines = 3
             setText(settings.dictionary.joinToString("\n"))
             styleField()

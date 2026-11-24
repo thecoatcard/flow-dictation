@@ -141,6 +141,9 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
     fun close() { socket?.close(1000, null); socket = null }
 }
 
+/** A cleanup request failure; `permanent` ones (bad key, quota) are not worth retrying. */
+class CleanupFailure(message: String, val permanent: Boolean) : IOException(message)
+
 class GeminiEditor(private val key: String) {
     suspend fun edit(system: String, transcript: String, timeoutMs: Long = 2_500): String {
         val body = JSONObject()
@@ -158,7 +161,7 @@ class GeminiEditor(private val key: String) {
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, error: IOException) {
-                    if (continuation.isActive) continuation.resumeWithException(IOException("Cleanup request failed."))
+                    if (continuation.isActive) continuation.resumeWithException(CleanupFailure("Cleanup request failed.", permanent = false))
                 }
 
                 override fun onResponse(call: Call, response: Response) {
@@ -171,7 +174,7 @@ class GeminiEditor(private val key: String) {
                                 429 -> "Cleanup quota reached (HTTP 429)."
                                 else -> "Cleanup request failed (HTTP ${response.code})."
                             }
-                            continuation.resumeWithException(IOException(detail))
+                            continuation.resumeWithException(CleanupFailure(detail, permanent = response.code in setOf(401, 403, 429)))
                             return
                         }
                         try {
@@ -179,7 +182,10 @@ class GeminiEditor(private val key: String) {
                                 .getJSONArray("candidates").getJSONObject(0)
                                 .getJSONObject("content").getJSONArray("parts")
                             val result = buildString {
-                                for (i in 0 until candidate.length()) append(candidate.getJSONObject(i).optString("text"))
+                                for (i in 0 until candidate.length()) {
+                                    val part = candidate.getJSONObject(i)
+                                    if (!part.optBoolean("thought")) append(part.optString("text")) // like the SDK's res.text
+                                }
                             }
                             continuation.resume(result)
                         } catch (_: Exception) {

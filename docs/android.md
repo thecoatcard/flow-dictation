@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the latest *
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.3.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.4.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.3.apk
+adb install -r .\Flow-Android-0.1.4.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -67,7 +67,7 @@ The *Allow restricted settings* item only appears after you have tried to open t
 
 | Pill | Meaning |
 | --- | --- |
-| Small mic with a violet ring | Ready. Fades slightly after 5 seconds and returns when touched. |
+| Small round mic with a violet ring | Ready. Fades slightly after 5 seconds and returns when touched. |
 | **✕** · waveform · **✓** | Listening. **✕** cancels, **✓** finishes. The bars move with your voice. |
 | Waveform pulse | Writing your text. **✕** cancels. |
 | Check or warning text | Result, such as *Inserted*, *No speech heard* or an error. |
@@ -86,7 +86,7 @@ All of these are on the main screen and match the Windows app.
 
 - **Auto cleanup** sets how much Flow edits after transcription, for every app. **None** pastes the raw transcript. **Auto** leaves clean speech alone and uses a light edit only when needed. **Light** removes fillers, repeats and false starts and fixes grammar with minimal rewriting. **Medium** also rewords tangled phrases. The choice saves as soon as you tap it.
 - **Default app tone** and **tone by app**: Casual, Professional, Literal or Code. Add apps one per line as `package=tone`, for example `com.whatsapp=casual`. The most recent text field's package is shown to copy from.
-- **Dictionary**: names and terms to always spell exactly, one per line.
+- **Dictionary**: names and terms to always spell exactly, one per line. Add an optional note after a bar, like `Spring Boot | Java framework`; the note is passed to the cleanup model, as on the Windows app.
 - **Snippets**: `my email => me@example.com`, one per line.
 - **Writing style**: a short description of how you write. **Draft my style** reads two or three pieces of your own writing (separated by a blank line), sends them to Google once, and writes the style paragraph for you to edit. The samples are not kept.
 - Tap **Save preferences** after editing the text boxes.
@@ -104,7 +104,7 @@ All of these are on the main screen and match the Windows app.
 - Your key stays on the phone, encrypted with the Android Keystore; app backups are disabled.
 - Audio goes straight from the phone to Google's Gemini API as 16 kHz mono PCM, only while you dictate. Cleanup sends the transcript text to Google.
 - Audio and transcripts are not logged or stored. Accessibility is used only to find the field you selected, read its current text and cursor, and insert your dictation. The app's package name is remembered for per-app tone.
-- A cleanup failure never loses your words; the raw transcript is used instead.
+- A cleanup failure never loses your words; the raw transcript is used instead. Cleanup uses the same prompt, safety checks and one-retry rule as the Windows app, and a test compares the prompt to the desktop's output.
 
 ## Troubleshooting
 
@@ -144,4 +144,4 @@ Use JDK 17: Gradle 8.9 does not run on newer JDKs. The debug APK is signed with 
 - Early test build, tested on a single device. Behaviour in other apps, keyboards and phone makers will vary; some custom editors reject Accessibility text actions.
 - Not on the Play Store, so Play Protect and the restricted-setting step apply.
 - Needs an internet connection; there is no offline mode.
-- The Windows app's microphone check, dictionary notes and tone-by-app list are not on Android yet.
+- The Windows app's microphone check and tone-by-app list are not on Android yet.

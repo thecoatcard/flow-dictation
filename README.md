@@ -28,7 +28,7 @@ The floating icon can be dragged to another position. In the default mode it fad
 ## Releases
 
 - [Latest release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/latest) — Windows x64 preview.
-- [Android 0.1.3 APK](https://github.com/thecoatcard/flow-dictation/releases/tag/android-v0.1.3) — early sideload build; follow the [Android guide](docs/android.md).
+- [Android 0.1.4 APK](https://github.com/thecoatcard/flow-dictation/releases/tag/android-v0.1.4) — early sideload build; follow the [Android guide](docs/android.md).
 - [v0.0.4 setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
