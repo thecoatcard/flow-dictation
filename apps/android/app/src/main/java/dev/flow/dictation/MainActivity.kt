@@ -17,6 +17,7 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.TextView
+import android.widget.ProgressBar
 import android.app.Activity
 import android.app.AlertDialog
 import kotlinx.coroutines.CoroutineScope
@@ -24,46 +25,60 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
+import android.content.res.ColorStateList
 
 class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var settings: FlowSettings
     private lateinit var status: TextView
+    private lateinit var setupStatus: TextView
     private lateinit var permission: Button
     private lateinit var overlayPermission: Button
     private lateinit var accessPermission: Button
     private lateinit var bubbleButton: Button
     private lateinit var testButton: Button
+    private lateinit var saveKeyButton: Button
+    private lateinit var apiStatus: TextView
+    private lateinit var testProgress: ProgressBar
     private lateinit var key: EditText
+    private lateinit var usageText: TextView
+
+    private companion object {
+        const val EXPORT_REQUEST = 41
+        const val IMPORT_REQUEST = 42
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(13, 21, 34)
-        window.navigationBarColor = Color.rgb(13, 21, 34)
+        window.statusBarColor = Color.rgb(18, 20, 23)
+        window.navigationBarColor = Color.rgb(18, 20, 23)
         settings = FlowSettings(this)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20.dp, 24.dp, 20.dp, 40.dp)
-            setBackgroundColor(Color.rgb(13, 21, 34))
+            setBackgroundColor(Color.rgb(18, 20, 23))
         }
         val scroll = ScrollView(this).apply { addView(column) }
         setContentView(scroll)
 
-        column.label("FLOW", 14f)
-        column.label("Speak anywhere.", 28f)
+        column.label("FLOW / ANDROID", 14f)
+        column.label("Speak anywhere.", 30f)
         column.label("Keep your usual keyboard. Tap or hold the floating mic in a text field to dictate.")
         status = column.label("")
-        column.label("GET READY", 18f)
-        column.label("Allow these once. Flow appears alongside your keyboard and inserts into the field you selected.")
-        permission = column.button("Allow microphone") {
+        val setup = column.section("GET READY")
+        setup.label("Allow these once. Flow appears alongside your keyboard and inserts into the field you selected.")
+        permission = setup.button("Allow microphone") {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
         }
-        overlayPermission = column.button("Allow floating bubble") {
+        overlayPermission = setup.button("Allow floating bubble") {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
-        accessPermission = column.button("Allow text insertion") {
+        accessPermission = setup.button("Allow text insertion") {
             AlertDialog.Builder(this)
                 .setTitle("Allow Flow to insert dictated text?")
                 .setMessage(
@@ -80,14 +95,26 @@ class MainActivity : Activity() {
                 }
                 .show()
         }
-        bubbleButton = column.button("Show floating mic") {
-            if (FlowBubbleService.active != null) stopService(Intent(this, FlowBubbleService::class.java))
+        bubbleButton = setup.button("Show floating mic", primary = true) {
+            if (FlowBubbleService.active != null) {
+                stopService(Intent(this, FlowBubbleService::class.java))
+                setupStatus.text = "Floating mic stopped."
+                bubbleButton.text = "Show floating mic"
+            }
             else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
-                Settings.canDrawOverlays(this) && FlowAccessibilityService.active != null)
+                Settings.canDrawOverlays(this) && FlowAccessibilityService.active != null) {
                 startForegroundService(Intent(this, FlowBubbleService::class.java))
-            else status.text = "Allow microphone, floating bubble and text insertion first."
+                setupStatus.text = "Floating mic started. Open a text field in another app."
+                bubbleButton.text = "Stop floating mic"
+            } else setupStatus.text = "Allow microphone, floating bubble and text insertion first."
         }
-        column.button("Copy last dictation") {
+        setupStatus = setup.label("Open a text field after starting the floating mic.")
+        setup.button("Reset bubble position") {
+            settings.bubblePosition = null
+            FlowBubbleService.active?.resetPosition()
+            setupStatus.text = "Bubble moved back to the right edge."
+        }
+        setup.button("Copy last dictation") {
             val text = FlowBubbleService.active?.lastText.orEmpty()
             if (text.isEmpty()) status.text = "No dictation to copy yet."
             else {
@@ -97,81 +124,133 @@ class MainActivity : Activity() {
             }
         }
 
-        column.label("Google Gemini API key", 18f)
-        column.label("Stored using Android Keystore. Audio and cleanup text go directly to Google.")
+        val api = column.section("GOOGLE API")
+        api.label("Stored using Android Keystore. Audio and cleanup text go directly to Google.")
         key = EditText(this).apply {
-            hint = if (settings.apiKey() == null) "Paste API key" else "Key saved securely"
+            hint = if (settings.hasApiKey()) "Key saved securely" else "Paste API key"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             isSingleLine = true
+            styleField()
         }
-        column.addView(key)
-        column.button("Save API key") {
-            try {
-                settings.saveApiKey(key.text.toString())
-                key.text.clear()
-                key.hint = "Key saved securely"
-                refreshStatus()
-            } catch (error: Exception) { status.text = error.message ?: "Could not save key." }
-        }
-        testButton = column.button("Test API connection") {
-            val saved = settings.apiKey()
-            if (saved == null) { status.text = "Save an API key first."; return@button }
-            testButton.isEnabled = false
+        api.addView(key)
+        saveKeyButton = api.button("Save API key") {
+            val value = key.text.toString()
+            apiStatus.text = "Saving key…"
+            saveKeyButton.isEnabled = false
             scope.launch {
                 try {
-                    testGeminiApi(saved) { step -> runOnUiThread { status.text = step } }
-                    status.text = "API ready: cleanup and Live transcription connected."
-                } catch (error: Exception) { status.text = error.message ?: "API test failed." }
-                finally { testButton.isEnabled = true }
+                    withContext(Dispatchers.IO) { settings.saveApiKey(value) }
+                    key.text.clear()
+                    key.hint = "Key saved securely"
+                    apiStatus.text = "Key saved securely. Test the connection below."
+                    refreshStatus()
+                } catch (error: Exception) {
+                    apiStatus.text = error.message ?: "Could not save key."
+                } finally {
+                    saveKeyButton.isEnabled = true
+                }
             }
         }
-        column.button("Remove API key") {
+        testButton = api.button("Test API connection", primary = true) {
+            testButton.isEnabled = false
+            apiStatus.text = "Reading saved key…"
+            testProgress.visibility = View.VISIBLE
+            scope.launch {
+                try {
+                    val saved = withContext(Dispatchers.IO) { settings.apiKey() }
+                        ?: throw IllegalStateException("Save an API key first.")
+                    withTimeout(12_000) {
+                        testGeminiApi(saved) { step -> runOnUiThread { apiStatus.text = step } }
+                    }
+                    apiStatus.text = "API ready: cleanup and Live transcription connected."
+                } catch (error: Exception) { apiStatus.text = error.message ?: "API test failed." }
+                finally { testButton.isEnabled = true; testProgress.visibility = View.GONE }
+            }
+        }
+        apiStatus = api.label("Save a key, then test both Gemini models.")
+        testProgress = ProgressBar(this, null, android.R.attr.progressBarStyleSmall).apply {
+            isIndeterminate = true
+            visibility = View.GONE
+        }
+        api.addView(testProgress)
+        api.button("Remove API key") {
             settings.clearApiKey()
             key.hint = "Paste API key"
+            apiStatus.text = "Key removed."
             refreshStatus()
         }
 
-        column.label("Cleanup", 18f)
+        val cleanup = column.section("AUTO CLEANUP")
+        cleanup.label("Choose how much Flow edits after transcription. Applies to every app.")
         val levels = CleanupLevel.entries
-        val levelPicker = column.picker(levels.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
-        levelPicker.setSelection(levels.indexOf(settings.cleanupLevel))
-        column.label("None keeps raw speech. Auto chooses the smallest useful edit in one request. Light makes minimal fixes. Medium can rephrase tangled wording.")
+        val cleanupHelp = mapOf(
+            CleanupLevel.NONE to "Paste the raw transcript. Spoken line breaks and saved snippets still work.",
+            CleanupLevel.AUTO to "Leave clean speech alone; use Light for small fixes and Medium only when wording is tangled.",
+            CleanupLevel.LIGHT to "Remove fillers, accidental repeats and clear false starts; fix grammar with minimal rewriting.",
+            CleanupLevel.MEDIUM to "Also reword tangled phrases for clarity and concision while keeping your meaning.",
+        )
+        val help = cleanup.label(cleanupHelp.getValue(settings.cleanupLevel))
+        cleanup.segmented(levels.map { it.name.lowercase().replaceFirstChar(Char::uppercase) }, levels.indexOf(settings.cleanupLevel)) { index ->
+            settings.cleanupLevel = levels[index]
+            help.text = cleanupHelp.getValue(levels[index])
+            status.text = "Cleanup level saved."
+        }
 
-        column.label("Default app tone", 18f)
+        val controls = column.section("DICTATION")
+        controls.label("Default app tone", 18f)
         val tones = Tone.entries
-        val tonePicker = column.picker(tones.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
+        val tonePicker = controls.picker(tones.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
         tonePicker.setSelection(tones.indexOf(settings.defaultTone))
-        column.label("Dictionary: one spelling per line", 18f)
+        val personal = column.section("PERSONALIZATION")
+        personal.label("Dictionary: one spelling per line", 18f)
         val dictionary = EditText(this).apply {
             hint = "Spring Boot\nAngular"
             minLines = 3
             setText(settings.dictionary.joinToString("\n"))
+            styleField()
         }
-        column.addView(dictionary)
-        column.label("Writing style", 18f)
+        personal.addView(dictionary)
+        personal.label("Writing style", 18f)
         val style = EditText(this).apply {
             hint = "Concise, natural, no exclamation marks"
             minLines = 3
             setText(settings.style)
+            styleField()
         }
-        column.addView(style)
-        column.label("Snippets: phrase => replacement, one per line", 18f)
+        personal.addView(style)
+        personal.label("Learn it from your writing", 18f)
+        personal.label("Paste two or three pieces of your own writing, separated by a blank line. Flow sends them to Google once to draft the style above, then forgets them.")
+        val samples = EditText(this).apply { minLines = 4; styleField() }
+        personal.addView(samples)
+        personal.button("Draft my style") {
+            status.text = "Drafting your style…"
+            scope.launch {
+                try {
+                    val saved = withContext(Dispatchers.IO) { settings.apiKey() } ?: throw IllegalStateException("Save an API key first.")
+                    style.setText(draftStyle(saved, samples.text.toString()))
+                    samples.text.clear()
+                    status.text = "Style drafted. Edit it if you like, then save preferences."
+                } catch (error: Exception) { status.text = error.message ?: "Could not draft a style." }
+            }
+        }
+        personal.label("Snippets: phrase => replacement, one per line. \"New line\", \"new paragraph\" and \"delete that\" already work.", 18f)
         val snippets = EditText(this).apply {
             hint = "my email => me@example.com"
             minLines = 3
             setText(settings.snippets.entries.joinToString("\n") { "${it.key} => ${it.value}" })
+            styleField()
         }
-        column.addView(snippets)
-        column.label("Tone by app package (optional)", 18f)
-        column.label("Most recent text field: ${settings.recentApp.ifEmpty { "none yet" }}. One line per app, for example com.whatsapp=casual.")
+        personal.addView(snippets)
+        personal.label("Tone by app package (optional)", 18f)
+        personal.label("Most recent text field: ${settings.recentApp.ifEmpty { "none yet" }}. One line per app, for example com.whatsapp=casual.")
         val appTones = EditText(this).apply {
             hint = "com.whatsapp=casual\ncom.google.android.gm=professional"
             minLines = 3
             setText(settings.appTones.entries.joinToString("\n") { "${it.key}=${it.value.name.lowercase()}" })
+            styleField()
         }
-        column.addView(appTones)
-        column.button("Save preferences") {
-            settings.cleanupLevel = levels[levelPicker.selectedItemPosition]
+        personal.addView(appTones)
+        personal.button("Save preferences", primary = true) {
             settings.defaultTone = tones[tonePicker.selectedItemPosition]
             settings.dictionary = dictionary.text.toString().lines().map(String::trim).filter(String::isNotEmpty)
             settings.style = style.text.toString()
@@ -188,6 +267,49 @@ class MainActivity : Activity() {
             }.toMap()
             status.text = "Preferences saved."
         }
+
+        val usage = column.section("USAGE")
+        usageText = usage.label("")
+        usage.label("Speech price per hour (US$). Google's live transcription price is not clearly published; check ai.google.dev/pricing and enter the real figure.")
+        val rate = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(settings.sttUsdPerHour.toString())
+            styleField()
+        }
+        usage.addView(rate)
+        usage.button("Save price") {
+            val value = rate.text.toString().toFloatOrNull()
+            if (value == null || value < 0f) status.text = "Enter a price like 0.54."
+            else { settings.sttUsdPerHour = value; status.text = "Price saved."; refreshStatus() }
+        }
+
+        val backup = column.section("BACKUP")
+        backup.label("Move your dictionary, tones, cleanup level, snippets and style between your phone and PC. Your API key stays behind. Import replaces your current settings.")
+        backup.button("Export…") {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json").putExtra(Intent.EXTRA_TITLE, "flow-personalization.json"), EXPORT_REQUEST)
+        }
+        backup.button("Import…") {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*"), IMPORT_REQUEST)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data ?: return
+        if (resultCode != RESULT_OK) return
+        try {
+            if (requestCode == EXPORT_REQUEST) {
+                contentResolver.openOutputStream(uri, "wt")!!.use { it.write(settings.exportPersonalization().toByteArray()) }
+                status.text = "Exported."
+            } else if (requestCode == IMPORT_REQUEST) {
+                val raw = contentResolver.openInputStream(uri)!!.use { it.readBytes().take(1_000_000).toByteArray().toString(Charsets.UTF_8) }
+                settings.importPersonalization(raw)
+                recreate() // reload every field from the imported settings
+            }
+        } catch (error: Exception) { status.text = error.message ?: "Backup failed." }
     }
 
     override fun onResume() {
@@ -202,30 +324,97 @@ class MainActivity : Activity() {
         val mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val overlay = Settings.canDrawOverlays(this)
         val access = FlowAccessibilityService.active != null
-        status.text = "Mic ${if (mic) "ready" else "needed"} · Bubble ${if (overlay) "ready" else "needed"} · Text access ${if (access) "ready" else "needed"} · Key ${if (settings.apiKey() != null) "saved" else "missing"}"
+        val hasKey = settings.hasApiKey()
+        status.text = "Mic ${if (mic) "ready" else "needed"} · Bubble ${if (overlay) "ready" else "needed"} · Text access ${if (access) "ready" else "needed"} · Key ${if (hasKey) "saved" else "missing"}"
+        status.setTextColor(if (mic && overlay && access && hasKey)
+            Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
         permission.text = if (mic) "✓ Microphone allowed" else "Allow microphone"
         overlayPermission.text = if (overlay) "✓ Floating bubble allowed" else "Allow floating bubble"
         accessPermission.text = if (access) "✓ Text insertion allowed" else "Allow text insertion"
         bubbleButton.text = if (FlowBubbleService.active != null) "Stop floating mic" else "Show floating mic"
+        val used = settings.usage()
+        val minutes = used.audioSeconds / 60
+        val cost = used.audioSeconds / 3600 * settings.sttUsdPerHour
+        usageText.text = "This month: ${used.dictations} dictations · ${"%.1f".format(minutes)} minutes of speech · about US$${"%.2f".format(cost)} for transcription (cleanup cost not counted)."
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
 
+    private fun LinearLayout.section(title: String): LinearLayout {
+        val card = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16.dp, 12.dp, 16.dp, 18.dp)
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(27, 30, 35))
+                cornerRadius = 18.dp.toFloat()
+                setStroke(1.dp, Color.rgb(42, 47, 54))
+            }
+        }
+        card.label(title, 18f)
+        addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 18.dp })
+        return card
+    }
+
+    private fun EditText.styleField() {
+        setTextColor(Color.rgb(233, 236, 240))
+        setHintTextColor(Color.rgb(152, 162, 173))
+        setPadding(12.dp, 10.dp, 12.dp, 10.dp)
+        background = GradientDrawable().apply {
+            setColor(Color.rgb(20, 23, 27))
+            cornerRadius = 10.dp.toFloat()
+            setStroke(1.dp, Color.rgb(42, 47, 54))
+        }
+    }
+
     private fun LinearLayout.label(text: String, size: Float = 15f): TextView = TextView(this@MainActivity).also {
         it.text = text
         it.textSize = size
-        it.setTextColor(if (size >= 18f) Color.WHITE else Color.rgb(174, 194, 209))
+        it.setTextColor(if (size >= 18f) Color.rgb(233, 236, 240) else Color.rgb(152, 162, 173))
         it.setPadding(0, 15.dp, 0, 7.dp)
         addView(it)
     }
 
-    private fun LinearLayout.button(text: String, action: () -> Unit): Button = Button(this@MainActivity).also {
+    private fun LinearLayout.button(text: String, primary: Boolean = false, action: () -> Unit): Button = Button(this@MainActivity).also {
         it.text = text
         it.isAllCaps = false
-        it.setTextColor(Color.WHITE)
-        it.background = GradientDrawable().apply { setColor(Color.rgb(39, 75, 86)); cornerRadius = 12.dp.toFloat() }
+        it.setTextColor(if (primary) Color.rgb(15, 19, 34) else Color.rgb(233, 236, 240))
+        val shape = GradientDrawable().apply {
+            setColor(if (primary) Color.rgb(140, 155, 255) else Color.rgb(37, 43, 74))
+            cornerRadius = 10.dp.toFloat()
+            if (!primary) setStroke(1.dp, Color.rgb(63, 73, 112))
+        }
+        it.background = RippleDrawable(ColorStateList.valueOf(
+            if (primary) Color.rgb(200, 207, 255) else Color.rgb(140, 155, 255)), shape, null)
         it.setOnClickListener { action() }
         addView(it, LinearLayout.LayoutParams(-1, 48.dp).apply { topMargin = 8.dp })
+    }
+
+    /** Pill-style single choice, like the desktop settings' segmented control. */
+    private fun LinearLayout.segmented(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+        val row = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL }
+        val buttons = labels.map { text ->
+            Button(this@MainActivity).apply {
+                this.text = text
+                isAllCaps = false
+                minHeight = 0
+                minimumHeight = 0
+            }
+        }
+        fun paint(current: Int) = buttons.forEachIndexed { index, button ->
+            val on = index == current
+            button.setTextColor(if (on) Color.rgb(15, 19, 34) else Color.rgb(233, 236, 240))
+            button.background = GradientDrawable().apply {
+                setColor(if (on) Color.rgb(140, 155, 255) else Color.rgb(37, 43, 74))
+                cornerRadius = 10.dp.toFloat()
+            }
+            button.isSelected = on
+        }
+        buttons.forEachIndexed { index, button ->
+            button.setOnClickListener { paint(index); onSelect(index) }
+            row.addView(button, LinearLayout.LayoutParams(0, 44.dp, 1f).apply { marginEnd = if (index < buttons.lastIndex) 6.dp else 0 })
+        }
+        paint(selected)
+        addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 8.dp })
     }
 
     private fun LinearLayout.picker(labels: List<String>): Spinner = Spinner(this@MainActivity).also {

@@ -1,6 +1,7 @@
 package dev.flow.dictation
 
 import android.Manifest
+import android.animation.LayoutTransition
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,6 +23,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -41,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.sqrt
 import java.util.ArrayDeque
 
 /** Non-focusable floating control; the user's normal keyboard stays selected. */
@@ -49,6 +52,9 @@ class FlowBubbleService : Service() {
         const val ACTION_STOP = "dev.flow.dictation.STOP_BUBBLE"
         @Volatile var active: FlowBubbleService? = null
             private set
+        private val SURFACE = Color.rgb(24, 24, 27)
+        private val ACCENT = Color.rgb(140, 155, 255)
+        private val EDGE = Color.argb(190, 140, 155, 255)
     }
 
     private enum class State { IDLE, CONNECTING, LISTENING, PROCESSING }
@@ -60,12 +66,19 @@ class FlowBubbleService : Service() {
     private val fade = Runnable {
         if (state == State.IDLE) {
             label?.visibility = View.GONE
-            bubble?.animate()?.alpha(0.55f)?.setDuration(240)?.start()
+            bubble?.animate()?.alpha(0.82f)?.setDuration(240)?.start()
+            icon?.setImageResource(R.drawable.ic_mic)
+            icon?.setColorFilter(ACCENT)
+            (bubble?.background as? GradientDrawable)?.setStroke(2.dp, EDGE)
         }
     }
     private var bubble: LinearLayout? = null
     private var icon: ImageView? = null
     private var label: TextView? = null
+    private var wave: WaveformView? = null
+    private var cancelButton: ImageView? = null
+    private var dockedRight = true
+    private val audioBytes = java.util.concurrent.atomic.AtomicLong()
     private var params: WindowManager.LayoutParams? = null
     private var state = State.IDLE
     private var session: GeminiLiveTranscriber? = null
@@ -114,36 +127,63 @@ class FlowBubbleService : Service() {
     }
 
     fun refreshVisibility() {
+        applyState()
         val eligible = FlowAccessibilityService.active?.hasEligibleField() == true
         val show = eligible || state != State.IDLE
-        if (state == State.IDLE) icon?.setImageResource(R.drawable.ic_mic)
+        if (state == State.IDLE && label?.visibility != View.VISIBLE) {
+            icon?.setImageResource(R.drawable.ic_mic)
+            icon?.setColorFilter(ACCENT)
+        }
         bubble?.visibility = if (show) View.VISIBLE else View.GONE
         if (show && state == State.IDLE) scheduleFade()
+    }
+
+    /** Puts the bubble back at its default spot (right edge, middle of the screen). */
+    fun resetPosition() {
+        val p = params ?: return
+        settings.bubblePosition = null
+        dockedRight = true
+        p.x = resources.displayMetrics.widthPixels - 72.dp
+        p.y = resources.displayMetrics.heightPixels / 2
+        bubble?.let { windows.updateViewLayout(it, p) }
     }
 
     private fun createBubble() {
         val view = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
-            setPadding(15.dp, 13.dp, 15.dp, 13.dp)
+            setPadding(14.dp, 12.dp, 14.dp, 12.dp)
             background = GradientDrawable().apply {
-                setColor(Color.rgb(29, 39, 58))
-                cornerRadius = 32.dp.toFloat()
-                setStroke(1.dp, Color.rgb(91, 117, 157))
+                setColor(SURFACE)
+                cornerRadius = 28.dp.toFloat()
+                setStroke(2.dp, EDGE)
             }
-            elevation = 12.dp.toFloat()
+            elevation = 18.dp.toFloat()
+            layoutTransition = LayoutTransition()
             contentDescription = "Flow. Tap to dictate, hold to talk, drag to move."
         }
+        cancelButton = ImageView(this).apply {
+            setImageResource(R.drawable.ic_cancel)
+            setColorFilter(Color.rgb(170, 170, 178))
+            setPadding(5.dp, 5.dp, 5.dp, 5.dp)
+            contentDescription = "Cancel dictation"
+            visibility = View.GONE
+            setOnClickListener { cancelActive(); showStatus("Cancelled") }
+        }
+        view.addView(cancelButton, LinearLayout.LayoutParams(30.dp, 30.dp))
+        wave = WaveformView(this).apply { visibility = View.GONE }
+        view.addView(wave, LinearLayout.LayoutParams(84.dp, 26.dp).apply { setMargins(8.dp, 0, 8.dp, 0) })
         icon = ImageView(this).apply {
             setImageResource(R.drawable.ic_mic)
+            setColorFilter(ACCENT)
             contentDescription = null
         }
-        view.addView(icon, LinearLayout.LayoutParams(26.dp, 26.dp))
+        view.addView(icon, LinearLayout.LayoutParams(32.dp, 32.dp))
         label = TextView(this).apply {
             setTextColor(Color.WHITE)
-            textSize = 13f
+            textSize = 13.5f
             visibility = View.GONE
-            setPadding(10.dp, 0, 0, 0)
+            setPadding(10.dp, 0, 2.dp, 0)
         }
         view.addView(label)
         val width = resources.displayMetrics.widthPixels
@@ -162,6 +202,14 @@ class FlowBubbleService : Service() {
         }
         bubble = view
         params = position
+        dockedRight = position.x > width / 2
+        // The pill grows when listening; keep it on screen and on its docked side.
+        view.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val p = params ?: return@addOnLayoutChangeListener
+            val max = resources.displayMetrics.widthPixels - v.width - 4.dp
+            val wanted = if (dockedRight) max else minOf(p.x, max).coerceAtLeast(0)
+            if (wanted != p.x) v.post { if (bubble === v) { p.x = wanted; windows.updateViewLayout(v, p) } }
+        }
         view.setOnTouchListener(BubbleTouch())
         windows.addView(view, position)
     }
@@ -218,8 +266,8 @@ class FlowBubbleService : Service() {
                         return true
                     }
                     if (moved) {
-                        p.x = if (p.x < resources.displayMetrics.widthPixels / 2) 4.dp
-                            else resources.displayMetrics.widthPixels - view.width - 4.dp
+                        dockedRight = p.x + view.width / 2 >= resources.displayMetrics.widthPixels / 2
+                        p.x = if (dockedRight) resources.displayMetrics.widthPixels - view.width - 4.dp else 4.dp
                         windows.updateViewLayout(view, p)
                         settings.bubblePosition = p.x to p.y
                     } else if (held) {
@@ -257,7 +305,10 @@ class FlowBubbleService : Service() {
         if (!isOnline()) { showStatus("No internet · try again later"); return }
         target = focused
         state = State.CONNECTING
-        showStatus("Connecting…")
+        wave?.level = 0f
+        audioBytes.set(0)
+        bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        showStatus("Starting mic…")
         val live = GeminiLiveTranscriber(key, settings.dictionary)
         val mic = MicRecorder()
         val audioLock = Any()
@@ -267,6 +318,8 @@ class FlowBubbleService : Service() {
         recorder = mic
         try {
             mic.start(scope, { bytes, count ->
+                wave?.level = levelOf(bytes, count)
+                audioBytes.addAndGet(count.toLong())
                 synchronized(audioLock) {
                     if (readyForAudio) live.sendAudio(bytes, count)
                     else if (pendingAudio.size < 70) pendingAudio.add(bytes.copyOf(count))
@@ -277,6 +330,7 @@ class FlowBubbleService : Service() {
                     showStatus("Microphone or connection lost")
                 }
             }
+            showStatus(if (holdMode) "Listening · release to finish" else "Listening · tap to finish")
         } catch (error: Exception) {
             cancelActive()
             showStatus(error.message?.take(48) ?: "Could not open microphone")
@@ -294,7 +348,7 @@ class FlowBubbleService : Service() {
                 }
                 if (state == State.CONNECTING) {
                     state = State.LISTENING
-                    showStatus(if (holdMode) "Release to insert" else "Tap to finish")
+                    showStatus(if (holdMode) "Listening · release to finish" else "Listening · tap to finish")
                     limitJob = scope.launch {
                         delay(240_000)
                         if (state == State.LISTENING) showStatus("1 minute left")
@@ -315,7 +369,8 @@ class FlowBubbleService : Service() {
         limitJob?.cancel()
         limitJob = null
         state = State.PROCESSING
-        showStatus("Processing… tap to cancel")
+        bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        showStatus("Working on it · tap to cancel")
         val mic = recorder
         val destination = target
         finishJob = scope.launch {
@@ -327,6 +382,7 @@ class FlowBubbleService : Service() {
                 if (live == null || state != State.PROCESSING) return@launch
                 val transcript = live?.finish().orEmpty()
                 if (transcript.isBlank()) { showStatus("No speech heard"); return@launch }
+                settings.recordUsage(audioBytes.get() / 32_000.0) // 16 kHz, 16-bit mono
                 val key = settings.apiKey() ?: return@launch
                 val result = DictationPipeline.process(transcript, settings.snapshot(destination?.packageName), key)
                 when (result) {
@@ -383,16 +439,62 @@ class FlowBubbleService : Service() {
         refreshVisibility()
     }
 
+    /** Shape the pill for the current state: compact mic when idle, waveform pill while working. */
+    private fun applyState() {
+        val working = state != State.IDLE
+        val listening = state == State.CONNECTING || state == State.LISTENING
+        wave?.processing = state == State.PROCESSING
+        wave?.visibility = if (working) View.VISIBLE else View.GONE
+        cancelButton?.visibility = if (working) View.VISIBLE else View.GONE
+        val confirm = icon ?: return
+        if (working) {
+            confirm.visibility = if (listening) View.VISIBLE else View.GONE
+            confirm.setImageResource(R.drawable.ic_done)
+            confirm.setColorFilter(SURFACE)
+            confirm.setPadding(6.dp, 6.dp, 6.dp, 6.dp)
+            confirm.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.WHITE) }
+            confirm.contentDescription = "Finish dictation"
+            label?.visibility = View.GONE
+        } else {
+            confirm.visibility = View.VISIBLE
+            confirm.background = null
+            confirm.setPadding(0, 0, 0, 0)
+            confirm.contentDescription = null
+        }
+    }
+
     private fun showStatus(message: String) {
-        icon?.setImageResource(when (state) {
-            State.LISTENING -> R.drawable.ic_done
-            State.PROCESSING -> R.drawable.ic_cancel
-            else -> R.drawable.ic_mic
-        })
+        applyState()
+        if (state != State.IDLE) {
+            // The waveform says "listening" and "working"; only the time warning needs words.
+            label?.text = message
+            label?.visibility = if (message == "1 minute left") View.VISIBLE else View.GONE
+            bubble?.animate()?.alpha(1f)?.setDuration(160)?.start()
+            return
+        }
+        val ok = message == "Inserted" || message == "Removed"
+        icon?.setImageResource(if (ok) R.drawable.ic_done else R.drawable.ic_warn)
+        val color = if (ok) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84)
+        icon?.setColorFilter(color)
+        (bubble?.background as? GradientDrawable)?.setStroke(1.dp, color)
         label?.text = message
         label?.visibility = if (message == "Flow ready") View.GONE else View.VISIBLE
         bubble?.animate()?.alpha(1f)?.setDuration(160)?.start()
         scheduleFade()
+    }
+
+    private fun levelOf(pcm: ByteArray, count: Int): Float {
+        var sum = 0.0
+        var n = 0
+        var i = 0
+        while (i + 1 < count) {
+            val v = (pcm[i + 1].toInt() shl 8) or (pcm[i].toInt() and 0xff)
+            sum += v.toDouble() * v
+            n++
+            i += 2
+        }
+        if (n == 0) return 0f
+        return (sqrt(sqrt(sum / n) / 32768.0) * 2.2).toFloat().coerceIn(0f, 1f)
     }
 
     private fun scheduleFade() {

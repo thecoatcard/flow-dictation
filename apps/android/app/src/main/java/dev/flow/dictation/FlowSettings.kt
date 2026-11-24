@@ -61,6 +61,26 @@ class FlowSettings(context: Context) {
             prefs.edit().putString("app-tones", value.entries.joinToString("\n") { "${it.key}=${it.value.name.lowercase()}" }).apply()
         }
 
+    /** US dollars per hour of live transcription; the published price is unclear, so the user can adjust it. */
+    var sttUsdPerHour: Float
+        get() = prefs.getFloat("stt-usd-per-hour", 0.54f)
+        set(value) { prefs.edit().putFloat("stt-usd-per-hour", value.coerceIn(0f, 999f)).apply() }
+
+    data class Usage(val dictations: Int, val audioSeconds: Double)
+
+    private fun monthKey(): String = java.util.Calendar.getInstance().let { "${it.get(java.util.Calendar.YEAR)}-${it.get(java.util.Calendar.MONTH)}" }
+
+    /** This calendar month's totals; they start over each month like the desktop Usage page. */
+    fun usage(): Usage =
+        if (prefs.getString("usage-month", null) != monthKey()) Usage(0, 0.0)
+        else Usage(prefs.getInt("usage-count", 0), prefs.getFloat("usage-seconds", 0f).toDouble())
+
+    fun recordUsage(audioSeconds: Double) {
+        val now = usage()
+        prefs.edit().putString("usage-month", monthKey()).putInt("usage-count", now.dictations + 1)
+            .putFloat("usage-seconds", (now.audioSeconds + audioSeconds).toFloat()).apply()
+    }
+
     var recentApp: String
         get() = prefs.getString("recent-app", "").orEmpty()
         set(value) { prefs.edit().putString("recent-app", value).apply() }
@@ -88,6 +108,8 @@ class FlowSettings(context: Context) {
             String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), Charsets.UTF_8)
         } catch (_: Exception) { null }
     }
+
+    fun hasApiKey(): Boolean = prefs.contains("api-key")
 
     fun saveApiKey(value: String) {
         require(value.trim().length >= 10) { "Enter a valid Google API key." }
