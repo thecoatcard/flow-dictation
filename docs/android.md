@@ -12,19 +12,19 @@ Speak anywhere on your phone. Flow adds a small floating mic next to your normal
 
 ## 1. Install
 
-Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the latest **Android** entry on the [Releases page](https://github.com/thecoatcard/flow-dictation/releases). Releases named `android-v…` are the phone builds; `v0.0.x` are the Windows installer.
+Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest release](https://github.com/thecoatcard/flow-dictation/releases/latest). It is one release page for both apps: the Windows installer (`Flow.Setup.*.exe`), the Android APK and the source code.
 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.4.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.5.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.4.apk
+adb install -r .\Flow-Android-0.1.5.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).

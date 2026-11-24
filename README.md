@@ -16,7 +16,7 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 
 ## Download and install (Windows)
 
-1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
+1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.5/Flow.Setup.0.0.4.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
 2. Run `Flow.Setup.0.0.4.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
 3. Get a [Google AI API key](https://aistudio.google.com/apikey). On first launch, paste it into Flow Settings, press **Test**, then use **Record 5 seconds** to check your microphone.
 4. Hold **Right Ctrl** (default), speak, and release to insert text.
@@ -27,14 +27,14 @@ The floating icon can be dragged to another position. In the default mode it fad
 
 ## Releases
 
-- [Latest release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/latest) — Windows x64 preview.
-- [Android 0.1.4 APK](https://github.com/thecoatcard/flow-dictation/releases/tag/android-v0.1.4) — early sideload build; follow the [Android guide](docs/android.md).
-- [v0.0.4 setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe.sha256)
+- [Latest release](https://github.com/thecoatcard/flow-dictation/releases/latest): one page with the Windows installer, the Android APK and the source code. For the phone build, follow the [Android guide](docs/android.md).
+- [Android 0.1.5 APK](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.5/Flow-Android-0.1.5.apk) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.5/Flow-Android-0.1.5.apk.sha256)
+- [Windows setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.5/Flow.Setup.0.0.4.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.5/Flow.Setup.0.0.4.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
 
 ```powershell
-gh release download v0.0.4 --repo thecoatcard/flow-dictation --pattern '*.exe'
+gh release download v0.1.5 --repo thecoatcard/flow-dictation --pattern '*.exe'
 Start-Process -FilePath '.\Flow.Setup.0.0.4.exe'
 ```
 
