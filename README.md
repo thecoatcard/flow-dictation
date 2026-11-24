@@ -8,14 +8,14 @@ Status: built and unit-tested; dictation confirmed working against the live API 
 
 mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup -> paste at cursor, then your clipboard is restored.
 
-- Filler words, false starts and self-corrections are cleaned up. The cleanup step treats what you said as text to edit, never as instructions.
+- Auto cleanup offers **None** (raw transcript), **Light** (fillers, false starts, grammar) and **Medium** (also rephrases tangled speech for clarity). Light is the default. The cleanup step treats what you said as text to edit, never as instructions.
 - If cleanup fails or is slow, the raw transcript is inserted instead.
 - Per-app tone (casual / professional / literal / code), a dictionary, snippets, spoken commands ("new line", "new paragraph", "delete that") and a writing-style paragraph are all editable in Settings.
 
 ## Download and install (Windows)
 
-1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1). You do not need Git or Node.js to use the installer.
-2. Run `Flow.Setup.0.0.1.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
+1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.2/Flow.Setup.0.0.2.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
+2. Run `Flow.Setup.0.0.2.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
 3. Get a [Google AI API key](https://aistudio.google.com/apikey). On first launch, paste it into Flow Settings, press **Test**, then use **Record 5 seconds** to check your microphone.
 4. Hold **Right Ctrl** (default), speak, and release to insert text.
 
@@ -25,14 +25,14 @@ The floating icon can be dragged to another position. In the default mode it fad
 
 ## Releases
 
-- [v0.0.1 release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1) — Windows x64 preview.
-- [Setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe.sha256)
+- [Latest release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/latest) — Windows x64 preview.
+- [v0.0.2 setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.2/Flow.Setup.0.0.2.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.2/Flow.Setup.0.0.2.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
 
 ```powershell
-gh release download v0.0.1 --repo thecoatcard/flow-dictation --pattern '*.exe'
-Start-Process -FilePath '.\Flow.Setup.0.0.1.exe'
+gh release download v0.0.2 --repo thecoatcard/flow-dictation --pattern '*.exe'
+Start-Process -FilePath '.\Flow.Setup.0.0.2.exe'
 ```
 
 `git clone` downloads the source code; use the installer link above if you only want to run Flow.
@@ -54,7 +54,7 @@ To build the Windows setup installer from the cloned repository:
 ```powershell
 pnpm test
 pnpm --filter @flow/desktop dist
-Start-Process -FilePath '.\apps\desktop\release\Flow Setup 0.0.1.exe'
+Start-Process -FilePath '.\apps\desktop\release\Flow Setup 0.0.2.exe'
 ```
 
 The installer is written to `apps/desktop/release/`. To update an existing clone, run `git pull --ff-only` and `pnpm install` before rebuilding.
@@ -103,4 +103,4 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 - The "add to dictionary?" learning prompt (stretch goal) is not built: detecting edits in other apps is not feasible without heavy accessibility hooks.
 - The Windows installer is unsigned and has not been tested on a clean machine.
 
-More detail on choices: [docs/decisions.md](docs/decisions.md). API notes: [docs/api-notes.md](docs/api-notes.md).
+More detail on choices: [docs/decisions.md](docs/decisions.md). [Cleanup behavior and limitations](docs/cleanup-behavior.md). API notes: [docs/api-notes.md](docs/api-notes.md).

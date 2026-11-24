@@ -9,6 +9,7 @@ export interface PersonalizationExport {
   dictionary: FlowConfig['dictionary'];
   appTones: FlowConfig['appTones'];
   defaultTone: FlowConfig['defaultTone'];
+  cleanupLevel: FlowConfig['cleanupLevel'];
   snippets: FlowConfig['snippets'];
   style: string;
 }
@@ -20,6 +21,7 @@ export function exportPersonalization(c: FlowConfig): PersonalizationExport {
     dictionary: c.dictionary,
     appTones: c.appTones,
     defaultTone: c.defaultTone,
+    cleanupLevel: c.cleanupLevel,
     snippets: c.snippets,
     style: c.style,
   };
@@ -35,6 +37,7 @@ export function importPersonalization(current: FlowConfig, raw: unknown): FlowCo
     dictionary: r.dictionary,
     appTones: r.appTones,
     defaultTone: r.defaultTone,
+    cleanupLevel: r.cleanupLevel ?? current.cleanupLevel,
     snippets: r.snippets,
     style: r.style,
   });

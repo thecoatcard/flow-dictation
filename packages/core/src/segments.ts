@@ -70,7 +70,11 @@ export function joinSegments(parts: Segment[]): string {
       out = out.replace(/ +$/, '') + p.text;
       prevInline = false;
     } else if (p.text) {
-      out += (prevInline ? ' ' : '') + p.text;
+      // Text around a spoken break or snippet already has boundary spaces.
+      // Trimming here avoids doubled spaces, including when cleanup is disabled.
+      const text = p.kind === 'text' ? p.text.trim() : p.text;
+      if (!text) continue;
+      out += (prevInline ? ' ' : '') + text;
       prevInline = true;
     }
   }

@@ -47,8 +47,10 @@ export async function processTranscript(
   const command = detectCommand(transcript);
   if (command) return { kind: 'command', command };
 
-  const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));
   const segments = segmentTranscript(transcript, o.config.snippets);
+  if (o.config.cleanupLevel === 'none')
+    return { kind: 'insert', text: joinSegments(segments).trim() };
+  const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));
   const cleaned = await Promise.all(
     segments.map(async (s) =>
       s.kind === 'text' ? { ...s, text: await cleanOne(s.text, system, o) } : s,

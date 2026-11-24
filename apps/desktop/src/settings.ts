@@ -288,6 +288,16 @@
       ...TONES.map((t) => new Option(t[0]!.toUpperCase() + t.slice(1), t, false, t === value)),
     );
   let personal: PersonalDto;
+  const cleanupHelp: Record<CleanupLevel, string> = {
+    none: 'Paste the raw transcript. Spoken line breaks and saved snippets still work.',
+    light:
+      'Remove fillers, accidental repeats and clear false starts; fix grammar with minimal rewriting.',
+    medium: 'Also reword tangled phrases for clarity and concision while keeping your meaning.',
+  };
+  const setCleanupLevel = seg('cleanupLevel', (value) => {
+    $('cleanupHelp').textContent = cleanupHelp[value as CleanupLevel];
+    savePersonal({ cleanupLevel: value as CleanupLevel }, '', 'Cleanup level saved');
+  });
   let fresh = ''; // key of the row the user just added, so only that row animates in
 
   function listRow(
@@ -340,6 +350,8 @@
 
   function showPersonal(p: PersonalDto): void {
     personal = p;
+    setCleanupLevel(p.cleanupLevel);
+    $('cleanupHelp').textContent = cleanupHelp[p.cleanupLevel];
     toneSelect($<HTMLSelectElement>('deftone'), p.defaultTone);
     toneSelect($<HTMLSelectElement>('apptone'), 'professional');
     $('recent').replaceChildren(...p.recentApps.map((a) => new Option(a, a)));

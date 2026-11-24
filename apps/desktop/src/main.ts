@@ -224,6 +224,7 @@ function registerSettings({ store, vault, mic, usage }: Services, overlay: Overl
       dictionary: c.dictionary,
       appTones: c.appTones,
       defaultTone: c.defaultTone,
+      cleanupLevel: c.cleanupLevel,
       snippets: c.snippets,
       style: c.style,
       recentApps: c.app.recentApps,
@@ -236,6 +237,7 @@ function registerSettings({ store, vault, mic, usage }: Services, overlay: Overl
       if (patch.dictionary) c.dictionary = patch.dictionary;
       if (patch.appTones) c.appTones = patch.appTones;
       if (patch.defaultTone) c.defaultTone = patch.defaultTone;
+      if (patch.cleanupLevel) c.cleanupLevel = patch.cleanupLevel;
       if (patch.snippets) c.snippets = patch.snippets;
       if (typeof patch.style === 'string') c.style = patch.style;
     });

@@ -232,6 +232,17 @@
               A short description of how you write. Flow follows it when it tidies what you said.
             </p>
           </header>
+          <h2>Auto cleanup</h2>
+          <p class="hint">Choose how much Flow edits after transcription. Applies to every app.</p>
+          <div class="seg" id="cleanupLevel" role="radiogroup" aria-label="Auto cleanup level">
+            <span class="thumb"></span>
+            <button type="button" role="radio" data-v="none">None</button>
+            <button type="button" role="radio" data-v="light">Light</button>
+            <button type="button" role="radio" data-v="medium">Medium</button>
+          </div>
+          <p class="hint" id="cleanupHelp">
+            Light removes fillers and fixes grammar with minimal rewriting.
+          </p>
           <h2>Your style</h2>
           <textarea
             id="style"
@@ -308,8 +319,8 @@
           <header class="ph">
             <h1>Backup</h1>
             <p>
-              Move your dictionary, tones, snippets and style to another PC. Your API key and device
-              settings stay behind.
+              Move your dictionary, tones, cleanup level, snippets and style to another PC. Your API
+              key and device settings stay behind.
             </p>
           </header>
           <div class="rows">
@@ -323,7 +334,9 @@
             <div class="row">
               <div>
                 <div class="t">Import</div>
-                <div class="d">Replaces your current dictionary, tones, snippets and style.</div>
+                <div class="d">
+                  Replaces your current dictionary, tones, cleanup level, snippets and style.
+                </div>
               </div>
               <div class="ctl"><button class="btn" id="import" type="button">Import…</button></div>
             </div>

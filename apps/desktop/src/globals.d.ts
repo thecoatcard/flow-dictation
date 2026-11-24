@@ -30,11 +30,13 @@ interface SettingsDto {
 }
 
 type Tone = 'casual' | 'professional' | 'literal' | 'code';
+type CleanupLevel = 'none' | 'light' | 'medium';
 
 interface PersonalDto {
   dictionary: Array<{ term: string; hint?: string }>;
   appTones: Record<string, Tone>;
   defaultTone: Tone;
+  cleanupLevel: CleanupLevel;
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];

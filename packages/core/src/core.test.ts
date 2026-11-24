@@ -52,6 +52,30 @@ describe('prompt', () => {
     expect(m.match(/<\/transcript>/g)).toHaveLength(1);
     expect(m.endsWith('</transcript>')).toBe(true);
   });
+
+  it('keeps Light conservative and lets Medium rephrase only for clarity', () => {
+    const light = buildSystemPrompt(defaultConfig(), 'professional');
+    const medium = buildSystemPrompt({ ...defaultConfig(), cleanupLevel: 'medium' }, 'casual');
+    expect(light).toContain('Cleanup level: Light');
+    expect(light).toContain('Do not paraphrase');
+    expect(light).toContain('Do not formalize');
+    expect(medium).toContain('Cleanup level: Medium');
+    expect(medium).toContain('rephrase for clarity and concision');
+    expect(medium).toContain('keep every substantive fact');
+  });
+
+  it('instructs clear backtracking, punctuation, lists, and protected tokens', () => {
+    const prompt = buildSystemPrompt(defaultConfig(), 'casual');
+    for (const rule of [
+      'clear backtracking',
+      'I actually enjoyed it',
+      'deliberate repetition',
+      'Explicit punctuation takes precedence',
+      'numbered list',
+      'web addresses, email addresses, filenames',
+    ])
+      expect(prompt).toContain(rule);
+  });
 });
 
 describe('guard', () => {
@@ -118,6 +142,37 @@ describe('pipeline failure policy', () => {
       kind: 'insert',
       text: '',
     });
+  });
+});
+
+describe('cleanup levels', () => {
+  it('defaults to Light and migrates valid levels without changing old configs', () => {
+    expect(defaultConfig().cleanupLevel).toBe('light');
+    expect(migrateConfig({ cleanupLevel: 'medium' }).cleanupLevel).toBe('medium');
+    expect(migrateConfig({ cleanupLevel: 'invalid' }).cleanupLevel).toBe('light');
+  });
+
+  it('None bypasses the model while retaining raw words, line breaks and snippets', async () => {
+    const config = {
+      ...defaultConfig(),
+      cleanupLevel: 'none' as const,
+      snippets: [{ trigger: 'my email', expansion: 'me@example.com' }],
+    };
+    const client: CleanupClient = {
+      generate: async () => {
+        throw new Error('cleanup should not be called');
+      },
+    };
+    expect(await processTranscript('um I I think we should go', { config, client })).toEqual({
+      kind: 'insert',
+      text: 'um I I think we should go',
+    });
+    expect(await processTranscript('send to my email new line thanks', { config, client })).toEqual(
+      {
+        kind: 'insert',
+        text: 'send to me@example.com\nthanks',
+      },
+    );
   });
 });
 

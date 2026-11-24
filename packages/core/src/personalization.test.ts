@@ -45,6 +45,7 @@ describe('export/import', () => {
     dictionary: [{ term: 'Angular', hint: 'framework' }],
     appTones: { slack: 'casual', code: 'code' },
     defaultTone: 'professional',
+    cleanupLevel: 'medium',
     snippets: [{ trigger: 'my email', expansion: 'me@example.com' }],
     style: 'Concise. Indian English spelling.',
   };
@@ -71,6 +72,12 @@ describe('export/import', () => {
     });
     expect(c.appTones).toEqual({});
     expect(c.snippets).toEqual([]);
+  });
+
+  it('keeps the current cleanup level when importing an older export', () => {
+    const current = { ...defaultConfig(), cleanupLevel: 'medium' as const };
+    const old = { ...exportPersonalization(defaultConfig()), cleanupLevel: undefined };
+    expect(importPersonalization(current, old).cleanupLevel).toBe('medium');
   });
 });
 

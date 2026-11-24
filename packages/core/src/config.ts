@@ -1,4 +1,5 @@
 export type Tone = 'casual' | 'professional' | 'literal' | 'code';
+export type CleanupLevel = 'none' | 'light' | 'medium';
 
 export interface DictionaryEntry {
   term: string;
@@ -36,6 +37,8 @@ export interface FlowConfig {
   /** App id (process name / bundle id, lowercase) -> tone. */
   appTones: Record<string, Tone>;
   defaultTone: Tone;
+  /** How much the cleanup model may edit; None bypasses it entirely. */
+  cleanupLevel: CleanupLevel;
   snippets: Snippet[];
   /** Free-text description of how the user writes. */
   style: string;
@@ -62,6 +65,7 @@ export function defaultConfig(): FlowConfig {
     dictionary: [],
     appTones: {},
     defaultTone: 'casual',
+    cleanupLevel: 'light',
     snippets: [],
     style: '',
   };
@@ -116,6 +120,8 @@ export function migrateConfig(raw: unknown): FlowConfig {
     }
   }
   if (isTone(raw.defaultTone)) out.defaultTone = raw.defaultTone;
+  if (raw.cleanupLevel === 'none' || raw.cleanupLevel === 'light' || raw.cleanupLevel === 'medium')
+    out.cleanupLevel = raw.cleanupLevel;
   if (Array.isArray(raw.snippets)) {
     for (const s of raw.snippets) {
       if (
