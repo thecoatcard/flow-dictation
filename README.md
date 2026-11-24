@@ -12,27 +12,52 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 - If cleanup fails or is slow, the raw transcript is inserted instead.
 - Per-app tone (casual / professional / literal / code), a dictionary, snippets, spoken commands ("new line", "new paragraph", "delete that") and a writing-style paragraph are all editable in Settings.
 
-## Install (Windows)
+## Download and install (Windows)
 
-1. Get a Google AI API key from <https://aistudio.google.com/apikey>.
-2. Download the Windows setup installer from the [v0.0.1 release](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1), or build it from source below. Run the setup wizard to choose an install folder and create desktop and Start menu shortcuts. An older `Flow.exe` is a portable build; use the **Setup** file. The installer is unsigned, so Windows SmartScreen may show a warning.
-3. On first launch the Settings window opens. Paste your key, press **Test**, then use **Record 5 seconds** to check the mic.
-4. Hold **Right Ctrl** (default), speak, release.
+1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1). You do not need Git or Node.js to use the installer.
+2. Run `Flow.Setup.0.0.1.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
+3. Get a [Google AI API key](https://aistudio.google.com/apikey). On first launch, paste it into Flow Settings, press **Test**, then use **Record 5 seconds** to check your microphone.
+4. Hold **Right Ctrl** (default), speak, and release to insert text.
 
 Change the hotkey, mode (hold or press-to-toggle), microphone and autostart in Settings. A laptop Copilot key can be used: choose "Copilot key (F23)". Windows may still run its own Copilot action; if so, remap the key to a plain key with PowerToys Keyboard Manager.
 
 The floating icon can be dragged to another position. In the default mode it fades away after five seconds of inactivity and returns when you press the dictation shortcut. Settings also offers an option to show it only while dictating.
 
-## Build from source
+## Releases
 
-Needs Node 20+ and pnpm 9.
+- [v0.0.1 release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1) — Windows x64 preview.
+- [Setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.1/Flow.Setup.0.0.1.exe.sha256)
+
+To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
 
 ```powershell
-pnpm install
-pnpm dev        # build and launch
-pnpm test       # unit tests (core is built first)
-pnpm --filter @flow/desktop dist   # Windows setup wizard in apps/desktop/release
+gh release download v0.0.1 --repo thecoatcard/flow-dictation --pattern '*.exe'
+Start-Process -FilePath '.\Flow.Setup.0.0.1.exe'
 ```
+
+`git clone` downloads the source code; use the installer link above if you only want to run Flow.
+
+## Clone and build from source
+
+Install Node.js 20+ and Git first. From PowerShell:
+
+```powershell
+git clone https://github.com/thecoatcard/flow-dictation.git
+cd flow-dictation
+npm install --global pnpm@9.15.9
+pnpm install
+pnpm dev                            # build and run Flow from source
+```
+
+To build the Windows setup installer from the cloned repository:
+
+```powershell
+pnpm test
+pnpm --filter @flow/desktop dist
+Start-Process -FilePath '.\apps\desktop\release\Flow Setup 0.0.1.exe'
+```
+
+The installer is written to `apps/desktop/release/`. To update an existing clone, run `git pull --ff-only` and `pnpm install` before rebuilding.
 
 Optional live checks with your key:
 
@@ -67,7 +92,7 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 
 - Audio goes only to Google's API. It is never saved.
 - The API key is encrypted with the OS keychain (Electron `safeStorage`) in its own file, never in the config JSON, never logged.
-- The debug log (`flow-debug.log` in the app data folder) holds timings and error types only, never transcripts.
+- The debug log (`flow-debug.log` in the app data folder) holds timings and redacted error details, never audio or transcripts.
 - "Learn style" sends your pasted samples to Google once; the samples are not stored.
 
 ## Known limits
@@ -76,6 +101,6 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 - "Delete that" sends one undo keystroke, only within 60 seconds of the last insertion.
 - Clipboard restore keeps text, HTML, RTF and images; other formats are lost.
 - The "add to dictionary?" learning prompt (stretch goal) is not built: detecting edits in other apps is not feasible without heavy accessibility hooks.
-- No app icon yet (default Electron icon) and no code signing.
+- The Windows installer is unsigned and has not been tested on a clean machine.
 
 More detail on choices: [docs/decisions.md](docs/decisions.md). API notes: [docs/api-notes.md](docs/api-notes.md).
