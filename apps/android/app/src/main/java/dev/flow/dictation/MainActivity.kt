@@ -18,6 +18,7 @@ import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.app.Activity
+import android.app.AlertDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,7 +64,21 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
         accessPermission = column.button("Allow text insertion") {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            AlertDialog.Builder(this)
+                .setTitle("Allow Flow to insert dictated text?")
+                .setMessage(
+                    "Flow uses Android Accessibility access to detect the text field you selected, " +
+                        "read its current text and cursor, and insert your dictation only into that field. " +
+                        "It also remembers the app package name for tone settings. Existing field text stays " +
+                        "on your device; Flow sends only your recorded audio and dictated transcript to " +
+                        "Google Gemini for transcription and cleanup. Flow excludes fields marked as password, " +
+                        "number, phone, or URL. You can turn this access off in Android Settings at any time."
+                )
+                .setNegativeButton("Not now", null)
+                .setPositiveButton("Continue") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .show()
         }
         bubbleButton = column.button("Show floating mic") {
             if (FlowBubbleService.active != null) stopService(Intent(this, FlowBubbleService::class.java))
