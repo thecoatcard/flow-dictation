@@ -107,3 +107,7 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 - The Windows installer is unsigned and has not been tested on a clean machine.
 
 More detail on choices: [docs/decisions.md](docs/decisions.md). [Cleanup behavior and limitations](docs/cleanup-behavior.md). API notes: [docs/api-notes.md](docs/api-notes.md).
+
+## License and contributing
+
+Flow is released under the [MIT License](LICENSE). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md) and the [security policy](SECURITY.md).
