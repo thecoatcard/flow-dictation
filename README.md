@@ -2,7 +2,7 @@
 
 A personal push-to-talk dictation app. Hold a key, speak, release: cleaned-up text appears at the cursor in whatever app has focus. It talks straight to Google's Gemini API with your own key. There is no server of ours and no account.
 
-An early [Android floating bubble build and setup guide](docs/android.md) is also available. Keep your normal keyboard; tap or hold Flow's draggable mic in a text field to dictate.
+**Android:** there is an early phone build too. Keep your normal keyboard; tap or hold Flow's floating mic in any text field to dictate. See the [Android guide](docs/android.md) for install, permissions, settings and troubleshooting.
 
 Status: built and unit-tested; dictation confirmed working against the live API on the author's machine. Not yet tested on a clean machine. See [docs/manual-test.md](docs/manual-test.md) for the checklist to run first.
 
@@ -28,6 +28,7 @@ The floating icon can be dragged to another position. In the default mode it fad
 ## Releases
 
 - [Latest release notes and downloads](https://github.com/thecoatcard/flow-dictation/releases/latest) — Windows x64 preview.
+- [Android 0.1.3 APK](https://github.com/thecoatcard/flow-dictation/releases/tag/android-v0.1.3) — early sideload build; follow the [Android guide](docs/android.md).
 - [v0.0.4 setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.0.4/Flow.Setup.0.0.4.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
