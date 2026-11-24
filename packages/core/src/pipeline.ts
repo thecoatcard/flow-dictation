@@ -1,4 +1,5 @@
 import type { CleanupClient } from './cleanup';
+import { repairSentenceBoundary, resolveTimeBacktrack } from './backtrack';
 import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
 import { guardOutput } from './guard';
@@ -47,7 +48,11 @@ export async function processTranscript(
   const command = detectCommand(transcript);
   if (command) return { kind: 'command', command };
 
-  const segments = segmentTranscript(transcript, o.config.snippets);
+  const text =
+    o.config.cleanupLevel === 'none'
+      ? transcript
+      : repairSentenceBoundary(resolveTimeBacktrack(transcript));
+  const segments = segmentTranscript(text, o.config.snippets);
   if (o.config.cleanupLevel === 'none')
     return { kind: 'insert', text: joinSegments(segments).trim() };
   const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));

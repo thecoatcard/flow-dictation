@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ADVERSARIAL } from './adversarial';
+import { resolveTimeBacktrack } from './backtrack';
 import { GeminiCleanupClient, type CleanupClient } from './cleanup';
 import { defaultConfig, migrateConfig, rememberApp, resolveTone, type FlowConfig } from './config';
 import { guardOutput } from './guard';
@@ -173,6 +174,31 @@ describe('cleanup levels', () => {
         text: 'send to me@example.com\nthanks',
       },
     );
+  });
+});
+
+describe('explicit time backtracking', () => {
+  it('uses the later meeting time even when STT hears "off"', async () => {
+    const input =
+      "I'm just testing whether it is working perfectly or not.I want you to schedule a meeting for 8:00 p.m. No, no, no, I want it off 7:00 p.m.";
+    const expected =
+      "I'm just testing whether it is working perfectly or not. I want you to schedule a meeting for 7:00 p.m.";
+    expect(resolveTimeBacktrack(input)).toBe(expected.replace('not. I', 'not.I'));
+    const result = await processTranscript(input, { config: defaultConfig(), client: echo });
+    expect(result).toEqual({ kind: 'insert', text: expected });
+  });
+
+  it('keeps a discussed time change and preserves None as raw text', async () => {
+    const input = 'We discussed moving the meeting from 8:00 p.m. to 7:00 p.m.';
+    expect(resolveTimeBacktrack(input)).toBe(input);
+    const correction = 'Meet at 8:00 p.m. No, make it 7:00 p.m.';
+    expect(resolveTimeBacktrack(correction)).toBe('Meet at 7:00 p.m.');
+    expect(
+      await processTranscript(correction, {
+        config: { ...defaultConfig(), cleanupLevel: 'none' },
+        client: echo,
+      }),
+    ).toEqual({ kind: 'insert', text: correction });
   });
 });
 

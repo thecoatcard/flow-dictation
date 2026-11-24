@@ -14,6 +14,8 @@ Primary sources: [Auto Cleanup levels](https://docs.wisprflow.ai/articles/428351
 
 Light and Medium also instruct the editor to respect explicit punctuation, format clear spoken enumerations as lists, preserve URLs/emails/file names and code-mixed language, and add paragraphs only at clear topic shifts. A meaningful use of “actually” or a deliberate repetition stays. The model receives the whole transcript segment for backtracking context. App tone controls formatting; it does not independently license a rewrite. The dictionary and writing-style paragraph still apply.
 
+An explicit correction of a clock time such as “meet at 8:00 p.m. No, make it 7:00 p.m.” is resolved in code before model cleanup. This also applies if speech recognition hears “off 7:00” in the replacement clause. None still preserves the raw transcript.
+
 ## Differences that remain
 
 - Wispr's recognizer and cleanup implementation are private. Flow uses Gemini Live for transcription and Gemini Flash-Lite for editing, so recognition and editorial choices may differ.
