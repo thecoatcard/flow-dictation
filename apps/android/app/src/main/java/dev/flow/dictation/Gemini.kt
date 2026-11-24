@@ -76,18 +76,30 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
 
             override fun onFailure(webSocket: WebSocket, error: Throwable, response: Response?) {
                 failure = true
-                if (!ready.isCompleted) ready.completeExceptionally(IOException("Could not connect to Gemini Live."))
+                val detail = when (response?.code) {
+                    400 -> "Live setup rejected (HTTP 400)."
+                    401, 403 -> "Live key or model access denied (HTTP ${response.code})."
+                    429 -> "Live quota reached (HTTP 429)."
+                    null -> "Live network connection failed."
+                    else -> "Live connection failed (HTTP ${response.code})."
+                }
+                if (!ready.isCompleted) ready.completeExceptionally(IOException(detail))
                 if (!done.isCompleted) done.complete(Unit)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (code != 1000) failure = true
-                if (!ready.isCompleted) ready.completeExceptionally(IOException("Gemini Live closed before setup."))
+                if (!ready.isCompleted) ready.completeExceptionally(IOException("Live setup closed (code $code)."))
                 if (!done.isCompleted) done.complete(Unit)
             }
         })
         try { withTimeout(7_000) { ready.await() } }
-        catch (error: Exception) { close(); throw error }
+        catch (error: Exception) {
+            close()
+            if (error is kotlinx.coroutines.TimeoutCancellationException)
+                throw IOException("Live connection timed out.")
+            throw error
+        }
     }
 
     fun sendAudio(pcm: ByteArray, length: Int) {
@@ -134,7 +146,13 @@ class GeminiEditor(private val key: String) {
                     response.use {
                         if (!continuation.isActive) return
                         if (!response.isSuccessful) {
-                            continuation.resumeWithException(IOException("Cleanup HTTP ${response.code}."))
+                            val detail = when (response.code) {
+                                400 -> "Cleanup request rejected (HTTP 400)."
+                                401, 403 -> "API key or cleanup model access denied (HTTP ${response.code})."
+                                429 -> "Cleanup quota reached (HTTP 429)."
+                                else -> "Cleanup request failed (HTTP ${response.code})."
+                            }
+                            continuation.resumeWithException(IOException(detail))
                             return
                         }
                         try {
@@ -153,4 +171,14 @@ class GeminiEditor(private val key: String) {
             })
         }
     }
+}
+
+/** Checks both models without recording audio. Each request returns only a small diagnostic. */
+suspend fun testGeminiApi(key: String, onStep: (String) -> Unit) {
+    onStep("Testing cleanup model…")
+    val response = GeminiEditor(key).edit("Reply with exactly OK.", "ping")
+    if (response.isBlank()) throw IOException("Cleanup model returned no text.")
+    onStep("Testing live transcription setup…")
+    val live = GeminiLiveTranscriber(key, emptyList())
+    try { live.connect() } finally { live.close() }
 }

@@ -15,7 +15,7 @@ class MicRecorder {
     private var worker: Job? = null
     @Volatile private var running = false
 
-    @Suppress("MissingPermission") // FlowImeService checks RECORD_AUDIO immediately before start.
+    @Suppress("MissingPermission") // FlowBubbleService checks RECORD_AUDIO immediately before start.
     fun start(scope: CoroutineScope, onChunk: (ByteArray, Int) -> Unit, onError: () -> Unit) {
         check(record == null) { "Microphone is already active." }
         val minimum = AudioRecord.getMinBufferSize(16_000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)

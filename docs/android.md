@@ -1,10 +1,12 @@
-# Flow for Android (early debug build)
+# Flow for Android (debug build)
 
-The first native Android keyboard lives in `apps/android`. It is an `InputMethodService`, so Android opens it for text fields after the user enables Flow and selects it as the default keyboard. Tapping a text field does **not** start the microphone; the user taps **Speak**, talks, then taps **Stop**. Flow sends 16 kHz PCM to Gemini Live, cleans the transcript with Flash-Lite, and inserts text through `InputConnection.commitText` rather than the clipboard.
+Flow uses a floating mic alongside your regular Android keyboard. In an eligible text field, the bubble appears at the screen edge. Tap to start, tap again to finish, or hold to record until release. Drag it to move it; it snaps to the nearest edge. It fades after five idle seconds and hides when the keyboard closes. It never records merely because a field gained focus.
+
+This interaction follows [Wispr Flow's Android guide](https://docs.wisprflow.ai/articles/5906198129-starting-your-first-dictation-on-android): a bubble beside the existing keyboard, tap or hold dictation, automatic hiding outside text entry, and a five-minute session cap. Flow uses its own Gemini key and cleanup settings; Wispr's private transcription and cleanup implementation is unavailable.
 
 ## Build and install
 
-Install Android Studio (or JDK 17 and Android SDK platform 35 with Build Tools 35). From PowerShell:
+Install Android Studio, or JDK 17 and Android SDK platform 35 with Build Tools 35. From PowerShell:
 
 ```powershell
 cd apps/android
@@ -12,15 +14,14 @@ cd apps/android
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-The debug APK is signed with the local Android debug key. It is for testing, not Play Store distribution. On the phone, open **Flow**, grant microphone permission, save a Google AI API key, then use **Enable Flow keyboard** and **Choose default keyboard**. Android requires both user actions; an app cannot silently make itself the default keyboard.
+Open **Flow** and grant **Microphone**, **Display over other apps**, and **Accessibility → Flow text insertion**. Save your Google Gemini API key, then press **Test API connection**. This tests the cleanup request and Live transcription setup without recording. Press **Show floating mic**, open a text field in another app, and tap or hold the bubble. The app does not need to become your default keyboard.
 
-## Current behavior
+If upgrading from the earlier keyboard prototype, select your preferred keyboard in Android's keyboard settings once. The new Flow build no longer provides a keyboard.
 
-- The keyboard has basic letter, shift, space, delete, punctuation, enter, and keyboard-switch keys.
-- Dictation uses `gemini-3.5-transcribe-live` and `gemini-3.5-flash-lite`. None, Auto, Light and Medium cleanup are available. Clear time corrections, spoken line breaks, snippets and whole-utterance “delete that”/“scratch that” commands are handled in code. Cleanup failure inserts the transcript.
-- The API key is encrypted with Android Keystore, and app backups are disabled. Audio is not saved. Voice is disabled in password and no-personalized-learning fields. Recording stops if the field changes or keyboard closes, and a two-minute cap stops a forgotten recording.
-- Dictionary spellings, a writing-style paragraph, snippets, default tone, and per-app tone by package ID are editable in the app. The most recently focused app ID appears in settings.
+Flow records immediately while the Live connection opens, buffering up to seven seconds so the beginning of speech is kept. Audio is sent as 16 kHz mono PCM. A five-minute cap submits automatically, with a warning one minute beforehand. The bubble stays visible during processing. Password, numeric and phone fields are excluded. The target field, text and cursor must still match before insertion. If they do not, the result is copied to the clipboard for manual paste. **Copy last dictation** is also available in Flow's settings while the bubble service is running.
 
-## Verification still needed on a phone
+The API key is encrypted with Android Keystore and app backups are disabled. Audio and transcripts are not logged or stored. Network access is required. Cleanup failure uses the raw transcript. The debug APK uses the local debug signing key; it is not a Play Store release.
 
-The project compiles and JVM tests pass, but no Android device or emulator was attached during development. Verify first-run enable/select flows, microphone permission, Live WebSocket setup and final transcript, insertion in several apps, focus changes during recording, private fields, and network/key errors on a real device. The keyboard is an early MVP: autocorrect, suggestions, gesture typing, multilingual key layouts, personalization import/export, and Play Store signing are not yet built. The Kotlin cleanup prompt follows the desktop rules but is a separate implementation, so parity should be checked with shared transcript examples before broader release.
+## Device checks still needed
+
+No phone or emulator was attached during this build. Verify overlay and Accessibility setup, real Gemini Live audio, tap and hold starts, release while connecting, five-minute auto-submit, drag, clipboard fallback, and insertion in several apps on a physical device. Some custom editors may reject Android's Accessibility text action. Manufacturer battery controls can stop a background service; reopen Flow and start the bubble again if that happens.

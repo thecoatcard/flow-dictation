@@ -65,6 +65,16 @@ class FlowSettings(context: Context) {
         get() = prefs.getString("recent-app", "").orEmpty()
         set(value) { prefs.edit().putString("recent-app", value).apply() }
 
+    var bubblePosition: Pair<Int, Int>?
+        get() = if (prefs.contains("bubble-x") && prefs.contains("bubble-y"))
+            prefs.getInt("bubble-x", 0) to prefs.getInt("bubble-y", 0) else null
+        set(value) {
+            val edit = prefs.edit()
+            if (value == null) edit.remove("bubble-x").remove("bubble-y")
+            else edit.putInt("bubble-x", value.first).putInt("bubble-y", value.second)
+            edit.apply()
+        }
+
     fun snapshot(appId: String? = null) = DictationPreferences(
         cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets
     )

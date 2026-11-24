@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Flow</string>
+    <string name="accessibility_description">Flow inserts completed dictation into the text field you focused. It reads that field only while you dictate and does not save its contents.</string>
+</resources>

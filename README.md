@@ -2,7 +2,7 @@
 
 A personal push-to-talk dictation app. Hold a key, speak, release: cleaned-up text appears at the cursor in whatever app has focus. It talks straight to Google's Gemini API with your own key. There is no server of ours and no account.
 
-An early [Android keyboard build and setup guide](docs/android.md) is also available. After you enable Flow as the default keyboard, tapping a text field opens it; recording starts only when you tap its mic button.
+An early [Android floating bubble build and setup guide](docs/android.md) is also available. Keep your normal keyboard; tap or hold Flow's draggable mic in a text field to dictate.
 
 Status: built and unit-tested; dictation confirmed working against the live API on the author's machine. Not yet tested on a clean machine. See [docs/manual-test.md](docs/manual-test.md) for the checklist to run first.
 

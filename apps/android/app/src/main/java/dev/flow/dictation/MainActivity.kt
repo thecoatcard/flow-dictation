@@ -1,14 +1,15 @@
 package dev.flow.dictation
 
 import android.Manifest
-import android.content.ComponentName
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -17,34 +18,68 @@ import android.widget.Spinner
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.app.Activity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 
 class MainActivity : Activity() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var settings: FlowSettings
     private lateinit var status: TextView
     private lateinit var permission: Button
+    private lateinit var overlayPermission: Button
+    private lateinit var accessPermission: Button
+    private lateinit var bubbleButton: Button
+    private lateinit var testButton: Button
     private lateinit var key: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.rgb(13, 21, 34)
+        window.navigationBarColor = Color.rgb(13, 21, 34)
         settings = FlowSettings(this)
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24.dp, 24.dp, 24.dp, 40.dp)
+            setPadding(20.dp, 24.dp, 20.dp, 40.dp)
+            setBackgroundColor(Color.rgb(13, 21, 34))
         }
         val scroll = ScrollView(this).apply { addView(column) }
         setContentView(scroll)
 
-        column.label("Flow keyboard", 26f)
-        column.label("Enable Flow once in Android settings, then select it as your default keyboard. Tap the mic on the keyboard to dictate; it never records automatically.")
+        column.label("FLOW", 14f)
+        column.label("Speak anywhere.", 28f)
+        column.label("Keep your usual keyboard. Tap or hold the floating mic in a text field to dictate.")
         status = column.label("")
-        column.button("1. Enable Flow keyboard") {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-        }
-        column.button("2. Choose default keyboard") {
-            (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
-        }
-        permission = column.button("3. Allow microphone") {
+        column.label("GET READY", 18f)
+        column.label("Allow these once. Flow appears alongside your keyboard and inserts into the field you selected.")
+        permission = column.button("Allow microphone") {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
+        overlayPermission = column.button("Allow floating bubble") {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+        accessPermission = column.button("Allow text insertion") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        bubbleButton = column.button("Show floating mic") {
+            if (FlowBubbleService.active != null) stopService(Intent(this, FlowBubbleService::class.java))
+            else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+                Settings.canDrawOverlays(this) && FlowAccessibilityService.active != null)
+                startForegroundService(Intent(this, FlowBubbleService::class.java))
+            else status.text = "Allow microphone, floating bubble and text insertion first."
+        }
+        column.button("Copy last dictation") {
+            val text = FlowBubbleService.active?.lastText.orEmpty()
+            if (text.isEmpty()) status.text = "No dictation to copy yet."
+            else {
+                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Flow dictation", text))
+                status.text = "Copied last dictation."
+            }
         }
 
         column.label("Google Gemini API key", 18f)
@@ -62,6 +97,18 @@ class MainActivity : Activity() {
                 key.hint = "Key saved securely"
                 refreshStatus()
             } catch (error: Exception) { status.text = error.message ?: "Could not save key." }
+        }
+        testButton = column.button("Test API connection") {
+            val saved = settings.apiKey()
+            if (saved == null) { status.text = "Save an API key first."; return@button }
+            testButton.isEnabled = false
+            scope.launch {
+                try {
+                    testGeminiApi(saved) { step -> runOnUiThread { status.text = step } }
+                    status.text = "API ready: cleanup and Live transcription connected."
+                } catch (error: Exception) { status.text = error.message ?: "API test failed." }
+                finally { testButton.isEnabled = true }
+            }
         }
         column.button("Remove API key") {
             settings.clearApiKey()
@@ -133,15 +180,18 @@ class MainActivity : Activity() {
         refreshStatus()
     }
 
+    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+
     private fun refreshStatus() {
         if (!::status.isInitialized) return
-        val manager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        val id = ComponentName(this, FlowImeService::class.java).flattenToShortString()
-        val enabled = manager.enabledInputMethodList.any { it.id == id }
-        val selected = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD) == id
         val mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        status.text = "Keyboard ${if (enabled) "enabled" else "not enabled"} · ${if (selected) "selected" else "not selected"} · Mic ${if (mic) "allowed" else "not allowed"} · Key ${if (settings.apiKey() != null) "saved" else "missing"}"
-        permission.visibility = if (mic) View.GONE else View.VISIBLE
+        val overlay = Settings.canDrawOverlays(this)
+        val access = FlowAccessibilityService.active != null
+        status.text = "Mic ${if (mic) "ready" else "needed"} · Bubble ${if (overlay) "ready" else "needed"} · Text access ${if (access) "ready" else "needed"} · Key ${if (settings.apiKey() != null) "saved" else "missing"}"
+        permission.text = if (mic) "✓ Microphone allowed" else "Allow microphone"
+        overlayPermission.text = if (overlay) "✓ Floating bubble allowed" else "Allow floating bubble"
+        accessPermission.text = if (access) "✓ Text insertion allowed" else "Allow text insertion"
+        bubbleButton.text = if (FlowBubbleService.active != null) "Stop floating mic" else "Show floating mic"
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
@@ -149,14 +199,18 @@ class MainActivity : Activity() {
     private fun LinearLayout.label(text: String, size: Float = 15f): TextView = TextView(this@MainActivity).also {
         it.text = text
         it.textSize = size
-        it.setPadding(0, 14.dp, 0, 6.dp)
+        it.setTextColor(if (size >= 18f) Color.WHITE else Color.rgb(174, 194, 209))
+        it.setPadding(0, 15.dp, 0, 7.dp)
         addView(it)
     }
 
     private fun LinearLayout.button(text: String, action: () -> Unit): Button = Button(this@MainActivity).also {
         it.text = text
+        it.isAllCaps = false
+        it.setTextColor(Color.WHITE)
+        it.background = GradientDrawable().apply { setColor(Color.rgb(39, 75, 86)); cornerRadius = 12.dp.toFloat() }
         it.setOnClickListener { action() }
-        addView(it)
+        addView(it, LinearLayout.LayoutParams(-1, 48.dp).apply { topMargin = 8.dp })
     }
 
     private fun LinearLayout.picker(labels: List<String>): Spinner = Spinner(this@MainActivity).also {
