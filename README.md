@@ -15,7 +15,7 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 ## Install (Windows)
 
 1. Get a Google AI API key from <https://aistudio.google.com/apikey>.
-2. Download `Flow Setup 0.0.1.exe` from the [v0.0.1 release](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1), or build it from source below. Run the setup wizard to choose an install folder and create desktop and Start menu shortcuts. An older `Flow.exe` is a portable build; use the **Setup** file. The installer is unsigned, so Windows SmartScreen may show a warning.
+2. Download the Windows setup installer from the [v0.0.1 release](https://github.com/thecoatcard/flow-dictation/releases/tag/v0.0.1), or build it from source below. Run the setup wizard to choose an install folder and create desktop and Start menu shortcuts. An older `Flow.exe` is a portable build; use the **Setup** file. The installer is unsigned, so Windows SmartScreen may show a warning.
 3. On first launch the Settings window opens. Paste your key, press **Test**, then use **Record 5 seconds** to check the mic.
 4. Hold **Right Ctrl** (default), speak, release.
 
