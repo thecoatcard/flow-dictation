@@ -1,0 +1,11 @@
+# Decisions and deviations
+
+- **M3 no simulated-typing fallback.** uiohook-napi can only tap physical keys, not type Unicode; robotjs/nut-js add heavy native deps. If the paste keystroke fails, text stays on the clipboard (clipboard is NOT restored) and the overlay shows an error; tray "Copy last dictation" also has it. Revisit if paste-blocked apps turn out to matter.
+- **M3 "delete that" = one undo keystroke** (Ctrl/Cmd+Z), only within 60 s of the last insertion. It cannot know what the app actually undoes.
+- **M3 clipboard restore** is skipped if the clipboard no longer holds our text (user copied meanwhile). Restores text/html/rtf/image; other formats are lost.
+- **M3 target OS:** Windows first (default hotkey: right Ctrl; macOS: right Option). API key still read from `GEMINI_API_KEY` env until M4.
+- **M5 active window on Windows uses koffi + Win32** (GetForegroundWindow -> process image name). active-win 9 ships only macOS prebuilt addons; on Windows it expects a local node-gyp build and silently returns nothing when it is missing. active-win is still used on macOS/Linux (unverified there).
+- **M7 packaging:** main process is bundled with esbuild (core + @google/genai inlined); only uiohook-napi, koffi and active-win stay external and are asar-unpacked. `npmRebuild: false` because electron-builder otherwise tries to compile active-win with Visual Studio; all needed natives ship prebuilt. esbuild output is written via node fs (esbuild's own writes failed with "Access is denied" here). Windows NSIS installer built and the unpacked app launched; not tested on a clean machine. Unsigned, default icon. macOS build config exists but was never built.
+- **M7 cost view:** STT rate is a user setting (default $0.54/audio hour) because published figures conflict. Cleanup rate is fixed at the Flash-Lite list price.
+- **M7 skipped:** the optional "add to dictionary?" learning prompt. Detecting a user's edit in another app is not feasible without accessibility-level hooks; revisit as "add selected text to dictionary" hotkey if wanted.
+- **2026-11-25 Windows distribution:** Use an NSIS setup wizard with a selectable per-user install folder, desktop and Start menu shortcuts. The earlier portable `Flow.exe` is no longer the distribution format. The idle floating icon fades after five seconds; dictation status reveals it again.

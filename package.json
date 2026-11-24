@@ -1,0 +1,23 @@
+{
+  "name": "flow",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --filter @flow/core build && pnpm --filter @flow/desktop dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @flow/core build && pnpm -r test",
+    "typecheck": "pnpm --filter @flow/core build && pnpm -r typecheck",
+    "lint": "eslint .",
+    "cleanup": "pnpm --filter @flow/core --silent cleanup",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.1.0"
+  },
+  "pnpm": { "onlyBuiltDependencies": ["electron", "esbuild"] }
+}

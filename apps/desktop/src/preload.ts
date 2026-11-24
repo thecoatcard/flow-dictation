@@ -1,0 +1,43 @@
+import { contextBridge, ipcRenderer } from 'electron';
+
+contextBridge.exposeInMainWorld('flowApi', {
+  audio: {
+    onStart: (cb: (deviceId?: string) => void) =>
+      ipcRenderer.on('audio:start', (_e, deviceId?: string) => cb(deviceId)),
+    onStop: (cb: () => void) => ipcRenderer.on('audio:stop', () => cb()),
+    onList: (cb: () => void) => ipcRenderer.on('audio:list', () => cb()),
+    devices: (list: unknown) => ipcRenderer.send('audio:devices', list),
+    sendChunk: (chunk: ArrayBuffer) => ipcRenderer.send('audio:chunk', chunk),
+    started: () => ipcRenderer.send('audio:started'),
+    stopped: () => ipcRenderer.send('audio:stopped'),
+    failed: (message: string) => ipcRenderer.send('audio:failed', message),
+  },
+  overlay: {
+    onStatus: (cb: (s: { state: string; message?: string }) => void) =>
+      ipcRenderer.on('overlay:status', (_e, s) => cb(s)),
+    onLevel: (cb: (v: number) => void) => ipcRenderer.on('overlay:level', (_e, v) => cb(v)),
+    interactive: (on: boolean) => ipcRenderer.send('overlay:interactive', on),
+    dragStart: () => ipcRenderer.send('overlay:drag-start'),
+    drag: (dx: number, dy: number) => ipcRenderer.send('overlay:drag', { dx, dy }),
+    dragEnd: () => ipcRenderer.send('overlay:drag-end'),
+    click: () => ipcRenderer.send('overlay:click'),
+  },
+  settings: {
+    recordDebug: (seconds: number) => ipcRenderer.invoke('debug:record', seconds),
+    permissions: () => ipcRenderer.invoke('permissions:check'),
+    get: () => ipcRenderer.invoke('settings:get'),
+    set: (patch: unknown) => ipcRenderer.invoke('settings:set', patch),
+    setKey: (key: string) => ipcRenderer.invoke('key:set', key),
+    clearKey: () => ipcRenderer.invoke('key:clear'),
+    testKey: () => ipcRenderer.invoke('key:test'),
+    listMics: () => ipcRenderer.invoke('mics:list'),
+    learnStyle: (samples: string[]) => ipcRenderer.invoke('style:learn', samples),
+    exportPersonal: () => ipcRenderer.invoke('personal:export'),
+    importPersonal: () => ipcRenderer.invoke('personal:import'),
+    onLevel: (cb: (v: number) => void) => ipcRenderer.on('mic:level', (_e, v) => cb(v)),
+    usage: () => ipcRenderer.invoke('usage:get'),
+    getPersonal: () => ipcRenderer.invoke('personal:get'),
+    setPersonal: (patch: unknown) => ipcRenderer.invoke('personal:set', patch),
+    openPermission: (name: string) => ipcRenderer.send('permissions:open', name),
+  },
+});

@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flow settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="rail">
+        <div class="brand"><img src="../assets/icon.png" alt="" /><span>Flow</span></div>
+        <nav id="nav" aria-label="Settings sections">
+          <span class="nav-ind" aria-hidden="true"></span>
+          <button data-page="dictation" aria-current="page">Dictation</button>
+          <button data-page="words">Words and tone</button>
+          <button data-page="style">Writing style</button>
+          <button data-page="usage">Usage</button>
+          <button data-page="access">Permissions</button>
+          <button data-page="backup">Backup</button>
+        </nav>
+        <div class="rail-foot">
+          <span class="dot" id="raildot"></span><span id="railtext">Checking…</span>
+        </div>
+      </aside>
+
+      <main>
+        <!-- ===== Dictation ===== -->
+        <section class="page" id="page-dictation">
+          <header class="ph">
+            <h1>Dictation</h1>
+            <p>Hold the hotkey, speak, let go. Cleaned-up text appears wherever your cursor is.</p>
+          </header>
+
+          <div class="rows">
+            <div class="row stack">
+              <div>
+                <div class="t">Google API key</div>
+                <div class="d">Encrypted on this PC. It is never written to the settings file.</div>
+              </div>
+              <div class="ctl">
+                <span class="chip" id="keychip"
+                  ><span class="dot"></span><span id="keychiptext">Checking…</span></span
+                >
+                <input
+                  id="key"
+                  class="key"
+                  type="password"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Paste a key to replace it"
+                  aria-label="Google API key"
+                />
+                <button class="btn quiet" id="showkey" type="button" aria-pressed="false">
+                  Show
+                </button>
+                <button class="btn primary" id="savekey" type="button">Save key</button>
+                <button class="btn" id="testkey" type="button">Test key</button>
+                <button class="btn quiet" id="clearkey" type="button">Remove</button>
+              </div>
+              <div class="msg" id="keymsg" role="status"></div>
+            </div>
+          </div>
+
+          <h2>Check your microphone</h2>
+          <p class="hint">
+            Speak for five seconds. The line should move as you talk, then your words appear below.
+          </p>
+          <div class="scope" id="scope">
+            <canvas id="wave" aria-label="Live microphone level"></canvas>
+            <div class="bar"><i id="countdown"></i></div>
+            <div class="foot">
+              <div class="grow">
+                <span class="idle-label hint">Ready when you are.</span>
+                <span class="live-label">Listening</span>
+              </div>
+              <button class="btn primary" id="rec" type="button">Start check</button>
+            </div>
+          </div>
+          <div id="recresult"></div>
+
+          <h2>Controls</h2>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Hotkey</div>
+                <div class="d">
+                  The key you hold while speaking. A laptop Copilot key works too.
+                </div>
+              </div>
+              <div class="ctl"><select id="hotkey" aria-label="Hotkey"></select></div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">How it listens</div>
+                <div class="d">
+                  Hold to talk records while the key is down. The other mode starts on one press and
+                  stops on the next.
+                </div>
+              </div>
+              <div class="ctl">
+                <div class="seg" id="mode" role="radiogroup" aria-label="How it listens">
+                  <span class="thumb"></span>
+                  <button type="button" role="radio" data-v="hold">Hold to talk</button>
+                  <button type="button" role="radio" data-v="toggle">
+                    Press to start and stop
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">Microphone</div>
+                <div class="d">If the chosen one is unplugged, Flow uses the system default.</div>
+              </div>
+              <div class="ctl">
+                <select id="mic" aria-label="Microphone">
+                  <option value="">System default</option>
+                </select>
+                <button class="btn" id="refreshmics" type="button">Find microphones</button>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">Floating icon</div>
+                <div class="d">Drag it anywhere. Click it to open these settings.</div>
+              </div>
+              <div class="ctl">
+                <div class="seg" id="overlay" role="radiogroup" aria-label="Floating icon">
+                  <span class="thumb"></span>
+                  <button type="button" role="radio" data-v="always">Fade after 5 seconds</button>
+                  <button type="button" role="radio" data-v="active">Only while dictating</button>
+                </div>
+                <button class="btn quiet" id="resetpos" type="button">Reset position</button>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">Start with Windows</div>
+                <div class="d" id="autonote">Launch Flow quietly in the tray when you sign in.</div>
+              </div>
+              <div class="ctl">
+                <button
+                  class="switch"
+                  id="autostart"
+                  role="switch"
+                  aria-checked="false"
+                  aria-label="Start with Windows"
+                ></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== Words and tone ===== -->
+        <section class="page" id="page-words" hidden>
+          <header class="ph">
+            <h1>Words and tone</h1>
+            <p>Teach Flow how to write in each app and which words to spell exactly.</p>
+          </header>
+
+          <h2>Tone by app</h2>
+          <p class="hint">
+            Casual and professional shape the wording. Literal keeps your words and only removes
+            fillers. Code adds no capitals or punctuation.
+          </p>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Everywhere else</div>
+                <div class="d">Used when the app has no tone of its own.</div>
+              </div>
+              <div class="ctl"><select id="deftone" aria-label="Default tone"></select></div>
+            </div>
+          </div>
+          <ul class="list" id="apptones"></ul>
+          <div class="adder">
+            <input
+              id="appname"
+              type="text"
+              list="recent"
+              placeholder="App, e.g. slack or outlook"
+              aria-label="App name"
+            />
+            <datalist id="recent"></datalist>
+            <select id="apptone" aria-label="Tone for the new app"></select>
+            <button class="btn primary" id="addapp" type="button">Add app</button>
+          </div>
+          <p class="hint">Apps you dictate into appear in the suggestions.</p>
+
+          <h2>Dictionary</h2>
+          <p class="hint">Names and technical terms Flow should always spell exactly.</p>
+          <ul class="list" id="dict"></ul>
+          <div class="adder">
+            <input id="term" type="text" placeholder="Term, e.g. Spring Boot" aria-label="Term" />
+            <input id="hint" type="text" placeholder="Note (optional)" aria-label="Note" />
+            <button class="btn primary" id="addterm" type="button">Add term</button>
+          </div>
+
+          <h2>Snippets</h2>
+          <p class="hint">
+            Say the trigger and Flow types the expansion exactly as written. “New line”, “new
+            paragraph” and “delete that” already work.
+          </p>
+          <ul class="list" id="snips"></ul>
+          <div class="adder">
+            <input
+              id="trigger"
+              type="text"
+              placeholder="Say, e.g. my email"
+              aria-label="Trigger phrase"
+            />
+            <input
+              id="expansion"
+              type="text"
+              placeholder="Type, e.g. me@example.com"
+              aria-label="Expansion"
+            />
+            <button class="btn primary" id="addsnip" type="button">Add snippet</button>
+          </div>
+        </section>
+
+        <!-- ===== Writing style ===== -->
+        <section class="page" id="page-style" hidden>
+          <header class="ph">
+            <h1>Writing style</h1>
+            <p>
+              A short description of how you write. Flow follows it when it tidies what you said.
+            </p>
+          </header>
+          <h2>Your style</h2>
+          <textarea
+            id="style"
+            rows="4"
+            maxlength="800"
+            aria-label="Your writing style"
+            placeholder="e.g. Short sentences. No exclamation marks. Indian English spelling."
+          ></textarea>
+          <div class="adder">
+            <button class="btn primary" id="savestyle" type="button">Save style</button>
+          </div>
+
+          <h2>Learn it from your writing</h2>
+          <p class="hint">
+            Paste two or three pieces of your own writing, separated by a blank line. Flow sends
+            them to Google once to draft the paragraph above, then forgets them.
+          </p>
+          <textarea id="samples" rows="7" aria-label="Writing samples"></textarea>
+          <div class="adder">
+            <button class="btn" id="learn" type="button">Draft my style</button>
+          </div>
+          <div class="msg" id="stylemsg" role="status"></div>
+        </section>
+
+        <!-- ===== Usage ===== -->
+        <section class="page" id="page-usage" hidden>
+          <header class="ph">
+            <h1>Usage</h1>
+            <p id="usagesub">This month.</p>
+          </header>
+          <div class="stats">
+            <div class="stat"><b id="u-dict">0</b><span>dictations</span></div>
+            <div class="stat"><b id="u-min">0</b><span>minutes of speech</span></div>
+            <div class="stat"><b id="u-cost">$0</b><span>estimated cost</span></div>
+          </div>
+          <p class="hint" id="u-detail"></p>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Speech price per hour</div>
+                <div class="d">
+                  Google’s live transcription price is not clearly published. Check
+                  ai.google.dev/pricing and enter the real figure.
+                </div>
+              </div>
+              <div class="ctl">
+                <input
+                  id="rate"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  style="width: 90px"
+                  aria-label="Speech price in US dollars per hour"
+                /><button class="btn" id="saverate" type="button">Save price</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== Permissions ===== -->
+        <section class="page" id="page-access" hidden>
+          <header class="ph">
+            <h1>Permissions</h1>
+            <p>What Flow needs from your system to hear you and type for you.</p>
+          </header>
+          <div class="rows" id="perms"></div>
+          <div class="adder">
+            <button class="btn" id="recheck" type="button">Check again</button>
+          </div>
+        </section>
+
+        <!-- ===== Backup ===== -->
+        <section class="page" id="page-backup" hidden>
+          <header class="ph">
+            <h1>Backup</h1>
+            <p>
+              Move your dictionary, tones, snippets and style to another PC. Your API key and device
+              settings stay behind.
+            </p>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Export</div>
+                <div class="d">Save everything above to a file.</div>
+              </div>
+              <div class="ctl"><button class="btn" id="export" type="button">Export…</button></div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">Import</div>
+                <div class="d">Replaces your current dictionary, tones, snippets and style.</div>
+              </div>
+              <div class="ctl"><button class="btn" id="import" type="button">Import…</button></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div id="toasts" role="status" aria-live="polite"></div>
+    <script src="settings.js"></script>
+  </body>
+</html>

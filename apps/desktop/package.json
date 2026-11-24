@@ -1,0 +1,69 @@
+{
+  "name": "@flow/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Flow: push-to-talk dictation",
+  "author": "Flow",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/bundle.mjs && node scripts/copy-static.mjs",
+    "dev": "pnpm build && electron .",
+    "dist": "pnpm build && electron-builder",
+    "verify-overlay": "pnpm build && electron scripts/verify-overlay.mjs",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "active-win": "^9.0.0",
+    "koffi": "^3.3.8",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "@flow/core": "workspace:^",
+    "@types/node": "^22.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.5"
+  },
+  "build": {
+    "appId": "dev.flow.dictation",
+    "productName": "Flow",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json",
+      "!dist/**/*.map"
+    ],
+    "asarUnpack": [
+      "**/node_modules/uiohook-napi/**",
+      "**/node_modules/koffi/**",
+      "**/node_modules/active-win/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Flow records your voice while you hold the dictation key."
+      },
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "artifactName": "Flow Setup ${version}.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'unsafe-inline'"
+    />
+    <style>
+      :root {
+        --ink: #eef0f3;
+        --glass: #1b1e23;
+        --rec: #ff6b5a;
+        --busy: #8e9cff;
+        --ok: #5fd0a2;
+        --warn: #ffb454;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font:
+          600 13px/1 'Segoe UI Variable Text',
+          'Segoe UI',
+          system-ui,
+          sans-serif;
+        color: var(--ink);
+      }
+
+      /* One shape that grows from a 40px dot into a status pill; width is the only thing that animates. */
+      #icon {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 40px;
+        max-width: 40px;
+        padding: 0 11px;
+        overflow: hidden;
+        white-space: nowrap;
+        border-radius: 20px;
+        background: var(--glass);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+          0 6px 18px rgba(0, 0, 0, 0.35);
+        cursor: grab;
+        touch-action: none;
+        transition:
+          max-width 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 140ms ease-out,
+          opacity 360ms ease-out;
+      }
+      #icon.faded {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #icon:hover {
+        transform: scale(1.06);
+      }
+      #icon.dragging {
+        cursor: grabbing;
+        transform: scale(1.1);
+        transition: none;
+      }
+      #icon.open {
+        max-width: 240px;
+        padding-right: 18px;
+      }
+      #label {
+        opacity: 0;
+        transition: opacity 120ms ease-out;
+      }
+      #icon.open #label {
+        opacity: 1;
+        transition-delay: 120ms;
+      }
+
+      svg {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        overflow: visible;
+      }
+      .glyph {
+        display: none;
+      }
+      .idle .g-mic,
+      .listening .g-bars,
+      .processing .g-spin,
+      .done .g-check,
+      .error .g-warn {
+        display: block;
+      }
+      .g-mic {
+        color: var(--ink);
+        opacity: 0.85;
+      }
+
+      /* listening: bars follow the real mic level */
+      .g-bars rect {
+        fill: var(--rec);
+        transform-origin: 50% 50%;
+        transform: scaleY(0.2);
+        transition: transform 90ms linear;
+      }
+
+      /* processing: a single arc turning */
+      .g-spin circle {
+        fill: none;
+        stroke: var(--busy);
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-dasharray: 22 40;
+        transform-origin: 50% 50%;
+        animation: turn 0.9s linear infinite;
+      }
+      @keyframes turn {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* done: the check draws itself once */
+      .g-check path {
+        fill: none;
+        stroke: var(--ok);
+        stroke-width: 2.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: draw 280ms 60ms ease-out forwards;
+      }
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      .g-warn path {
+        fill: none;
+        stroke: var(--warn);
+        stroke-width: 2.6;
+        stroke-linecap: round;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #icon,
+        #label {
+          transition: none;
+        }
+        .g-spin circle {
+          animation-duration: 2.4s;
+        }
+        .g-check path {
+          animation: none;
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="icon" class="idle" title="Flow: drag to move, click for Settings">
+      <svg
+        class="glyph g-mic"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+      >
+        <rect x="7" y="2.5" width="6" height="10" rx="3" />
+        <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" />
+      </svg>
+      <svg class="glyph g-bars" viewBox="0 0 20 20">
+        <rect x="2" y="3" width="3" height="14" rx="1.5" />
+        <rect x="6.5" y="3" width="3" height="14" rx="1.5" />
+        <rect x="11" y="3" width="3" height="14" rx="1.5" />
+        <rect x="15.5" y="3" width="3" height="14" rx="1.5" />
+      </svg>
+      <svg class="glyph g-spin" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" /></svg>
+      <svg class="glyph g-check" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9" /></svg>
+      <svg class="glyph g-warn" viewBox="0 0 20 20"><path d="M10 4v7M10 15.5v.5" /></svg>
+      <span id="label" role="status" aria-live="polite"></span>
+    </div>
+    <script src="overlay.js"></script>
+  </body>
+</html>
