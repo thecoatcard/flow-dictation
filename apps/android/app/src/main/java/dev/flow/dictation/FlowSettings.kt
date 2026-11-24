@@ -24,6 +24,11 @@ data class DictationPreferences(
 class FlowSettings(context: Context) {
     private val prefs = context.getSharedPreferences("flow-settings", Context.MODE_PRIVATE)
 
+    /** The floating mic stays on, and comes back by itself, until the user stops it. On by default. */
+    var bubbleEnabled: Boolean
+        get() = prefs.getBoolean("bubble-enabled", true)
+        set(value) { prefs.edit().putBoolean("bubble-enabled", value).apply() }
+
     var cleanupLevel: CleanupLevel
         get() = enumValue(prefs.getString("cleanup-level", null), CleanupLevel.LIGHT)
         set(value) { prefs.edit().putString("cleanup-level", value.name).apply() }

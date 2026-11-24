@@ -97,14 +97,15 @@ class MainActivity : Activity() {
         }
         bubbleButton = setup.button("Show floating mic", primary = true) {
             if (FlowBubbleService.active != null) {
-                stopService(Intent(this, FlowBubbleService::class.java))
-                setupStatus.text = "Floating mic stopped."
+                FlowBubbleService.stopByUser(this)
+                setupStatus.text = "Floating mic stopped. It stays off until you start it again."
                 bubbleButton.text = "Show floating mic"
             }
             else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
                 Settings.canDrawOverlays(this) && FlowAccessibilityService.active != null) {
+                settings.bubbleEnabled = true
                 startForegroundService(Intent(this, FlowBubbleService::class.java))
-                setupStatus.text = "Floating mic started. Open a text field in another app."
+                setupStatus.text = "Floating mic is on. It keeps running until you stop it."
                 bubbleButton.text = "Stop floating mic"
             } else setupStatus.text = "Allow microphone, floating bubble and text insertion first."
         }
@@ -314,6 +315,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        FlowBubbleService.ensureRunning(this) // on by default once the permissions are granted
         refreshStatus()
     }
 

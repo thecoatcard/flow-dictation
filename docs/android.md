@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.5.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.6.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.5.apk
+adb install -r .\Flow-Android-0.1.6.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -60,7 +60,7 @@ The *Allow restricted settings* item only appears after you have tried to open t
 
 ## 4. Dictate
 
-1. Tap **Show floating mic**.
+1. Once the three permissions are allowed, the floating mic turns on by itself. It keeps running, and comes back after the phone restarts or the system closes it, until you tap **Stop floating mic** in the app (or **Stop** in its notification). If it was stopped, tap **Show floating mic** to turn it on again.
 2. Open any app and tap a text field. The mic appears beside the keyboard.
 3. **Tap** the mic, speak, then tap the **✓** (or tap the pill) to finish. Or **hold** the mic while you speak and release to finish.
 4. Flow shows a moving waveform while it listens, a soft pulse while it writes, then **Inserted**.
@@ -112,7 +112,7 @@ All of these are on the main screen and match the Windows app.
 
 **Text is pasted instead of typed, or only copied.** Some apps do not report their cursor position. Flow then pastes into the focused field. If the app refuses even that, the text is copied to the clipboard for you to paste. Either way your last dictation is on the clipboard, and **Copy last dictation** (in the Get ready card) copies it again. *Delete that* does not work after a paste.
 
-**The bubble does not appear.** It only shows while the keyboard is open and a supported text field is focused. Check that the three permissions are allowed and **Show floating mic** was tapped. Some phones stop background apps to save battery; exclude Flow from battery optimization, or reopen Flow and start the bubble again.
+**The bubble does not appear.** It only shows while the keyboard is open and a supported text field is focused. Check that the three permissions are allowed and that you have not stopped it (the button should say **Stop floating mic**). Flow restarts itself when the system closes it. On phones with strict battery managers, such as vivo, Xiaomi, Oppo or Samsung, also set Flow to **Unrestricted** battery use and allow it to start automatically so the system does not block the restart.
 
 **"Tap a text field before speaking" or "Voice insertion is unavailable in this field."** The focused field is a password, number, phone or address field, or the app does not expose it to Accessibility.
 

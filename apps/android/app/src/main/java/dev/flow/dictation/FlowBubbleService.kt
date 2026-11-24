@@ -9,6 +9,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
@@ -52,6 +53,21 @@ class FlowBubbleService : Service() {
         const val ACTION_STOP = "dev.flow.dictation.STOP_BUBBLE"
         @Volatile var active: FlowBubbleService? = null
             private set
+
+        /** Starts the bubble when the user wants it on and the permissions are in place. Safe to call often. */
+        fun ensureRunning(context: Context) {
+            if (active != null || !FlowSettings(context).bubbleEnabled) return
+            if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+                !Settings.canDrawOverlays(context)) return
+            try { context.startForegroundService(Intent(context, FlowBubbleService::class.java)) }
+            catch (_: Exception) { /* the system refused a background start; the next event retries */ }
+        }
+
+        /** The only way the bubble stays off: an explicit stop from the user. */
+        fun stopByUser(context: Context) {
+            FlowSettings(context).bubbleEnabled = false
+            context.stopService(Intent(context, FlowBubbleService::class.java))
+        }
         private val SURFACE = Color.rgb(24, 24, 27)
         private val ACCENT = Color.rgb(140, 155, 255)
         private val EDGE = Color.argb(190, 140, 155, 255)
@@ -102,9 +118,7 @@ class FlowBubbleService : Service() {
         createNotificationChannel()
         val notification = notification("Voice dictation is ready")
         try {
-            if (Build.VERSION.SDK_INT >= 29)
-                startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-            else startForeground(7, notification)
+            promote(micActive = false, notification)
             if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
             createBubble()
             refreshVisibility()
@@ -112,8 +126,28 @@ class FlowBubbleService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) stopSelf()
-        return START_NOT_STICKY
+        if (intent?.action == ACTION_STOP) {
+            FlowSettings(this).bubbleEnabled = false
+            stopSelf()
+        }
+        // If the system kills the process, it brings the service back; only an explicit stop ends it.
+        return START_STICKY
+    }
+
+    /**
+     * Android 14+ refuses to start a microphone foreground service from the background (after a reboot or
+     * a restart), so idle uses the special-use type and microphone is added only while the user is dictating.
+     */
+    private fun promote(micActive: Boolean, notification: Notification = notification("Voice dictation is ready")) {
+        try {
+            when {
+                Build.VERSION.SDK_INT >= 34 -> startForeground(7, notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or
+                        if (micActive) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0)
+                Build.VERSION.SDK_INT >= 29 -> startForeground(7, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                else -> startForeground(7, notification)
+            }
+        } catch (_: Exception) { /* keep the current type; recording is still allowed while the overlay is visible */ }
     }
 
     override fun onDestroy() {
@@ -305,6 +339,7 @@ class FlowBubbleService : Service() {
         if (!isOnline()) { showStatus("No internet · try again later"); return }
         target = focused
         state = State.CONNECTING
+        promote(micActive = true)
         wave?.level = 0f
         audioBytes.set(0)
         bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -418,6 +453,7 @@ class FlowBubbleService : Service() {
                 if (session === live) session = null
                 if (state == State.PROCESSING) {
                     state = State.IDLE
+                    promote(micActive = false)
                     refreshVisibility()
                 }
             }
@@ -436,6 +472,7 @@ class FlowBubbleService : Service() {
         session = null
         target = null
         state = State.IDLE
+        promote(micActive = false)
         refreshVisibility()
     }
 

@@ -7,6 +7,7 @@ import android.util.Log
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.InputType
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -27,8 +28,11 @@ class FlowAccessibilityService : AccessibilityService() {
             private set
     }
 
+    private var lastEnsure = 0L
+
     override fun onServiceConnected() {
         active = this
+        FlowBubbleService.ensureRunning(this) // the system rebinds this service after a reboot or a crash
         FlowBubbleService.active?.refreshVisibility()
     }
 
@@ -45,7 +49,11 @@ class FlowAccessibilityService : AccessibilityService() {
         }
         // Window events arrive in bursts. With no bubble running there is nothing to update, and
         // otherwise one scan per burst is enough, so idle use costs almost no CPU or battery.
-        if (FlowBubbleService.active == null) return
+        if (FlowBubbleService.active == null) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastEnsure > 30_000) { lastEnsure = now; FlowBubbleService.ensureRunning(this) }
+            return
+        }
         handler.removeCallbacks(refresh)
         handler.postDelayed(refresh, 120)
     }
