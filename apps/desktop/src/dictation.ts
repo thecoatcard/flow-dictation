@@ -1,3 +1,4 @@
+import { SpeechMeter } from './speech-gate';
 import type { Command, PipelineResult, SttResult, UsageTotals } from '@flow/core';
 
 /** Keys and shortcuts the inserter can press for spoken commands. */
@@ -36,6 +37,8 @@ export interface DictationDeps {
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
   now(): number;
+  /** Keeps recording this long after the key is released, so the last word is not clipped. Default 200 ms. */
+  tailMs?: number;
   /** A short tone at the start and end of recording. */
   cue?(kind: 'start' | 'stop'): void;
   /** Lowers other sound while recording (`begin`) and restores it (`end`). Both may be called more than once. */
@@ -58,6 +61,7 @@ export class Dictation {
   private lastInserted = false;
   private stt: ReturnType<DictationDeps['newStt']> | null = null;
   private starting: Promise<void> | null = null;
+  private meter = new SpeechMeter();
   private cued = false; // the start tone played, so the stop tone should too
   /** 'command': the speech is an instruction for the selected text, not text to insert. */
   private kind: 'dictate' | 'command' = 'dictate';
@@ -74,9 +78,13 @@ export class Dictation {
     this.d.overlay({ state: 'listening' });
     const stt = this.d.newStt();
     this.stt = stt;
+    const meter = (this.meter = new SpeechMeter());
     this.app = (this.d.activeApp?.() ?? Promise.resolve(undefined)).catch(() => undefined);
     this.title = (this.d.activeTitle?.() ?? Promise.resolve(undefined)).catch(() => undefined);
-    this.starting = this.d.mic.start((c) => stt.pushAudio(c));
+    this.starting = this.d.mic.start((c) => {
+      meter.push(c);
+      stt.pushAudio(c);
+    });
     try {
       await this.starting;
       if (this.state === 'recording') {
@@ -105,6 +113,9 @@ export class Dictation {
     this.stt = null;
     try {
       await this.starting?.catch(() => undefined);
+      // People release the key a beat before they finish the last word; keep the mic open briefly.
+      const tail = this.d.tailMs ?? 200;
+      if (tail > 0) await new Promise((r) => setTimeout(r, tail));
       await this.d.mic.stop();
       this.d.media?.end();
       if (this.cued) this.d.cue?.('stop');
@@ -112,6 +123,11 @@ export class Dictation {
       const r = await stt!.finish();
       this.d.recordUsage?.({ audioSeconds: r.audioSeconds, dictations: 1 });
       this.d.log('stt', { ms: this.d.now() - t0, finalizeMs: r.finalizeMs, timedOut: r.timedOut });
+      if (this.meter.rejects(r.text)) {
+        // Noise or silence: whatever the model wrote is a hallucination.
+        this.d.log('gate', { peak: Math.round(this.meter.peak * 1000), voiced: this.meter.voiced });
+        return this.finish({ state: 'hidden' });
+      }
       if (!r.text.trim()) return this.finish({ state: 'hidden' });
       if (this.kind === 'command') return await this.runCommand(r.text, t0);
 

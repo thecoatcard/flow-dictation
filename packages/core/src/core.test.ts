@@ -82,7 +82,7 @@ describe('prompt', () => {
         return 'Meet at 7 p.m.';
       },
     };
-    expect(await processTranscript('Meet at 7 p.m.', { config, client })).toEqual({
+    expect(await processTranscript('um meet at 7 p.m.', { config, client })).toEqual({
       kind: 'insert',
       text: 'Meet at 7 p.m.',
     });

@@ -8,6 +8,11 @@ class Pcm16Chunker extends AudioWorkletProcessor {
     super();
     this.buf = new Int16Array(CHUNK);
     this.n = 0;
+    // On 'flush' the unfinished chunk is sent as-is, so the last <100 ms of speech is not lost.
+    this.port.onmessage = () => {
+      if (this.n) this.port.postMessage(this.buf.slice(0, this.n).buffer);
+      this.n = 0;
+    };
   }
 
   process(inputs) {

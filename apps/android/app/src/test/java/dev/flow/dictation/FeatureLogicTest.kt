@@ -8,8 +8,8 @@ import org.junit.Test
 class FeatureLogicTest {
     // ---- faster finish ----
     @Test fun finishWaitsLongerWhenNothingWasHeard() {
-        assertFalse(FinishPolicy.isFinal(hasText = true, idleMs = 600))
-        assertTrue(FinishPolicy.isFinal(hasText = true, idleMs = 700))
+        assertFalse(FinishPolicy.isFinal(hasText = true, idleMs = 500))
+        assertTrue(FinishPolicy.isFinal(hasText = true, idleMs = 550))
         assertFalse(FinishPolicy.isFinal(hasText = false, idleMs = 1_400))
         assertTrue(FinishPolicy.isFinal(hasText = false, idleMs = 1_500))
     }

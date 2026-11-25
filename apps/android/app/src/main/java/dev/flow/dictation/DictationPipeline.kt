@@ -52,7 +52,10 @@ object DictationPipeline {
         val cleaned = coroutineScope {
             segments.map { part ->
                 async {
-                    if (part is Segment.Text) Segment.Text(clean(part.value, prompt, editor)) else part
+                    // Snippets, and text Auto would leave unchanged, skip the model round trip.
+                    if (part is Segment.Text && !FastPath.isClearAlready(part.value, preferences))
+                        Segment.Text(clean(part.value, prompt, editor))
+                    else part
                 }
             }.awaitAll()
         }

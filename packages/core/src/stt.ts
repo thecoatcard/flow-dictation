@@ -155,7 +155,11 @@ export class SttSession {
 
   /** Best text so far (finals + interim). */
   get text(): string {
-    return (this.finals + this.interim).trim();
+    const f = this.finals;
+    const i = this.interim;
+    // Some modes send the interim as the whole transcript so far; appending it would say everything twice.
+    if (f && i && (i.startsWith(f) || f.trimEnd().endsWith(i.trim()))) return (i.startsWith(f) ? i : f).trim();
+    return (f + i).trim();
   }
 
   async finish(): Promise<SttResult> {
@@ -169,7 +173,7 @@ export class SttSession {
         setTimeout(() => res('timeout'), this.opts.finalizeTimeoutMs ?? 3000),
       );
       // Text has arrived and then stopped arriving: that is the final transcript, even without turnComplete.
-      const quietMs = this.opts.quietMs ?? 700;
+      const quietMs = this.opts.quietMs ?? 550;
       const emptyMs = this.opts.emptyMs ?? 1500;
       let poll: ReturnType<typeof setInterval> | undefined;
       const settled = new Promise<'ok'>((res) => {

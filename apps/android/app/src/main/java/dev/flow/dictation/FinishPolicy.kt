@@ -6,7 +6,7 @@ package dev.flow.dictation
  * The numbers come from the desktop app's logs: a real turnComplete arrives within about 665 ms.
  */
 object FinishPolicy {
-    const val QUIET_MS = 700L
+    const val QUIET_MS = 550L
     const val EMPTY_MS = 1500L
     const val HARD_CAP_MS = 3000L
 

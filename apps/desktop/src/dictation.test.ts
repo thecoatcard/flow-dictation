@@ -36,6 +36,7 @@ function setup(
     overlay: (s) => overlays.push(s),
     log: () => undefined,
     now: () => 0,
+    tailMs: 0,
     ...over,
   };
   return { d: new Dictation(deps), calls, overlays, micOn: () => micOn };
@@ -257,5 +258,62 @@ describe('Dictation', () => {
       await run(d);
       expect(overlays.find((o) => o.state === 'processing')).toMatchObject({ message: 'Editing…' });
     });
+  });
+});
+
+describe('Dictation audio gate and tail', () => {
+  function pcm(amp: number): Uint8Array {
+    const b = new Int16Array(1600).fill(Math.round(amp * 32767));
+    for (let i = 0; i < b.length; i += 2) b[i] = -b[i]!;
+    return new Uint8Array(b.buffer);
+  }
+  function withMic(amp: number, text: string, extra: Partial<DictationDeps> = {}) {
+    const calls: string[] = [];
+    const s = setup(
+      {
+        tailMs: 0,
+        mic: {
+          start: async (onChunk) => {
+            for (let i = 0; i < 5; i++) onChunk(pcm(amp));
+          },
+          stop: async () => void calls.push('mic.stop'),
+        },
+        ...extra,
+      },
+      { text },
+    );
+    return { ...s, calls: s.calls, micCalls: calls };
+  }
+
+  it('inserts nothing when the mic only heard silence, whatever the model wrote', async () => {
+    const { d, calls, overlays } = withMic(0.001, 'Thank you for watching.');
+    await d.keyDown();
+    await d.keyUp();
+    expect(calls.some((c) => c.startsWith('insert'))).toBe(false);
+    expect(overlays.at(-1)).toEqual({ state: 'hidden' });
+    expect(d.state).toBe('idle');
+  });
+
+  it('inserts real speech', async () => {
+    const { d, calls } = withMic(0.08, 'send the report');
+    await d.keyDown();
+    await d.keyUp();
+    expect(calls).toContain('insert:Clean: send the report');
+  });
+
+  it('keeps the mic open for the tail after the key is released', async () => {
+    const times: number[] = [];
+    let released = 0;
+    const { d } = withMic(0.08, 'hi', {
+      tailMs: 60,
+      mic: {
+        start: async () => undefined,
+        stop: async () => void times.push(Date.now() - released),
+      },
+    });
+    await d.keyDown();
+    released = Date.now();
+    await d.keyUp();
+    expect(times[0]).toBeGreaterThanOrEqual(50);
   });
 });

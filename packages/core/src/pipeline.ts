@@ -2,7 +2,8 @@ import type { CleanupClient } from './cleanup';
 import { repairSentenceBoundary, resolveTimeBacktrack } from './backtrack';
 import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
-import { guardOutput } from './guard';
+import { isClearAlready } from './fastpath';
+import { guardOutput, stripNoiseTags } from './guard';
 import {
   buildSystemPrompt,
   buildUserMessage,
@@ -34,9 +35,14 @@ export interface PipelineOptions {
 
 const DEVANAGARI = /[ऀ-ॿ]/;
 
+/** Output is about as long as the input, so a long dictation needs longer than a short one: 2.5 s plus 4 ms per character, capped. */
+export function cleanupTimeoutMs(text: string): number {
+  return 2500 + Math.min(6000, text.length * 4);
+}
+
 async function cleanOne(text: string, system: string, o: PipelineOptions): Promise<string> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? 2500);
+  const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? cleanupTimeoutMs(text));
   try {
     // One quick retry for transient failures; key and quota errors would only repeat.
     for (let attempt = 0; ; attempt++) {
@@ -60,6 +66,7 @@ export async function processTranscript(
   transcript: string,
   o: PipelineOptions,
 ): Promise<PipelineResult> {
+  transcript = stripNoiseTags(transcript);
   const command = detectCommand(transcript);
   if (command) return { kind: 'command', command };
 
@@ -85,10 +92,13 @@ export async function processTranscript(
     );
     return inserted(joinSegments(romanized).trim());
   }
-  const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId), o.context);
+  const tone = resolveTone(o.config, o.appId);
+  const system = buildSystemPrompt(o.config, tone, o.context);
   const cleaned = await Promise.all(
     segments.map(async (s) =>
-      s.kind === 'text' ? { ...s, text: await cleanOne(s.text, system, o) } : s,
+      s.kind !== 'text' || isClearAlready(s.text, o.config, tone)
+        ? s // snippets, and text Auto would leave unchanged, skip the model round trip
+        : { ...s, text: await cleanOne(s.text, system, o) },
     ),
   );
   return inserted(joinSegments(cleaned));

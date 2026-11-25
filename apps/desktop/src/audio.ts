@@ -2,6 +2,7 @@
 (() => {
   let stream: MediaStream | null = null;
   let ctx: AudioContext | null = null;
+  let node: AudioWorkletNode | null = null;
 
   async function start(deviceId?: string): Promise<void> {
     await stop();
@@ -21,12 +22,19 @@
     // A 16 kHz context makes the browser resample the mic for us.
     ctx = new AudioContext({ sampleRate: 16000 });
     await ctx.audioWorklet.addModule('audio-worklet.js');
-    const node = new AudioWorkletNode(ctx, 'pcm16-chunker');
+    node = new AudioWorkletNode(ctx, 'pcm16-chunker');
     node.port.onmessage = (e: MessageEvent<ArrayBuffer>) => flowApi.audio.sendChunk(e.data);
     ctx.createMediaStreamSource(stream).connect(node);
   }
 
   async function stop(): Promise<void> {
+    // Ask the worklet for its unfinished chunk and give it a moment to arrive before closing.
+    if (node) {
+      node.port.postMessage('flush');
+      await new Promise((r) => setTimeout(r, 40));
+      node.port.onmessage = null;
+      node = null;
+    }
     // Stopping every track turns the OS mic indicator off.
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
