@@ -244,6 +244,8 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.46 | Open a chat, tap its text box, tap the mic and say "see you at five" | The words are typed into the box, as before |
 | 10.47 | In that same box say "Ask Flow, what is the capital of Australia" | Nothing is typed; the card answers |
 
+| 10.48 | Ask "who is the PM of India" and "what is the weather in Delhi today" | A direct, current answer. It never says it has no internet or real-time data (if search is off for your key it answers from memory and says it may be out of date) |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
@@ -276,6 +278,7 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.10 | After any edit, say "undo" | The original text comes back |
 | 12.11 | Tap the shortcut quickly instead of holding | Does not latch like dictation; too little audio, so nothing happens |
 | 12.12 | Settings → **Command Mode shortcut → Turn off**, then try 12.1 | Nothing happens; **Record shortcut** turns it back on |
+| 12.14b | Ask "who is the PM of India" with Ctrl+Alt+Q | A direct, current answer; never "I have no internet access" |
 | 12.14a | With the normal dictation key say "Ask Flow, what is the capital of Australia" | It asks instead of typing: the card grows from the icon with the answer |
 | 12.14 | Hold the **Ask shortcut** (default Ctrl+Alt+Q) and say "what is the capital of Australia" | The overlay says **Thinking…**, then a small card grows out of the floating icon with the answer, sized to fit it. Nothing is typed in your app. It fades after 8 seconds; hovering keeps it open. Drag it by any part (not the buttons) and it stays where you drop it |
 | 12.15 | On the card: the copy icon, then paste in Notepad; the speaker icon, then again to stop | The answer pastes; the PC reads it and stops; the card stays while it speaks, then fades |

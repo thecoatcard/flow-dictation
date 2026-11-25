@@ -180,6 +180,41 @@ describe('askFlow', () => {
   });
 });
 
+describe('Ask web search', () => {
+  it('searches the web first, and answers without search when that fails', async () => {
+    const seen: Array<boolean | undefined> = [];
+    const client: CleanupClient = {
+      async generate(_system, _user, _signal, options) {
+        seen.push(options?.search);
+        if (options?.search) throw new Error('429 search quota exceeded');
+        return '{"action":"answer","text":"Narendra Modi."}';
+      },
+    };
+    const out = await askFlow('who is the PM of India', ctx(), { config, client });
+    expect(out).toEqual({ kind: 'answer', text: 'Narendra Modi.' });
+    expect(seen).toEqual([true, false]);
+  });
+
+  it('uses the search result when it works, with one call', async () => {
+    const seen: Array<boolean | undefined> = [];
+    const client: CleanupClient = {
+      async generate(_s, _u, _sig, options) {
+        seen.push(options?.search);
+        return '{"action":"answer","text":"Done."}';
+      },
+    };
+    await askFlow('latest news', ctx(), { config, client });
+    expect(seen).toEqual([true]);
+  });
+
+  it('does not tell the model it has no internet', () => {
+    const p = buildAskPrompt(config);
+    expect(p).toContain('You can search the web');
+    expect(p).toContain('Never say you lack internet access or real-time data');
+    expect(p).not.toContain('have no internet access');
+  });
+});
+
 describe('applyAskResult', () => {
   let n = 0;
   const id = () => `id${++n}`;

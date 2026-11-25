@@ -185,11 +185,13 @@ class GeminiLiveTranscriber(
 class CleanupFailure(message: String, val permanent: Boolean) : IOException(message)
 
 class GeminiEditor(private val key: String) {
-    suspend fun edit(system: String, transcript: String, timeoutMs: Long = 2_500): String {
+    /** [search] lets the model look things up on the web (Google Search), for questions about current facts. */
+    suspend fun edit(system: String, transcript: String, timeoutMs: Long = 2_500, search: Boolean = false): String {
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
             .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", transcript)))))
             .put("generationConfig", JSONObject().put("temperature", 0).put("thinkingConfig", JSONObject().put("thinkingLevel", "MINIMAL")))
+        if (search) body.put("tools", JSONArray().put(JSONObject().put("google_search", JSONObject())))
         val request = Request.Builder()
             .url("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
             .header("x-goog-api-key", key)

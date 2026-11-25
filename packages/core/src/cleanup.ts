@@ -2,7 +2,13 @@ import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 export interface CleanupClient {
   /** Returns the model's text for one cleanup request. Rejects on failure or abort. */
-  generate(system: string, user: string, signal?: AbortSignal): Promise<string>;
+  generate(
+    system: string,
+    user: string,
+    signal?: AbortSignal,
+    /** `search`: let the model look things up on the web (Google Search), for questions about current facts. */
+    options?: { search?: boolean },
+  ): Promise<string>;
 }
 
 export class GeminiCleanupClient implements CleanupClient {
@@ -15,7 +21,12 @@ export class GeminiCleanupClient implements CleanupClient {
     this.ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta' } });
   }
 
-  async generate(system: string, user: string, signal?: AbortSignal): Promise<string> {
+  async generate(
+    system: string,
+    user: string,
+    signal?: AbortSignal,
+    options?: { search?: boolean },
+  ): Promise<string> {
     const res = await this.ai.models.generateContent({
       model: this.model,
       contents: user,
@@ -24,6 +35,7 @@ export class GeminiCleanupClient implements CleanupClient {
         temperature: 0,
         thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
         abortSignal: signal,
+        ...(options?.search ? { tools: [{ googleSearch: {} }] } : {}),
       },
     });
     const m = res.usageMetadata;

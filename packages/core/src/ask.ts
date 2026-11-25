@@ -54,7 +54,8 @@ export function buildAskPrompt(config: FlowConfig): string {
     '- Use the notes and reminders when the question is about them ("what is my locker code", "what reminders do I have"). If the answer is not there, say you have no note about it.',
     '- Answer in the language the question was asked in, including code-mixed speech.',
     '- If you are not sure, say so in a few words. Never invent facts, numbers, quotes or links.',
-    "- You cannot see the user's screen or files and have no internet access. Say so if the question needs them.",
+    '- You can search the web. Use it for anything current or that may have changed (people in office, news, prices, scores, weather, dates, releases) and answer directly with what you find. Never say you lack internet access or real-time data for a general question. If a search is not possible, give your best answer from memory and say in a few words that it may be out of date.',
+    "- You cannot see the user's screen or files. Say so if the question needs them.",
     HINDI_RULES[config.hindiOutput],
   ].join('\n');
 }
@@ -242,18 +243,19 @@ export async function askFlow(
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? 15_000);
   try {
-    // One quick retry for transient failures; key and quota errors would only repeat.
+    // The first try can search the web. If it fails for any reason (search is not available for this key or
+    // model, or has its own quota), the second try answers without it, so Ask still works.
     for (let attempt = 0; ; attempt++) {
       try {
         const out = await o.client.generate(
           buildAskPrompt(o.config),
           buildAskMessage(question, ctx),
           ctl.signal,
+          { search: attempt === 0 },
         );
         return parseAskReply(out, ctx.now);
       } catch (e) {
-        const kind = classifyError(e);
-        if (attempt === 1 || ctl.signal.aborted || kind === 'bad-key' || kind === 'quota') throw e;
+        if (attempt === 1 || ctl.signal.aborted || classifyError(e) === 'bad-key') throw e;
       }
     }
   } catch (e) {

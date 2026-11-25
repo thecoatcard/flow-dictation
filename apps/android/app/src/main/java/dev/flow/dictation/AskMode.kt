@@ -55,7 +55,8 @@ object AskMode {
         "- Use the notes and reminders when the question is about them (\"what is my locker code\", \"what reminders do I have\"). If the answer is not there, say you have no note about it.",
         "- Answer in the language the question was asked in, including code-mixed speech.",
         "- If you are not sure, say so in a few words. Never invent facts, numbers, quotes or links.",
-        "- You cannot see the user's screen or files and have no internet access. Say so if the question needs them.",
+        "- You can search the web. Use it for anything current or that may have changed (people in office, news, prices, scores, weather, dates, releases) and answer directly with what you find. Never say you lack internet access or real-time data for a general question. If a search is not possible, give your best answer from memory and say in a few words that it may be out of date.",
+        "- You cannot see the user's screen or files. Say so if the question needs them.",
     ) + DictationPipeline.hindiRule(hindi)).joinToString("\n")
 
     /** Data lines cannot carry tags of their own, so nothing in a note can close a block early. */
@@ -160,11 +161,13 @@ object AskMode {
         var attempt = 0
         while (true) {
             try {
-                return parse(editor.edit(prompt(hindi), message(question, ctx), TIMEOUT_MS), ctx.now, ctx.zone)
+                // The first try can search the web. If it fails for any reason (search is not available for this key or
+                // model, or has its own quota), the second try answers without it, so Ask still works.
+                return parse(editor.edit(prompt(hindi), message(question, ctx), TIMEOUT_MS, search = attempt == 0), ctx.now, ctx.zone)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                if (attempt++ == 1 || (error as? CleanupFailure)?.permanent == true) return null
+                if (attempt++ == 1 || (error as? CleanupFailure)?.let { it.permanent && it.message?.contains("denied") == true } == true) return null
             }
         }
     }
