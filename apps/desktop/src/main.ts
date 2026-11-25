@@ -21,7 +21,7 @@ import { MicCapture } from './capture';
 import { ConfigStore } from './config-store';
 import { debugLog } from './debug-log';
 import { Dictation } from './dictation';
-import { createHotkeyHandler } from './hotkey';
+import { createHotkeyHandler, parseCombo, type Chord } from './hotkey';
 import { Inserter } from './inserter';
 import { Overlay } from './overlay-window';
 import { checkPermissions, openPermissionSettings } from './permissions';
@@ -51,8 +51,13 @@ const HOTKEYS = [
   { id: 'F12', label: 'F12' },
 ];
 const DEFAULT_HOTKEY = process.platform === 'darwin' ? 'AltRight' : 'CtrlRight';
-const keycodeFor = (id: string): number =>
-  (UiohookKey as Record<string, number>)[HOTKEYS.some((h) => h.id === id) ? id : DEFAULT_HOTKEY];
+const KEY_CODES = UiohookKey as Record<string, number>;
+const isPreset = (id: string) => HOTKEYS.some((h) => h.id === id);
+/** A preset key, or a saved combination like "Ctrl+Alt+D"; anything else falls back to the default. */
+const chordFor = (id: string): Chord =>
+  isPreset(id)
+    ? { key: KEY_CODES[id]! }
+    : (parseCombo(id, KEY_CODES)?.chord ?? { key: KEY_CODES[DEFAULT_HOTKEY]! });
 
 /** Icons live in apps/desktop/assets, next to dist/ in dev and inside app.asar when packaged. */
 const asset = (file: string) => path.join(__dirname, '..', 'assets', file);
@@ -258,7 +263,7 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
   ipcMain.handle('settings:set', (_e, patch: Partial<AppSettings>) => {
     store.update((c) => {
       Object.assign(c.app, patch); // migrateConfig drops invalid values
-      if (!HOTKEYS.some((h) => h.id === c.app.hotkey)) c.app.hotkey = '';
+      if (!isPreset(c.app.hotkey)) c.app.hotkey = parseCombo(c.app.hotkey, KEY_CODES)?.label ?? '';
     });
     if (typeof patch.autostart === 'boolean') applyAutostart(store.get().app.autostart);
     if ('overlay' in patch || 'overlayPos' in patch) overlay.refresh();
@@ -408,9 +413,16 @@ if (!app.requestSingleInstanceLock()) {
         },
       },
       () => svc.store.get().app.mode,
-      () => keycodeFor(svc.store.get().app.hotkey),
+      () => chordFor(svc.store.get().app.hotkey),
     );
-    uIOhook.on('keydown', (e) => hotkey.down(e.keycode));
+    uIOhook.on('keydown', (e) =>
+      hotkey.down(e.keycode, {
+        ctrl: e.ctrlKey,
+        alt: e.altKey,
+        shift: e.shiftKey,
+        meta: e.metaKey,
+      }),
+    );
     uIOhook.on('keyup', (e) => hotkey.up(e.keycode));
     uIOhook.start();
 

@@ -112,8 +112,10 @@
   const setOverlay = seg('overlay', (v) => save({ overlay: v as 'always' | 'active' }));
 
   function apply(s: SettingsDto): void {
+    const custom = !s.hotkeys.some((h) => h.id === s.app.hotkey);
     hotkey.replaceChildren(
       ...s.hotkeys.map((h) => new Option(h.label, h.id, false, h.id === s.app.hotkey)),
+      ...(custom ? [new Option(`Custom: ${s.app.hotkey}`, s.app.hotkey, false, true)] : []),
     );
     setMode(s.app.mode);
     setOverlay(s.app.overlay);
@@ -139,7 +141,8 @@
         true,
       );
 
-    const label = s.hotkeys.find((h) => h.id === s.app.hotkey)?.label ?? 'your hotkey';
+    const label =
+      s.hotkeys.find((h) => h.id === s.app.hotkey)?.label ?? s.app.hotkey ?? 'your hotkey';
     $('raildot').className = `dot ${s.hasKey ? 'ok' : 'warn'}`;
     $('railtext').textContent = s.hasKey
       ? `${s.app.mode === 'hold' ? 'Hold' : 'Press'} ${label} to dictate`
@@ -147,6 +150,57 @@
   }
 
   hotkey.addEventListener('change', () => save({ hotkey: hotkey.value }, 'Hotkey saved'));
+
+  // Record a combination: hold modifiers, press a key. Esc cancels.
+  const rec = $<HTMLButtonElement>('rechotkey');
+  const keyName = (code: string): string | undefined => {
+    const m = /^Key([A-Z])$/.exec(code) ?? /^Digit(\d)$/.exec(code);
+    if (m) return m[1];
+    if (/^F([1-9]|1\d|2[0-4])$/.test(code)) return code;
+    const named = new Set([
+      'Space',
+      'Enter',
+      'Tab',
+      'Backspace',
+      'Delete',
+      'Insert',
+      'Home',
+      'End',
+      'PageUp',
+      'PageDown',
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+    ]);
+    return named.has(code) ? code : undefined;
+  };
+  const stopRecording = () => {
+    rec.textContent = 'Record shortcut';
+    window.removeEventListener('keydown', onRecordKey, true);
+  };
+  function onRecordKey(e: KeyboardEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Escape') return stopRecording();
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return; // wait for the real key
+    const mods = [
+      e.ctrlKey && 'Ctrl',
+      e.altKey && 'Alt',
+      e.shiftKey && 'Shift',
+      e.metaKey && 'Win',
+    ];
+    const name = keyName(e.code);
+    if (!name) return toast('That key cannot be used in a shortcut', 'err');
+    if (!mods.some(Boolean)) return toast('Hold Ctrl, Alt or Shift with the key', 'err');
+    stopRecording();
+    save({ hotkey: [...mods.filter(Boolean), name].join('+') }, 'Shortcut saved');
+  }
+  rec.addEventListener('click', () => {
+    if (rec.textContent !== 'Record shortcut') return stopRecording();
+    rec.textContent = 'Press your shortcut… (Esc to cancel)';
+    window.addEventListener('keydown', onRecordKey, true);
+  });
   mic.addEventListener('change', () => save({ micDeviceId: mic.value }, 'Microphone saved'));
   autostart.addEventListener('click', () =>
     save({ autostart: autostart.getAttribute('aria-checked') !== 'true' }),

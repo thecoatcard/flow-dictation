@@ -1,8 +1,8 @@
 import type { Mode } from '@flow/core';
 import { describe, expect, it } from 'vitest';
-import { createHotkeyHandler, TAP_MS } from './hotkey';
+import { createHotkeyHandler, parseCombo, TAP_MS, type Chord } from './hotkey';
 
-function setup(mode: Mode) {
+function setup(mode: Mode, chord: Chord = { key: 7 }) {
   const calls: string[] = [];
   let t = 1000;
   const d = {
@@ -19,7 +19,7 @@ function setup(mode: Mode) {
   const h = createHotkeyHandler(
     d,
     () => mode,
-    () => 7,
+    () => chord,
     () => t,
   );
   return { h, d, calls, wait: (ms: number) => (t += ms) };
@@ -84,5 +84,54 @@ describe('createHotkeyHandler', () => {
     h.down(7);
     h.up(7);
     expect(calls).toEqual(['down', 'up']);
+  });
+  it('a combo needs its exact modifiers; the same key alone or with others does nothing', () => {
+    const chord: Chord = { key: 32, mods: { ctrl: true, alt: true, shift: false, meta: false } };
+    const { h, calls } = setup('toggle', chord);
+    const none = { ctrl: false, alt: false, shift: false, meta: false };
+    h.down(32, none);
+    h.up(32);
+    h.down(32, { ...none, ctrl: true });
+    h.up(32);
+    h.down(32, { ...none, ctrl: true, alt: true, shift: true });
+    h.up(32);
+    expect(calls).toEqual([]);
+    h.down(32, { ...none, ctrl: true, alt: true });
+    h.up(32);
+    expect(calls).toEqual(['down']);
+  });
+
+  it('a single-key hotkey ignores modifier state (Right Ctrl reports Ctrl as held)', () => {
+    const { h, calls } = setup('toggle', { key: 7 });
+    h.down(7, { ctrl: true, alt: false, shift: false, meta: false });
+    expect(calls).toEqual(['down']);
+  });
+});
+
+describe('parseCombo', () => {
+  const keys = { A: 30, D: 32, Space: 57, F9: 67, Ctrl: 29, CtrlRight: 3613, Shift: 42 };
+  it('parses modifiers plus one key and normalizes the label', () => {
+    expect(parseCombo('ctrl+alt+d', keys)).toEqual({
+      chord: { key: 32, mods: { ctrl: true, alt: true, shift: false, meta: false } },
+      label: 'Ctrl+Alt+D',
+    });
+    expect(parseCombo('Shift + Ctrl + Space', keys)?.label).toBe('Ctrl+Shift+Space');
+    expect(parseCombo('Win+F9', keys)?.chord.mods?.meta).toBe(true);
+  });
+  it('rejects anything that could hijack normal typing or is malformed', () => {
+    for (const bad of [
+      'D',
+      'F9',
+      'Ctrl',
+      'Ctrl+Shift',
+      'Ctrl+D+A',
+      'Ctrl+Ctrl+D',
+      'Ctrl+',
+      '',
+      'Ctrl+Nope',
+      'Ctrl+CtrlRight',
+      'CtrlRight',
+    ])
+      expect(parseCombo(bad, keys)).toBeNull();
   });
 });
