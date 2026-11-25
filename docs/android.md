@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.9.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.10.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.9.apk
+adb install -r .\Flow-Android-0.1.10.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -33,7 +33,21 @@ adb install -r .\Flow-Android-0.1.9.apk
 
 ## 2. Allow the permissions
 
-Open **Flow** and work through **Get ready**:
+## How the app is laid out
+
+The home screen has the **Floating mic** button (Show or Stop) and a **Settings** list, like the Windows app's settings menu. Tap a row to open its page, and use the arrow at the top left or Android's Back to return.
+
+| Page | What is on it |
+| --- | --- |
+| **Dictation** | Google API key (save, test, remove), reset bubble position, copy last dictation |
+| **Words and tone** | Default tone, tone by app, dictionary, snippets |
+| **Writing style** | Auto cleanup, Hindi output, your style, draft my style |
+| **Usage** | This month's dictations, minutes and estimated cost, speech price |
+| **Updates** | Installed version and Check for updates |
+| **Permissions** | Microphone, floating bubble and text insertion |
+| **Backup** | Export and import your settings |
+
+Open **Flow**, then **Permissions** from the Settings list, and allow:
 
 | Permission | Why |
 | --- | --- |
@@ -62,7 +76,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.9.apk
+adb install -r .\Flow-Android-0.1.10.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -71,7 +85,7 @@ An update can only replace the app if it is signed with the same key. Releases b
 
 ## 3. Add your API key
 
-1. In **Google API**, paste your key and tap **Save API key**. It is encrypted with the Android Keystore and never shown again.
+1. Open **Dictation**, and in **Google API** paste your key and tap **Save API key**. It is encrypted with the Android Keystore and never shown again.
 2. Tap **Test API connection**. This checks the cleanup model and the live transcription connection without recording. You should see *API ready*.
 
 ## 4. Dictate
@@ -88,7 +102,7 @@ An update can only replace the app if it is signed with the same key. Releases b
 | Waveform pulse | Writing your text. **✕** cancels. |
 | Check or warning text | Result, such as *Inserted*, *No speech heard* or an error. |
 
-Drag the bubble to move it; it snaps to the nearest screen edge. **Reset bubble position** in the app puts it back. There is a five-minute cap per dictation, with a warning one minute before; Flow submits automatically at the cap. The phone gives a small vibration when listening starts and when you finish.
+Drag the bubble to move it; it snaps to the nearest screen edge. **Reset bubble position** on the **Dictation** page puts it back. There is a five-minute cap per dictation, with a warning one minute before; Flow submits automatically at the cap. The phone gives a small vibration when listening starts and when you finish.
 
 ### Voice commands
 
@@ -98,7 +112,7 @@ Drag the bubble to move it; it snaps to the nearest screen edge. **Reset bubble 
 
 ## 5. Make it sound like you
 
-All of these are on the main screen and match the Windows app.
+These match the Windows app. Cleanup, Hindi and style are on **Writing style**; tones, dictionary and snippets are on **Words and tone**.
 
 - **Auto cleanup** sets how much Flow edits after transcription, for every app. **None** pastes the raw transcript. **Auto** leaves clean speech alone and uses a light edit only when needed. **Light** removes fillers, repeats and false starts and fixes grammar with minimal rewriting. **Medium** also rewords tangled phrases. The choice saves as soon as you tap it.
 - **Hindi** chooses how spoken Hindi is written. **Hinglish (Roman)** is the default: when you speak Hindi, Flow types it in English letters, like "main kal office jaunga" or "kya haal hai", and keeps any English words as English. **Devanagari** types Hindi in Devanagari instead. Speech that is entirely English stays English, and other languages are written as you speak them. This works with every cleanup level, including None, which makes only the script change. The choice saves as soon as you tap it.
@@ -106,7 +120,7 @@ All of these are on the main screen and match the Windows app.
 - **Dictionary**: names and terms to always spell exactly, one per line. Add an optional note after a bar, like `Spring Boot | Java framework`; the note is passed to the cleanup model, as on the Windows app.
 - **Snippets**: `my email => me@example.com`, one per line.
 - **Writing style**: a short description of how you write. **Draft my style** reads two or three pieces of your own writing (separated by a blank line), sends them to Google once, and writes the style paragraph for you to edit. The samples are not kept.
-- Tap **Save preferences** after editing the text boxes.
+- Tap the **Save** button on a page after editing its text boxes. Cleanup and Hindi save as soon as you tap them.
 
 ### Usage
 

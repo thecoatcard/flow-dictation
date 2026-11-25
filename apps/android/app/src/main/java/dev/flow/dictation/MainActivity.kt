@@ -1,25 +1,33 @@
 package dev.flow.dictation
 
 import android.Manifest
+import android.app.Activity
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.view.Gravity
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.Spinner
-import android.widget.ArrayAdapter
 import android.widget.TextView
-import android.widget.ProgressBar
-import android.app.Activity
-import android.app.AlertDialog
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,11 +35,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RippleDrawable
-import android.content.res.ColorStateList
 
+/**
+ * A home menu with the floating-mic control and one page per topic, like the desktop settings:
+ * Dictation, Words and tone, Writing style, Usage, Updates, Permissions and Backup.
+ */
 class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var settings: FlowSettings
@@ -49,88 +57,184 @@ class MainActivity : Activity() {
     private lateinit var usageText: TextView
     private lateinit var updateText: TextView
     private lateinit var updateButton: Button
+    private lateinit var permissionsSub: TextView
+    private lateinit var updatesSub: TextView
+    private lateinit var titleView: TextView
+    private lateinit var backButton: TextView
+    private lateinit var content: FrameLayout
+    private lateinit var menu: ScrollView
+    private val pages = LinkedHashMap<String, Pair<String, ScrollView>>() // id -> title, view
+    private var openPage: String? = null
     private var pendingUpdate: UpdateInfo? = null
 
     private companion object {
         const val EXPORT_REQUEST = 41
         const val IMPORT_REQUEST = 42
+        val BACKGROUND = Color.rgb(18, 20, 23)
+        val TEXT = Color.rgb(233, 236, 240)
+        val MUTED = Color.rgb(152, 162, 173)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(18, 20, 23)
-        window.navigationBarColor = Color.rgb(18, 20, 23)
+        window.statusBarColor = BACKGROUND
+        window.navigationBarColor = BACKGROUND
         settings = FlowSettings(this)
+
+        backButton = TextView(this).apply {
+            text = "‹"
+            textSize = 34f
+            setTextColor(TEXT)
+            setPadding(14.dp, 0, 10.dp, 6.dp)
+            contentDescription = "Back"
+            visibility = View.GONE
+            setOnClickListener { showMenu() }
+        }
+        titleView = TextView(this).apply {
+            textSize = 24f
+            setTextColor(TEXT)
+            setPadding(8.dp, 0, 0, 0)
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12.dp, 28.dp, 20.dp, 10.dp)
+            addView(backButton)
+            addView(titleView)
+        }
+        content = FrameLayout(this)
+        setContentView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(BACKGROUND)
+            addView(header, LinearLayout.LayoutParams(-1, -2))
+            addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
+        })
+
+        buildPages()
+        buildMenu()
+        val restored = savedInstanceState?.getString("page")
+        if (restored != null && pages.containsKey(restored)) showPage(restored) else showMenu()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        openPage?.let { outState.putString("page", it) }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (openPage != null) showMenu() else super.onBackPressed()
+    }
+
+    private fun showMenu() {
+        openPage = null
+        titleView.text = "Flow"
+        backButton.visibility = View.GONE
+        content.removeAllViews()
+        content.addView(menu)
+    }
+
+    private fun showPage(id: String) {
+        val (title, view) = pages.getValue(id)
+        openPage = id
+        titleView.text = title
+        backButton.visibility = View.VISIBLE
+        content.removeAllViews()
+        content.addView(view)
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+
+    private fun page(build: LinearLayout.() -> Unit): ScrollView {
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20.dp, 24.dp, 20.dp, 40.dp)
-            setBackgroundColor(Color.rgb(18, 20, 23))
+            setPadding(20.dp, 0, 20.dp, 40.dp)
         }
-        val scroll = ScrollView(this).apply { addView(column) }
-        setContentView(scroll)
+        column.build()
+        return ScrollView(this).apply { addView(column) }
+    }
 
-        column.label("FLOW / ANDROID", 14f)
-        column.label("Speak anywhere.", 30f)
-        column.label("Keep your usual keyboard. Tap or hold the floating mic in a text field to dictate.")
+    // ---------- home ----------
+
+    private fun buildMenu() {
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20.dp, 0, 20.dp, 40.dp)
+        }
+        column.label("Speak anywhere. Keep your usual keyboard and tap or hold the floating mic in a text field to dictate.")
         status = column.label("")
-        val setup = column.section("GET READY")
-        setup.label("Allow these once. Flow appears alongside your keyboard and inserts into the field you selected.")
-        permission = setup.button("Allow microphone") {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
-        }
-        overlayPermission = setup.button("Allow floating bubble") {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-        }
-        accessPermission = setup.button("Allow text insertion") {
-            AlertDialog.Builder(this)
-                .setTitle("Allow Flow to insert dictated text?")
-                .setMessage(
-                    "Flow uses Android Accessibility access to detect the text field you selected, " +
-                        "read its current text and cursor, and insert your dictation only into that field. " +
-                        "It also remembers the app package name for tone settings. Existing field text stays " +
-                        "on your device; Flow sends only your recorded audio and dictated transcript to " +
-                        "Google Gemini for transcription and cleanup. Flow excludes fields marked as password, " +
-                        "number, phone, or URL. You can turn this access off in Android Settings at any time."
-                )
-                .setNegativeButton("Not now", null)
-                .setPositiveButton("Continue") { _, _ ->
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-                .show()
-        }
-        bubbleButton = setup.button("Show floating mic", primary = true) {
+        val mic = column.section("FLOATING MIC")
+        bubbleButton = mic.button("Show floating mic", primary = true) {
             if (FlowBubbleService.active != null) {
                 FlowBubbleService.stopByUser(this)
                 setupStatus.text = "Floating mic stopped. It stays off until you start it again."
                 bubbleButton.text = "Show floating mic"
-            }
-            else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
+            } else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED &&
                 Settings.canDrawOverlays(this) && FlowAccessibilityService.active != null) {
                 settings.bubbleEnabled = true
                 startForegroundService(Intent(this, FlowBubbleService::class.java))
                 setupStatus.text = "Floating mic is on. It keeps running until you stop it."
                 bubbleButton.text = "Stop floating mic"
-            } else setupStatus.text = "Allow microphone, floating bubble and text insertion first."
-        }
-        setupStatus = setup.label("Open a text field after starting the floating mic.")
-        setup.button("Reset bubble position") {
-            settings.bubblePosition = null
-            FlowBubbleService.active?.resetPosition()
-            setupStatus.text = "Bubble moved back to the right edge."
-        }
-        setup.button("Copy last dictation") {
-            val text = FlowBubbleService.active?.lastText.orEmpty()
-            if (text.isEmpty()) status.text = "No dictation to copy yet."
-            else {
-                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
-                    .setPrimaryClip(ClipData.newPlainText("Flow dictation", text))
-                status.text = "Copied last dictation."
+            } else {
+                setupStatus.text = "Allow microphone, floating bubble and text insertion first (see Permissions)."
             }
         }
+        setupStatus = mic.label("It stays on until you stop it, and comes back after a restart.")
 
-        val api = column.section("GOOGLE API")
+        val list = column.section("SETTINGS")
+        list.menuRow("dictation", "Dictation", "Google API key and floating mic tools")
+        list.menuRow("words", "Words and tone", "App tone, dictionary and snippets")
+        list.menuRow("style", "Writing style", "Auto cleanup, Hindi output and your style")
+        list.menuRow("usage", "Usage", "Dictations, minutes and estimated cost")
+        updatesSub = list.menuRow("updates", "Updates", "Flow ${Updater.installedVersion(this)}")
+        permissionsSub = list.menuRow("access", "Permissions", "Microphone, floating bubble, text insertion")
+        list.menuRow("backup", "Backup", "Move your settings between phone and PC")
+        menu = ScrollView(this).apply { addView(column) }
+    }
+
+    private fun LinearLayout.menuRow(id: String, title: String, subtitle: String): TextView {
+        val subtitleView = TextView(this@MainActivity).apply {
+            text = subtitle
+            textSize = 13f
+            setTextColor(MUTED)
+            setPadding(0, 2.dp, 0, 0)
+        }
+        val texts = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@MainActivity).apply { text = title; textSize = 17f; setTextColor(TEXT) })
+            addView(subtitleView)
+        }
+        val row = LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(4.dp, 14.dp, 4.dp, 14.dp)
+            isClickable = true
+            background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 255, 255, 255)), null, ColorDrawable(Color.WHITE))
+            setOnClickListener { showPage(id) }
+            addView(texts, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(TextView(this@MainActivity).apply { text = "›"; textSize = 26f; setTextColor(MUTED) })
+        }
+        addView(row, LinearLayout.LayoutParams(-1, -2))
+        return subtitleView
+    }
+
+    // ---------- pages ----------
+
+    private fun buildPages() {
+        pages["dictation"] = "Dictation" to dictationPage()
+        pages["words"] = "Words and tone" to wordsPage()
+        pages["style"] = "Writing style" to stylePage()
+        pages["usage"] = "Usage" to usagePage()
+        pages["updates"] = "Updates" to updatesPage()
+        pages["access"] = "Permissions" to permissionsPage()
+        pages["backup"] = "Backup" to backupPage()
+    }
+
+    private fun dictationPage() = page {
+        label("Hold the floating mic or tap it, speak, and cleaned-up text appears in the field you selected.")
+        val api = section("GOOGLE API")
         api.label("Stored using Android Keystore. Audio and cleanup text go directly to Google.")
-        key = EditText(this).apply {
+        key = EditText(this@MainActivity).apply {
             hint = if (settings.hasApiKey()) "Key saved securely" else "Paste API key"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             isSingleLine = true
@@ -172,7 +276,7 @@ class MainActivity : Activity() {
             }
         }
         apiStatus = api.label("Save a key, then test both Gemini models.")
-        testProgress = ProgressBar(this, null, android.R.attr.progressBarStyleSmall).apply {
+        testProgress = ProgressBar(this@MainActivity, null, android.R.attr.progressBarStyleSmall).apply {
             isIndeterminate = true
             visibility = View.GONE
         }
@@ -184,7 +288,78 @@ class MainActivity : Activity() {
             refreshStatus()
         }
 
-        val cleanup = column.section("AUTO CLEANUP")
+        val tools = section("FLOATING MIC TOOLS")
+        tools.button("Reset bubble position") {
+            settings.bubblePosition = null
+            FlowBubbleService.active?.resetPosition()
+            toast("Bubble moved back to the right edge.")
+        }
+        tools.button("Copy last dictation") {
+            val text = FlowBubbleService.active?.lastText.orEmpty()
+            if (text.isEmpty()) toast("No dictation to copy yet.")
+            else {
+                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Flow dictation", text))
+                toast("Copied last dictation.")
+            }
+        }
+    }
+
+    private fun wordsPage() = page {
+        label("Teach Flow how to write in each app and which words to spell exactly.")
+        val words = section("TONE")
+        words.label("Default app tone", 18f)
+        val tones = Tone.entries
+        val tonePicker = words.picker(tones.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
+        tonePicker.setSelection(tones.indexOf(settings.defaultTone))
+        words.label("Tone by app package (optional)", 18f)
+        words.label("Most recent text field: ${settings.recentApp.ifEmpty { "none yet" }}. One line per app, for example com.whatsapp=casual.")
+        val appTones = EditText(this@MainActivity).apply {
+            hint = "com.whatsapp=casual\ncom.google.android.gm=professional"
+            minLines = 3
+            setText(settings.appTones.entries.joinToString("\n") { "${it.key}=${it.value.name.lowercase()}" })
+            styleField()
+        }
+        words.addView(appTones)
+
+        val dict = section("DICTIONARY AND SNIPPETS")
+        dict.label("Dictionary: one term per line, optional note after |", 18f)
+        val dictionary = EditText(this@MainActivity).apply {
+            hint = "Spring Boot | Java framework\nAngular"
+            minLines = 3
+            setText(settings.dictionary.joinToString("\n"))
+            styleField()
+        }
+        dict.addView(dictionary)
+        dict.label("Snippets: phrase => replacement, one per line. \"New line\", \"new paragraph\" and \"delete that\" already work.", 18f)
+        val snippets = EditText(this@MainActivity).apply {
+            hint = "my email => me@example.com"
+            minLines = 3
+            setText(settings.snippets.entries.joinToString("\n") { "${it.key} => ${it.value}" })
+            styleField()
+        }
+        dict.addView(snippets)
+        dict.button("Save words and tone", primary = true) {
+            settings.defaultTone = tones[tonePicker.selectedItemPosition]
+            settings.dictionary = dictionary.text.toString().lines().map(String::trim).filter(String::isNotEmpty)
+            settings.snippets = snippets.text.toString().lines().mapNotNull { line ->
+                val pair = line.split("=>", limit = 2)
+                if (pair.size == 2 && pair[0].isNotBlank() && pair[1].isNotBlank())
+                    pair[0].trim() to pair[1].trim() else null
+            }.toMap()
+            settings.appTones = appTones.text.toString().lines().mapNotNull { line ->
+                val pair = line.split("=", limit = 2)
+                val tone = tones.firstOrNull { it.name.equals(pair.getOrNull(1)?.trim(), ignoreCase = true) }
+                if (pair.size == 2 && pair[0].isNotBlank() && tone != null)
+                    pair[0].trim().lowercase() to tone else null
+            }.toMap()
+            toast("Saved.")
+        }
+    }
+
+    private fun stylePage() = page {
+        label("A short description of how you write. Flow follows it when it tidies what you said.")
+        val cleanup = section("AUTO CLEANUP")
         cleanup.label("Choose how much Flow edits after transcription. Applies to every app.")
         val levels = CleanupLevel.entries
         val cleanupHelp = mapOf(
@@ -197,10 +372,10 @@ class MainActivity : Activity() {
         cleanup.segmented(levels.map { it.name.lowercase().replaceFirstChar(Char::uppercase) }, levels.indexOf(settings.cleanupLevel)) { index ->
             settings.cleanupLevel = levels[index]
             help.text = cleanupHelp.getValue(levels[index])
-            status.text = "Cleanup level saved."
+            toast("Cleanup level saved.")
         }
 
-        val hindi = column.section("HINDI")
+        val hindi = section("HINDI")
         hindi.label("Choose how spoken Hindi is written. English stays English, and other languages are written as spoken.")
         val hindiHelp = mapOf(
             HindiOutput.HINGLISH to "Hindi speech is typed in English letters, like \"main kal office jaunga\".",
@@ -211,105 +386,96 @@ class MainActivity : Activity() {
         hindi.segmented(listOf("Hinglish (Roman)", "Devanagari (हिन्दी)"), hindiChoices.indexOf(settings.hindiOutput)) { index ->
             settings.hindiOutput = hindiChoices[index]
             hindiHint.text = hindiHelp.getValue(hindiChoices[index])
-            status.text = "Hindi style saved."
+            toast("Hindi style saved.")
         }
 
-        val controls = column.section("DICTATION")
-        controls.label("Default app tone", 18f)
-        val tones = Tone.entries
-        val tonePicker = controls.picker(tones.map { it.name.lowercase().replaceFirstChar(Char::uppercase) })
-        tonePicker.setSelection(tones.indexOf(settings.defaultTone))
-        val personal = column.section("PERSONALIZATION")
-        personal.label("Dictionary: one term per line, optional note after |", 18f)
-        val dictionary = EditText(this).apply {
-            hint = "Spring Boot | Java framework\nAngular"
-            minLines = 3
-            setText(settings.dictionary.joinToString("\n"))
-            styleField()
-        }
-        personal.addView(dictionary)
-        personal.label("Writing style", 18f)
-        val style = EditText(this).apply {
+        val mine = section("YOUR STYLE")
+        val style = EditText(this@MainActivity).apply {
             hint = "Concise, natural, no exclamation marks"
             minLines = 3
             setText(settings.style)
             styleField()
         }
-        personal.addView(style)
-        personal.label("Learn it from your writing", 18f)
-        personal.label("Paste two or three pieces of your own writing, separated by a blank line. Flow sends them to Google once to draft the style above, then forgets them.")
-        val samples = EditText(this).apply { minLines = 4; styleField() }
-        personal.addView(samples)
-        personal.button("Draft my style") {
-            status.text = "Drafting your style…"
+        mine.addView(style)
+        mine.button("Save style", primary = true) {
+            settings.style = style.text.toString()
+            toast("Style saved.")
+        }
+
+        val learn = section("LEARN IT FROM YOUR WRITING")
+        learn.label("Paste two or three pieces of your own writing, separated by a blank line. Flow sends them to Google once to draft the style above, then forgets them.")
+        val samples = EditText(this@MainActivity).apply { minLines = 4; styleField() }
+        learn.addView(samples)
+        learn.button("Draft my style") {
+            toast("Drafting your style…")
             scope.launch {
                 try {
                     val saved = withContext(Dispatchers.IO) { settings.apiKey() } ?: throw IllegalStateException("Save an API key first.")
                     style.setText(draftStyle(saved, samples.text.toString()))
                     samples.text.clear()
-                    status.text = "Style drafted. Edit it if you like, then save preferences."
-                } catch (error: Exception) { status.text = error.message ?: "Could not draft a style." }
+                    toast("Style drafted. Edit it if you like, then save it.")
+                } catch (error: Exception) { toast(error.message ?: "Could not draft a style.") }
             }
         }
-        personal.label("Snippets: phrase => replacement, one per line. \"New line\", \"new paragraph\" and \"delete that\" already work.", 18f)
-        val snippets = EditText(this).apply {
-            hint = "my email => me@example.com"
-            minLines = 3
-            setText(settings.snippets.entries.joinToString("\n") { "${it.key} => ${it.value}" })
-            styleField()
-        }
-        personal.addView(snippets)
-        personal.label("Tone by app package (optional)", 18f)
-        personal.label("Most recent text field: ${settings.recentApp.ifEmpty { "none yet" }}. One line per app, for example com.whatsapp=casual.")
-        val appTones = EditText(this).apply {
-            hint = "com.whatsapp=casual\ncom.google.android.gm=professional"
-            minLines = 3
-            setText(settings.appTones.entries.joinToString("\n") { "${it.key}=${it.value.name.lowercase()}" })
-            styleField()
-        }
-        personal.addView(appTones)
-        personal.button("Save preferences", primary = true) {
-            settings.defaultTone = tones[tonePicker.selectedItemPosition]
-            settings.dictionary = dictionary.text.toString().lines().map(String::trim).filter(String::isNotEmpty)
-            settings.style = style.text.toString()
-            settings.snippets = snippets.text.toString().lines().mapNotNull { line ->
-                val pair = line.split("=>", limit = 2)
-                if (pair.size == 2 && pair[0].isNotBlank() && pair[1].isNotBlank())
-                    pair[0].trim() to pair[1].trim() else null
-            }.toMap()
-            settings.appTones = appTones.text.toString().lines().mapNotNull { line ->
-                val pair = line.split("=", limit = 2)
-                val tone = tones.firstOrNull { it.name.equals(pair.getOrNull(1)?.trim(), ignoreCase = true) }
-                if (pair.size == 2 && pair[0].isNotBlank() && tone != null)
-                    pair[0].trim().lowercase() to tone else null
-            }.toMap()
-            status.text = "Preferences saved."
-        }
+    }
 
-        val usage = column.section("USAGE")
+    private fun usagePage() = page {
+        val usage = section("THIS MONTH")
         usageText = usage.label("")
         usage.label("Speech price per hour (US$). Google's live transcription price is not clearly published; check ai.google.dev/pricing and enter the real figure.")
-        val rate = EditText(this).apply {
+        val rate = EditText(this@MainActivity).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
             setText(settings.sttUsdPerHour.toString())
             styleField()
         }
         usage.addView(rate)
-        usage.button("Save price") {
+        usage.button("Save price", primary = true) {
             val value = rate.text.toString().toFloatOrNull()
-            if (value == null || value < 0f) status.text = "Enter a price like 0.54."
-            else { settings.sttUsdPerHour = value; status.text = "Price saved."; refreshStatus() }
+            if (value == null || value < 0f) toast("Enter a price like 0.54.")
+            else { settings.sttUsdPerHour = value; toast("Price saved."); refreshStatus() }
         }
+    }
 
-        val updates = column.section("UPDATES")
-        updateText = updates.label("Flow ${Updater.installedVersion(this)}")
+    private fun updatesPage() = page {
+        label("Flow looks for new versions on GitHub about once a day and downloads them over Wi-Fi. Android always asks you to confirm an install.")
+        val updates = section("VERSION")
+        updateText = updates.label("Flow ${Updater.installedVersion(this@MainActivity)}")
         updateButton = updates.button("Check for updates", primary = true) {
             pendingUpdate?.let { installUpdate(it) } ?: checkUpdates(thenInstall = false)
         }
-        updates.label("Flow looks for new versions on GitHub about once a day and downloads them over Wi-Fi. Android always asks you to confirm an install.")
+    }
 
-        val backup = column.section("BACKUP")
-        backup.label("Move your dictionary, tones, cleanup level, snippets and style between your phone and PC. Your API key stays behind. Import replaces your current settings.")
+    private fun permissionsPage() = page {
+        label("Allow these once. Flow appears alongside your keyboard and inserts into the field you selected.")
+        val setup = section("ACCESS")
+        permission = setup.button("Allow microphone") {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+        }
+        overlayPermission = setup.button("Allow floating bubble") {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+        accessPermission = setup.button("Allow text insertion") {
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("Allow Flow to insert dictated text?")
+                .setMessage(
+                    "Flow uses Android Accessibility access to detect the text field you selected, " +
+                        "read its current text and cursor, and insert your dictation only into that field. " +
+                        "It also remembers the app package name for tone settings. Existing field text stays " +
+                        "on your device; Flow sends only your recorded audio and dictated transcript to " +
+                        "Google Gemini for transcription and cleanup. Flow excludes fields marked as password, " +
+                        "number, phone, or URL. You can turn this access off in Android Settings at any time."
+                )
+                .setNegativeButton("Not now", null)
+                .setPositiveButton("Continue") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .show()
+        }
+    }
+
+    private fun backupPage() = page {
+        label("Move your dictionary, tones, cleanup level, snippets and style between your phone and PC. Your API key stays behind. Import replaces your current settings.")
+        val backup = section("EXPORT AND IMPORT")
         backup.button("Export…") {
             startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
                 .setType("application/json").putExtra(Intent.EXTRA_TITLE, "flow-personalization.json"), EXPORT_REQUEST)
@@ -320,6 +486,8 @@ class MainActivity : Activity() {
         }
     }
 
+    // ---------- actions ----------
+
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -328,13 +496,13 @@ class MainActivity : Activity() {
         try {
             if (requestCode == EXPORT_REQUEST) {
                 contentResolver.openOutputStream(uri, "wt")!!.use { it.write(settings.exportPersonalization().toByteArray()) }
-                status.text = "Exported."
+                toast("Exported.")
             } else if (requestCode == IMPORT_REQUEST) {
                 val raw = contentResolver.openInputStream(uri)!!.use { it.readBytes().take(1_000_000).toByteArray().toString(Charsets.UTF_8) }
                 settings.importPersonalization(raw)
                 recreate() // reload every field from the imported settings
             }
-        } catch (error: Exception) { status.text = error.message ?: "Backup failed." }
+        } catch (error: Exception) { toast(error.message ?: "Backup failed.") }
     }
 
     override fun onResume() {
@@ -343,6 +511,7 @@ class MainActivity : Activity() {
         refreshStatus()
         val fromNotification = intent.getBooleanExtra("install-update", false)
         intent.removeExtra("install-update")
+        if (fromNotification) showPage("updates")
         if (fromNotification || System.currentTimeMillis() - settings.lastUpdateCheck > 6 * 60 * 60 * 1000L)
             checkUpdates(thenInstall = fromNotification)
     }
@@ -360,9 +529,11 @@ class MainActivity : Activity() {
                 if (info == null) {
                     updateText.text = "Flow ${Updater.installedVersion(this@MainActivity)} is up to date."
                     updateButton.text = "Check for updates"
+                    updatesSub.text = "Flow ${Updater.installedVersion(this@MainActivity)} · up to date"
                 } else {
                     updateText.text = "Version ${info.version} is available."
                     updateButton.text = "Download and install ${info.version}"
+                    updatesSub.text = "Version ${info.version} is available"
                     updateButton.isEnabled = true
                     if (thenInstall) installUpdate(info)
                 }
@@ -405,9 +576,12 @@ class MainActivity : Activity() {
         val overlay = Settings.canDrawOverlays(this)
         val access = FlowAccessibilityService.active != null
         val hasKey = settings.hasApiKey()
+        val ready = mic && overlay && access && hasKey
         status.text = "Mic ${if (mic) "ready" else "needed"} · Bubble ${if (overlay) "ready" else "needed"} · Text access ${if (access) "ready" else "needed"} · Key ${if (hasKey) "saved" else "missing"}"
-        status.setTextColor(if (mic && overlay && access && hasKey)
-            Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
+        status.setTextColor(if (ready) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
+        val allowed = listOf(mic, overlay, access).count { it }
+        permissionsSub.text = if (allowed == 3) "All allowed" else "$allowed of 3 allowed · action needed"
+        permissionsSub.setTextColor(if (allowed == 3) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
         permission.text = if (mic) "✓ Microphone allowed" else "Allow microphone"
         overlayPermission.text = if (overlay) "✓ Floating bubble allowed" else "Allow floating bubble"
         accessPermission.text = if (access) "✓ Text insertion allowed" else "Allow text insertion"
@@ -415,7 +589,7 @@ class MainActivity : Activity() {
         val used = settings.usage()
         val minutes = used.audioSeconds / 60
         val cost = used.audioSeconds / 3600 * settings.sttUsdPerHour
-        usageText.text = "This month: ${used.dictations} dictations · ${"%.1f".format(minutes)} minutes of speech · about US$${"%.2f".format(cost)} for transcription (cleanup cost not counted)."
+        usageText.text = "${used.dictations} dictations · ${"%.1f".format(minutes)} minutes of speech · about US$${"%.2f".format(cost)} for transcription (cleanup cost not counted)."
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
