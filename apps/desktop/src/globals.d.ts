@@ -106,6 +106,7 @@ declare const flowApi: {
     getPersonal(): Promise<PersonalDto>;
     setPersonal(patch: Partial<PersonalDto>): Promise<PersonalDto>;
     openPermission(name: string): void;
+    testCue(): Promise<void>;
     listHistory(query: string): Promise<HistoryEntryDto[]>;
     copyHistory(id: string): Promise<boolean>;
     removeHistory(id: string): Promise<void>;

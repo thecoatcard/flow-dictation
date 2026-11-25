@@ -129,7 +129,7 @@ describe('Dictation', () => {
     await say(); // command now has something to undo
     expect(calls.filter((c) => c === 'undo')).toHaveLength(1);
   });
-  it('plays the start tone, then mutes; unmutes and plays the stop tone once the mic is off', async () => {
+  it('plays the start tone once the mic is live, then mutes; unmutes and plays the stop tone after the mic is off', async () => {
     const order: string[] = [];
     const { d } = setup({
       cue: (k) => order.push(`cue:${k}`),
@@ -141,10 +141,10 @@ describe('Dictation', () => {
     });
     await d.keyDown();
     await d.keyUp();
-    expect(order).toEqual(['cue:start', 'mute', 'mic.start', 'mic.stop', 'unmute', 'cue:stop']);
+    expect(order).toEqual(['mic.start', 'cue:start', 'mute', 'mic.stop', 'unmute', 'cue:stop']);
   });
 
-  it('restores the sound when the mic fails to start', async () => {
+  it('does not mute or play tones when the mic fails to start', async () => {
     const order: string[] = [];
     const { d } = setup({
       media: { begin: () => order.push('mute'), end: () => order.push('unmute') },
@@ -154,7 +154,7 @@ describe('Dictation', () => {
       },
     });
     await d.keyDown();
-    expect(order).toEqual(['mute', 'unmute']);
+    expect(order).toEqual(['unmute']); // never muted, and never a tone for a recording that did not start
   });
 
   it('spoken key commands press the key and show a label', async () => {

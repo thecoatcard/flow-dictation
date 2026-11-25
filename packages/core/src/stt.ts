@@ -63,6 +63,13 @@ export function geminiLiveConnect(
 export interface SttOptions {
   /** Hard cap on waiting for the final transcript after audio ends. */
   finalizeTimeoutMs?: number;
+  /**
+   * Finish early once no new transcript text has arrived for this long after the audio ended.
+   * The server sometimes never sends turnComplete; waiting out the hard cap then costs seconds.
+   */
+  quietMs?: number;
+  /** Same, when nothing has been transcribed at all (silence), so "no speech" answers quickly. */
+  emptyMs?: number;
 }
 
 /**
@@ -79,6 +86,7 @@ export class SttSession {
   private closed = false;
   private closeInfo = '';
   private bytes = 0;
+  private lastActivity = 0;
   private done: (() => void) | null = null;
 
   constructor(
@@ -101,6 +109,8 @@ export class SttSession {
           this.interim = '';
         }
         if (c.interimInputTranscription?.text) this.interim = c.interimInputTranscription.text;
+        if (c.inputTranscription?.text || c.interimInputTranscription?.text)
+          this.lastActivity = Date.now();
         if (c.turnComplete || c.generationComplete) this.done?.();
       },
       onerror: (e) => {
@@ -158,7 +168,22 @@ export class SttSession {
       const timer = new Promise<'timeout'>((res) =>
         setTimeout(() => res('timeout'), this.opts.finalizeTimeoutMs ?? 3000),
       );
-      timedOut = (await Promise.race([waited.then(() => 'ok' as const), timer])) === 'timeout';
+      // Text has arrived and then stopped arriving: that is the final transcript, even without turnComplete.
+      const quietMs = this.opts.quietMs ?? 700;
+      const emptyMs = this.opts.emptyMs ?? 1500;
+      let poll: ReturnType<typeof setInterval> | undefined;
+      const settled = new Promise<'ok'>((res) => {
+        poll = setInterval(() => {
+          const idle = Date.now() - Math.max(this.lastActivity, start);
+          if (idle >= (this.text ? quietMs : emptyMs)) res('ok');
+        }, 40);
+      });
+      try {
+        timedOut =
+          (await Promise.race([waited.then(() => 'ok' as const), settled, timer])) === 'timeout';
+      } finally {
+        clearInterval(poll);
+      }
     }
     const result = {
       text: this.text,

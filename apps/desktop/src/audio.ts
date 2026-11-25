@@ -34,23 +34,43 @@
     ctx = null;
   }
 
-  // Start and stop tones: a rising blip when recording starts, a falling one when it ends.
+  // Start and stop tones: a short two-note bell chime. Rising (G5 to D6) means "listening", falling
+  // (D6 to G5) means "done". The first note is short and accented, the last slightly longer, in the
+  // register where speakers are clearest, and the stop chime is a little softer than the start.
   let cueCtx: AudioContext | null = null;
+  function bell(ctx: AudioContext, freq: number, at: number, len: number, peak: number): void {
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, at);
+    env.gain.exponentialRampToValueAtTime(peak, at + 0.006);
+    env.gain.exponentialRampToValueAtTime(0.0001, at + len + 0.09);
+    env.connect(ctx.destination);
+    // A fundamental plus two quiet overtones gives a soft bell rather than a bare beep.
+    for (const [mult, amp] of [
+      [1, 1],
+      [2, 0.28],
+      [3, 0.08],
+    ] as const) {
+      const osc = ctx.createOscillator();
+      const part = ctx.createGain();
+      part.gain.value = amp / 1.36;
+      osc.type = 'sine';
+      osc.frequency.value = freq * mult;
+      osc.connect(part).connect(env);
+      osc.start(at);
+      osc.stop(at + len + 0.12);
+    }
+  }
   function cue(kind: string): void {
     cueCtx ??= new AudioContext();
     void cueCtx.resume();
-    const t = cueCtx.currentTime;
-    const osc = cueCtx.createOscillator();
-    const gain = cueCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(kind === 'start' ? 740 : 988, t);
-    osc.frequency.exponentialRampToValueAtTime(kind === 'start' ? 1175 : 587, t + 0.09);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
-    osc.connect(gain).connect(cueCtx.destination);
-    osc.start(t);
-    osc.stop(t + 0.17);
+    const t = cueCtx.currentTime + 0.01;
+    if (kind === 'start') {
+      bell(cueCtx, 784, t, 0.07, 0.34);
+      bell(cueCtx, 1175, t + 0.075, 0.16, 0.3);
+    } else {
+      bell(cueCtx, 1175, t, 0.07, 0.27);
+      bell(cueCtx, 784, t + 0.075, 0.16, 0.23);
+    }
   }
   flowApi.audio.onCue(cue);
 

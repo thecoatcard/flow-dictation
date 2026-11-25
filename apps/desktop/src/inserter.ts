@@ -15,7 +15,6 @@ interface ClipboardSnapshot {
   image: NativeImage;
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function snapshot(): ClipboardSnapshot {
   return {
@@ -43,19 +42,28 @@ function restore(s: ClipboardSnapshot): void {
  */
 export class Inserter {
   private lastInsertAt = 0;
+  /** The user's real clipboard, waiting to be put back after the last paste. */
+  private pending: { saved: ClipboardSnapshot; timer: NodeJS.Timeout } | null = null;
 
   async insert(text: string): Promise<void> {
-    const saved = snapshot();
+    // A restore still waiting from the previous insert holds the user's real clipboard; keep that one.
+    const saved = this.pending?.saved ?? snapshot();
+    if (this.pending) clearTimeout(this.pending.timer);
+    this.pending = null;
     clipboard.writeText(text);
     try {
       uIOhook.keyTap(UiohookKey.V, [MOD]);
     } catch (e) {
       throw new Error(`paste failed; text left on clipboard (${String(e)})`);
     }
-    await sleep(RESTORE_DELAY_MS);
-    // If the user copied something meanwhile, theirs wins.
-    if (clipboard.readText() === text) restore(saved);
     this.lastInsertAt = Date.now();
+    // Done as soon as the paste is sent. The old clipboard comes back once the app has read ours,
+    // unless the user copied something meanwhile (theirs wins).
+    const timer = setTimeout(() => {
+      this.pending = null;
+      if (clipboard.readText() === text) restore(saved);
+    }, RESTORE_DELAY_MS);
+    this.pending = { saved, timer };
   }
 
   /** Presses a key or shortcut in the focused app, for spoken commands like "press enter". */

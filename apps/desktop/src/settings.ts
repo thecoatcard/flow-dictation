@@ -620,6 +620,7 @@
       }),
   );
 
+  on('playcue', 'click', () => void api.testCue());
   on('soundcues', 'click', () =>
     save({ soundCues: $('soundcues').getAttribute('aria-checked') !== 'true' }),
   );

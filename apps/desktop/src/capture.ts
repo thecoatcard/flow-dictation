@@ -73,6 +73,11 @@ export class MicCapture {
     }
   }
 
+  /** Loads the hidden audio page ahead of time so the first tone and the first recording are instant. */
+  warm(): void {
+    void this.window().catch(() => undefined);
+  }
+
   /** Plays the start or stop tone in the hidden audio page. Fire and forget. */
   cue(kind: 'start' | 'stop'): void {
     void this.window()

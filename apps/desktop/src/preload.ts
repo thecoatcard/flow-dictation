@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('flowApi', {
     getPersonal: () => ipcRenderer.invoke('personal:get'),
     setPersonal: (patch: unknown) => ipcRenderer.invoke('personal:set', patch),
     openPermission: (name: string) => ipcRenderer.send('permissions:open', name),
+    testCue: () => ipcRenderer.invoke('cue:test'),
     listHistory: (query: string) => ipcRenderer.invoke('history:list', query),
     copyHistory: (id: string) => ipcRenderer.invoke('history:copy', id),
     removeHistory: (id: string) => ipcRenderer.invoke('history:remove', id),

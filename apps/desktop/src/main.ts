@@ -141,11 +141,11 @@ function ducking(enabled: () => boolean): { begin(): void; end(): void } {
   return {
     begin() {
       if (!enabled() || timer || weMuted) return;
-      // A moment later, so the start tone is heard before the sound goes quiet.
+      // A moment later, so the start chime is heard before the sound goes quiet.
       timer = setTimeout(() => {
         timer = undefined;
         if (isOutputMuted() === false && setOutputMuted(true)) weMuted = true;
-      }, 170);
+      }, 320);
     },
     end() {
       if (timer) clearTimeout(timer);
@@ -248,6 +248,10 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
     if (typeof id === 'string') history.remove(id);
   });
   ipcMain.handle('history:clear', () => history.clear());
+  ipcMain.handle('cue:test', () => {
+    mic.cue('start');
+    setTimeout(() => mic.cue('stop'), 700);
+  });
   ipcMain.handle('usage:get', () => {
     const { month, totals } = usage.current();
     return { month, totals, cost: estimateCost(totals, store.get().app.sttUsdPerHour) };
@@ -392,6 +396,7 @@ if (!app.requestSingleInstanceLock()) {
       overlay.level(v);
       if (settings && !settings.isDestroyed()) settings.webContents.send('mic:level', v);
     };
+    svc.mic.warm();
     const dictation = createDictation(svc, overlay);
     registerDebugRecord(svc, dictation);
     registerSettings(svc, overlay);

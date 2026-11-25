@@ -52,6 +52,7 @@ export class Dictation {
   private lastInserted = false;
   private stt: ReturnType<DictationDeps['newStt']> | null = null;
   private starting: Promise<void> | null = null;
+  private cued = false; // the start tone played, so the stop tone should too
   private app: Promise<string | undefined> = Promise.resolve(undefined);
 
   constructor(private readonly d: DictationDeps) {}
@@ -61,14 +62,18 @@ export class Dictation {
     if (this.state !== 'idle') return;
     this.state = 'recording';
     this.d.overlay({ state: 'listening' });
-    this.d.cue?.('start');
-    this.d.media?.begin();
     const stt = this.d.newStt();
     this.stt = stt;
     this.app = (this.d.activeApp?.() ?? Promise.resolve(undefined)).catch(() => undefined);
     this.starting = this.d.mic.start((c) => stt.pushAudio(c));
     try {
       await this.starting;
+      if (this.state === 'recording') {
+        // The mic is live: the tone tells the user they can speak, then other sound is lowered.
+        this.cued = true;
+        this.d.cue?.('start');
+        this.d.media?.begin();
+      }
     } catch (e) {
       // Mic failed (unplugged, permission). If keyUp already ran it handles cleanup itself.
       if (this.state === 'recording') await this.fail('mic', 'Microphone unavailable', e);
@@ -87,7 +92,8 @@ export class Dictation {
       await this.starting?.catch(() => undefined);
       await this.d.mic.stop();
       this.d.media?.end();
-      this.d.cue?.('stop');
+      if (this.cued) this.d.cue?.('stop');
+      this.cued = false;
       const r = await stt!.finish();
       this.d.recordUsage?.({ audioSeconds: r.audioSeconds, dictations: 1 });
       this.d.log('stt', { ms: this.d.now() - t0, finalizeMs: r.finalizeMs, timedOut: r.timedOut });
@@ -144,6 +150,7 @@ export class Dictation {
     this.stt = null;
     await this.d.mic.stop().catch(() => undefined);
     this.d.media?.end();
+    this.cued = false;
     this.state = 'idle';
     this.d.overlay({ state: 'error', message });
   }

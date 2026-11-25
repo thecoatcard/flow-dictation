@@ -48,6 +48,22 @@ describe('SttSession', () => {
     expect(r).toMatchObject({ text: 'partial text', timedOut: true });
   });
 
+  it('finishes once the text stops changing, without waiting for turnComplete or the hard cap', async () => {
+    const f = fake((h) => h.onmessage(msg({ inputTranscription: { text: 'all done' } })));
+    const t0 = Date.now();
+    const r = await new SttSession(f.connect, { quietMs: 60, finalizeTimeoutMs: 5000 }).finish();
+    expect(r).toMatchObject({ text: 'all done', timedOut: false });
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
+
+  it('answers a silent recording quickly instead of waiting out the hard cap', async () => {
+    const f = fake(() => undefined);
+    const t0 = Date.now();
+    const r = await new SttSession(f.connect, { emptyMs: 80, finalizeTimeoutMs: 5000 }).finish();
+    expect(r.text).toBe('');
+    expect(Date.now() - t0).toBeLessThan(1500);
+  });
+
   it('accepts a late final that lands before turnComplete', async () => {
     const f = fake((h) => {
       h.onmessage(msg({ interimInputTranscription: { text: 'late' } }));
