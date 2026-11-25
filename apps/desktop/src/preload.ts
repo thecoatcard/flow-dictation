@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('flowApi', {
       ipcRenderer.on('audio:start', (_e, deviceId?: string) => cb(deviceId)),
     onStop: (cb: () => void) => ipcRenderer.on('audio:stop', () => cb()),
     onList: (cb: () => void) => ipcRenderer.on('audio:list', () => cb()),
+    onCue: (cb: (kind: string) => void) =>
+      ipcRenderer.on('audio:cue', (_e, kind: string) => cb(kind)),
     devices: (list: unknown) => ipcRenderer.send('audio:devices', list),
     sendChunk: (chunk: ArrayBuffer) => ipcRenderer.send('audio:chunk', chunk),
     started: () => ipcRenderer.send('audio:started'),

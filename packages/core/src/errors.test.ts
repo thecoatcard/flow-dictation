@@ -70,6 +70,8 @@ describe('app settings migration', () => {
       recentApps: [],
       sttUsdPerHour: 0.54,
       keepHistory: true,
+      soundCues: true,
+      muteWhileDictating: false,
       overlay: 'always',
       overlayPos: null,
     });

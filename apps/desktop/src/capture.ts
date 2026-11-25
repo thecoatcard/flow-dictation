@@ -73,6 +73,13 @@ export class MicCapture {
     }
   }
 
+  /** Plays the start or stop tone in the hidden audio page. Fire and forget. */
+  cue(kind: 'start' | 'stop'): void {
+    void this.window()
+      .then((w) => w.webContents.send('audio:cue', kind))
+      .catch(() => undefined);
+  }
+
   /** Releases the mic. */
   async stop(): Promise<void> {
     if (!this.win || this.win.isDestroyed()) return;

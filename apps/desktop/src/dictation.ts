@@ -30,6 +30,10 @@ export interface DictationDeps {
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
   now(): number;
+  /** A short tone at the start and end of recording. */
+  cue?(kind: 'start' | 'stop'): void;
+  /** Lowers other sound while recording (`begin`) and restores it (`end`). Both may be called more than once. */
+  media?: { begin(): void; end(): void };
   /** The final inserted text and the app it went into, for the history page. */
   recordHistory?(entry: { text: string; app?: string }): void;
   /** Billable usage for cost tracking (counts only). */
@@ -57,6 +61,8 @@ export class Dictation {
     if (this.state !== 'idle') return;
     this.state = 'recording';
     this.d.overlay({ state: 'listening' });
+    this.d.cue?.('start');
+    this.d.media?.begin();
     const stt = this.d.newStt();
     this.stt = stt;
     this.app = (this.d.activeApp?.() ?? Promise.resolve(undefined)).catch(() => undefined);
@@ -80,6 +86,8 @@ export class Dictation {
     try {
       await this.starting?.catch(() => undefined);
       await this.d.mic.stop();
+      this.d.media?.end();
+      this.d.cue?.('stop');
       const r = await stt!.finish();
       this.d.recordUsage?.({ audioSeconds: r.audioSeconds, dictations: 1 });
       this.d.log('stt', { ms: this.d.now() - t0, finalizeMs: r.finalizeMs, timedOut: r.timedOut });
@@ -135,6 +143,7 @@ export class Dictation {
     this.stt?.finish().catch(() => undefined); // close the socket
     this.stt = null;
     await this.d.mic.stop().catch(() => undefined);
+    this.d.media?.end();
     this.state = 'idle';
     this.d.overlay({ state: 'error', message });
   }

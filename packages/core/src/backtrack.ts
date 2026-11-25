@@ -7,7 +7,10 @@ const TIME_CORRECTION = new RegExp(
 );
 
 export function resolveTimeBacktrack(transcript: string): string {
-  return transcript.replace(TIME_CORRECTION, (_match, _old: string, corrected: string) => corrected);
+  return transcript.replace(
+    TIME_CORRECTION,
+    (_match, _old: string, corrected: string) => corrected,
+  );
 }
 
 /** STT occasionally joins a sentence ending to the next first-person sentence. */

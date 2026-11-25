@@ -129,6 +129,34 @@ describe('Dictation', () => {
     await say(); // command now has something to undo
     expect(calls.filter((c) => c === 'undo')).toHaveLength(1);
   });
+  it('plays the start tone, then mutes; unmutes and plays the stop tone once the mic is off', async () => {
+    const order: string[] = [];
+    const { d } = setup({
+      cue: (k) => order.push(`cue:${k}`),
+      media: { begin: () => order.push('mute'), end: () => order.push('unmute') },
+      mic: {
+        start: async () => void order.push('mic.start'),
+        stop: async () => void order.push('mic.stop'),
+      },
+    });
+    await d.keyDown();
+    await d.keyUp();
+    expect(order).toEqual(['cue:start', 'mute', 'mic.start', 'mic.stop', 'unmute', 'cue:stop']);
+  });
+
+  it('restores the sound when the mic fails to start', async () => {
+    const order: string[] = [];
+    const { d } = setup({
+      media: { begin: () => order.push('mute'), end: () => order.push('unmute') },
+      mic: {
+        start: async () => Promise.reject(new Error('no mic')),
+        stop: async () => undefined,
+      },
+    });
+    await d.keyDown();
+    expect(order).toEqual(['mute', 'unmute']);
+  });
+
   it('spoken key commands press the key and show a label', async () => {
     let command: 'select-all' | 'press-enter' = 'select-all';
     const { d, calls, overlays } = setup({

@@ -34,6 +34,26 @@
     ctx = null;
   }
 
+  // Start and stop tones: a rising blip when recording starts, a falling one when it ends.
+  let cueCtx: AudioContext | null = null;
+  function cue(kind: string): void {
+    cueCtx ??= new AudioContext();
+    void cueCtx.resume();
+    const t = cueCtx.currentTime;
+    const osc = cueCtx.createOscillator();
+    const gain = cueCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(kind === 'start' ? 740 : 988, t);
+    osc.frequency.exponentialRampToValueAtTime(kind === 'start' ? 1175 : 587, t + 0.09);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    osc.connect(gain).connect(cueCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.17);
+  }
+  flowApi.audio.onCue(cue);
+
   flowApi.audio.onList(() => {
     void (async () => {
       try {

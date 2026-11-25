@@ -119,6 +119,8 @@
     setOverlay(s.app.overlay);
     autostart.setAttribute('aria-checked', String(s.app.autostart));
     $('keephistory').setAttribute('aria-checked', String(s.app.keepHistory));
+    $('soundcues').setAttribute('aria-checked', String(s.app.soundCues));
+    $('mutewhile').setAttribute('aria-checked', String(s.app.muteWhileDictating));
     $('autonote').textContent = s.packaged
       ? 'Launch Flow quietly in the tray when you sign in.'
       : 'Works in the built app only, not in development runs.';
@@ -562,6 +564,13 @@
           toast('Imported');
         } else if (r.error) toast(r.error, 'err');
       }),
+  );
+
+  on('soundcues', 'click', () =>
+    save({ soundCues: $('soundcues').getAttribute('aria-checked') !== 'true' }),
+  );
+  on('mutewhile', 'click', () =>
+    save({ muteWhileDictating: $('mutewhile').getAttribute('aria-checked') !== 'true' }),
   );
 
   // ---------- history ----------

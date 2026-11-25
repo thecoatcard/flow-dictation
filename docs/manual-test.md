@@ -22,6 +22,8 @@ Launch: `$env:GEMINI_API_KEY="..."; pnpm dev`. Hold right Ctrl (right Option on 
 - [ ] No network shows an error, inserts nothing
 - [ ] Wrong API key shows an error, inserts nothing
 - [ ] "delete that" removes the last insertion
+- [ ] Sound cues: a rising tone when recording starts and a falling one when it stops; off with Settings > Dictation > Sound cues
+- [ ] Mute while dictating: music goes quiet after the start tone and comes back when you stop; if it was already muted, it stays muted
 - [ ] "select all", "undo", "press enter", "press tab" and "press escape" press that key when they are the whole utterance
 - [ ] "reply sounds good press enter" inserts the text, then presses Enter
 - [ ] Tray "Copy last dictation" works

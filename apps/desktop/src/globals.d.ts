@@ -21,6 +21,8 @@ interface SettingsDto {
     autostart: boolean;
     sttUsdPerHour: number;
     keepHistory: boolean;
+    soundCues: boolean;
+    muteWhileDictating: boolean;
     overlay: 'always' | 'active';
     overlayPos: { x: number; y: number } | null;
   };
@@ -71,6 +73,7 @@ declare const flowApi: {
     onStart(cb: (deviceId?: string) => void): void;
     onStop(cb: () => void): void;
     onList(cb: () => void): void;
+    onCue(cb: (kind: string) => void): void;
     devices(list: Array<{ id: string; label: string }>): void;
     sendChunk(chunk: ArrayBuffer): void;
     started(): void;

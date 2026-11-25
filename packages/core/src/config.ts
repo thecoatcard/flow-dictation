@@ -27,6 +27,10 @@ export interface AppSettings {
   sttUsdPerHour: number;
   /** Save the final text of each dictation on this PC so it can be searched and copied later. */
   keepHistory: boolean;
+  /** A short tone when recording starts and stops. */
+  soundCues: boolean;
+  /** Mute the PC's sound output while recording, then restore it (Windows). */
+  muteWhileDictating: boolean;
   /** Floating icon: always on screen, or only while dictating. */
   overlay: 'always' | 'active';
   /** Where the user dragged the floating icon (window origin); null = default spot. */
@@ -64,6 +68,8 @@ export function defaultConfig(): FlowConfig {
       recentApps: [],
       sttUsdPerHour: 0.54,
       keepHistory: true,
+      soundCues: true,
+      muteWhileDictating: false,
       overlay: 'always',
       overlayPos: null,
     },
@@ -96,6 +102,9 @@ export function migrateConfig(raw: unknown): FlowConfig {
     if (typeof a.sttUsdPerHour === 'number' && a.sttUsdPerHour >= 0 && a.sttUsdPerHour < 1000)
       out.app.sttUsdPerHour = a.sttUsdPerHour;
     if (typeof a.keepHistory === 'boolean') out.app.keepHistory = a.keepHistory;
+    if (typeof a.soundCues === 'boolean') out.app.soundCues = a.soundCues;
+    if (typeof a.muteWhileDictating === 'boolean')
+      out.app.muteWhileDictating = a.muteWhileDictating;
     if (a.overlay === 'always' || a.overlay === 'active') out.app.overlay = a.overlay;
     if (isObj(a.overlayPos)) {
       const { x, y } = a.overlayPos;

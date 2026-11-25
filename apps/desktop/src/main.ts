@@ -35,6 +35,7 @@ import {
 } from './updater';
 import { HistoryStore } from './history-store';
 import { UsageStore } from './usage-store';
+import { isOutputMuted, setOutputMuted } from './win-audio';
 
 const APP_NAME = 'Flow';
 const HOTKEYS = [
@@ -128,6 +129,37 @@ const vocabulary = (store: ConfigStore): string[] =>
     .dictionary.slice(0, 100)
     .map((d) => d.term);
 
+/** Mutes the PC's output while recording and restores it, only if this app did the muting. */
+function ducking(enabled: () => boolean): { begin(): void; end(): void } {
+  let timer: NodeJS.Timeout | undefined;
+  let weMuted = false;
+  return {
+    begin() {
+      if (!enabled() || timer || weMuted) return;
+      // A moment later, so the start tone is heard before the sound goes quiet.
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (isOutputMuted() === false && setOutputMuted(true)) weMuted = true;
+      }, 170);
+    },
+    end() {
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+      if (weMuted) {
+        setOutputMuted(false);
+        weMuted = false;
+      }
+    },
+  };
+}
+
+let endMedia: (() => void) | null = null;
+/** Remembers how to end the muting, so quitting Flow mid-dictation never leaves the PC silent. */
+function restoreOnQuit(media: { begin(): void; end(): void }): { begin(): void; end(): void } {
+  endMedia = () => media.end();
+  return media;
+}
+
 function createDictation(
   { store, vault, mic, usage, history }: Services,
   overlay: Overlay,
@@ -160,6 +192,10 @@ function createDictation(
     log: debugLog,
     now: Date.now,
     recordUsage: (u) => usage.add(u),
+    cue: (kind) => {
+      if (store.get().app.soundCues) mic.cue(kind);
+    },
+    media: restoreOnQuit(ducking(() => store.get().app.muteWhileDictating)),
     recordHistory: (e) => {
       if (store.get().app.keepHistory) history.add(e.text, e.app);
     },
@@ -328,7 +364,10 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', openSettings);
   // Tray app: keep running when the settings window closes.
   app.on('window-all-closed', () => undefined);
-  app.on('will-quit', () => uIOhook.stop());
+  app.on('will-quit', () => {
+    endMedia?.();
+    uIOhook.stop();
+  });
   void app.whenReady().then(() => {
     const dir = app.getPath('userData');
     const svc: Services = {
