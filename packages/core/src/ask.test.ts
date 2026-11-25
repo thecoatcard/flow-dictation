@@ -4,6 +4,7 @@ import {
   askFlow,
   buildAskMessage,
   buildAskPrompt,
+  detectAsk,
   MAX_ANSWER_CHARS,
   parseAskReply,
   parseLocalTime,
@@ -212,6 +213,20 @@ describe('applyAskResult', () => {
     const m = addNote(emptyMemory(), 'my locker code is 4821', now, 'n1');
     expect(apply(m, { kind: 'forget', match: 'locker' })).toMatchObject({ message: 'Forgot: my locker code is 4821' });
     expect(apply(m, { kind: 'forget', match: 'zebra' }).message).toBe('I could not find a note like that.');
+  });
+});
+
+describe('detectAsk', () => {
+  it('finds the question after "ask Flow" or "hey Flow"', () => {
+    expect(detectAsk('Ask Flow, what is my locker code?')).toBe('what is my locker code?');
+    expect(detectAsk('hey flow remind me to call Dhriti at 5 pm')).toBe('remind me to call Dhriti at 5 pm');
+    expect(detectAsk('ask flow\nline two')).toBe('line two');
+  });
+  it('is only the start of the utterance, and needs a question', () => {
+    expect(detectAsk('ask flow')).toBeNull();
+    expect(detectAsk('I will ask flow tomorrow')).toBeNull();
+    expect(detectAsk('please ask the team')).toBeNull();
+    expect(detectAsk('hey flowers are nice')).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { SpeechMeter } from './speech-gate';
-import type { Command, PipelineResult, SttResult, UsageTotals } from '@flow/core';
+import { detectAsk, type Command, type PipelineResult, type SttResult, type UsageTotals } from '@flow/core';
 
 /** Keys and shortcuts the inserter can press for spoken commands. */
 export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo' | 'delete';
@@ -144,6 +144,9 @@ export class Dictation {
       if (!r.text.trim()) return this.finish({ state: 'hidden' });
       if (this.kind === 'command') return await this.runCommand(r.text, t0);
       if (this.kind === 'ask') return await this.runAsk(r.text);
+      // "Ask Flow, ..." with the normal dictation key is an Ask too, so a question never lands in the user's app.
+      const spoken = this.kind === 'dictate' ? detectAsk(r.text) : null;
+      if (spoken) return await this.runAsk(spoken);
 
       this.state = 'cleaning';
       const t1 = this.d.now();

@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('flowApi', {
     onFade: (cb: () => void) => ipcRenderer.on('answer:fade', () => cb()),
     interactive: (on: boolean) => ipcRenderer.send('answer:interactive', on),
     hover: (on: boolean) => ipcRenderer.send('answer:hover', on),
+    dragStart: (rect: { left: number; top: number; width: number; height: number }) =>
+      ipcRenderer.send('answer:drag-start', rect),
+    drag: (dx: number, dy: number) => ipcRenderer.send('answer:drag', { dx, dy }),
+    dragEnd: () => ipcRenderer.send('answer:drag-end'),
     reminderDone: () => ipcRenderer.send('reminder:done'),
     reminderSnooze: () => ipcRenderer.send('reminder:snooze'),
     onSpeechEnd: (cb: () => void) => ipcRenderer.on('answer:speech-end', () => cb()),

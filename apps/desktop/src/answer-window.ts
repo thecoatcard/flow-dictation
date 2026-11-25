@@ -34,6 +34,11 @@ export class AnswerWindow {
   private iconHover = false;
   private cardHover = false;
   private hideTimer: NodeJS.Timeout | null = null;
+  /** Set once the user drags the card: it then stays where they dropped it until it closes. */
+  private moved: Point | null = null;
+  private lastPlaced = { up: true, originX: W / 2 };
+  private dragFrom: Point | null = null;
+  private cardRect = { left: 0, top: 0, width: W, height: H };
 
   /** `anchor` returns the centre of the floating icon, which the card grows from. */
   constructor(
@@ -59,6 +64,32 @@ export class AnswerWindow {
       if (on) this.cancelHide();
       else this.scheduleHide();
     });
+    ipcMain.on('answer:drag-start', (e, rect: { left: number; top: number; width: number; height: number }) => {
+      if (!mine(e) || !this.win) return;
+      const [x, y] = this.win.getPosition();
+      this.dragFrom = { x: x!, y: y! };
+      this.cardRect = rect;
+    });
+    ipcMain.on('answer:drag', (e, d: { dx: number; dy: number }) => {
+      if (!mine(e) || !this.win || !this.dragFrom) return;
+      // Offsets are from the drag start, so lag here cannot make the card drift. The card itself, not the
+      // larger transparent window around it, is kept on the screen.
+      const at = { x: this.dragFrom.x + d.dx, y: this.dragFrom.y + d.dy };
+      const area = screen.getDisplayNearestPoint({
+        x: at.x + this.cardRect.left + this.cardRect.width / 2,
+        y: at.y + this.cardRect.top + this.cardRect.height / 2,
+      }).workArea;
+      const r = this.cardRect;
+      const x = Math.min(Math.max(at.x, area.x - r.left), area.x + area.width - r.left - r.width);
+      const y = Math.min(Math.max(at.y, area.y - r.top), area.y + area.height - r.top - r.height);
+      this.win.setPosition(Math.round(x), Math.round(y));
+    });
+    ipcMain.on('answer:drag-end', (e) => {
+      if (!mine(e) || !this.win || !this.dragFrom) return;
+      this.dragFrom = null;
+      const [x, y] = this.win.getPosition();
+      this.moved = { x: x!, y: y! };
+    });
     ipcMain.on('reminder:done', (e) => mine(e) && this.act(() => this.reminders.done(this.current)));
     ipcMain.on('reminder:snooze', (e) => mine(e) && this.act(() => this.reminders.snooze(this.current)));
   }
@@ -80,6 +111,7 @@ export class AnswerWindow {
   }
 
   show(question: string, answer: string): void {
+    this.moved = null; // a new answer opens by the icon again
     this.mode = 'answer';
     this.answer = answer;
     this.send({ kind: 'answer', question, answer });
@@ -89,6 +121,7 @@ export class AnswerWindow {
     stopSpeaking();
     this.cancelHide();
     this.mode = 'none';
+    this.moved = null;
     if (this.win && !this.win.isDestroyed()) this.win.hide();
   }
 
@@ -96,6 +129,7 @@ export class AnswerWindow {
     const queue = this.reminders.queue();
     if (!queue.length) return this.mode === 'reminder' ? this.close() : undefined;
     const first = queue[0]!;
+    if (this.mode !== 'reminder') this.moved = null; // clearing one by one keeps the card where it was dropped
     this.mode = 'reminder';
     this.current = first.id;
     this.send({
@@ -141,13 +175,15 @@ export class AnswerWindow {
    * Returns what the renderer needs to grow the card out of the icon: which edge faces it and where.
    */
   private place(win: BrowserWindow): { up: boolean; originX: number } {
+    if (this.moved) return this.lastPlaced; // dragged: stay where the user put it
     const at = this.anchor();
     const area = screen.getDisplayNearestPoint(at).workArea;
     const up = at.y - GAP - H >= area.y;
     const y = up ? at.y - GAP - H : at.y + GAP;
     const p = clampOrigin({ x: at.x - W / 2, y }, { width: W, height: H }, [area]);
     win.setPosition(p.x, p.y);
-    return { up, originX: at.x - p.x };
+    this.lastPlaced = { up, originX: at.x - p.x };
+    return this.lastPlaced;
   }
 
   private create(): BrowserWindow {

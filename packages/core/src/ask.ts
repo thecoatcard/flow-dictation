@@ -28,6 +28,14 @@ export const QUESTION_CLOSE = '</question>';
 /** Longest answer kept. The popup is for quick answers, so anything longer is cut at a sentence. */
 export const MAX_ANSWER_CHARS = 4000;
 
+const ASK_TRIGGER = /^\s*(?:ask|hey)\s+flow\b[\s,.:;!?-]*([\s\S]+)$/i;
+
+/** The question when the whole utterance starts with "ask Flow" / "hey Flow" and says something after it. */
+export function detectAsk(transcript: string): string | null {
+  const q = ASK_TRIGGER.exec(transcript)?.[1]?.trim();
+  return q ? q : null;
+}
+
 export function buildAskPrompt(config: FlowConfig): string {
   return [
     'You are the quick helper inside a dictation app. The user speaks to you and your result appears in a small popup.',

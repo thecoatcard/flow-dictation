@@ -7,7 +7,7 @@
   const copy = document.getElementById('copy') as HTMLButtonElement;
   const speak = document.getElementById('speak') as HTMLButtonElement;
 
-  const SHOW_MS = 15_000; // an answer fades by itself after this long if nobody is looking at it
+  const SHOW_MS = 8_000; // an answer fades by itself after this long if the pointer is not on it
   const AFTER_HOVER_MS = 5_000; // and this long after the pointer leaves
   const FADE_MS = 440;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -70,6 +70,35 @@
     flowApi.answer.hover(false);
     if (!speaking) arm(AFTER_HOVER_MS);
   });
+
+  // Drag the card by any part of it except the buttons; it stays where it is dropped.
+  let drag: { x: number; y: number } | null = null;
+  let dragged = false;
+  card.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+    card.setPointerCapture(e.pointerId);
+    drag = { x: e.screenX, y: e.screenY };
+    dragged = false;
+    const r = card.getBoundingClientRect();
+    flowApi.answer.dragStart({ left: r.left, top: r.top, width: r.width, height: r.height });
+  });
+  card.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.screenX - drag.x;
+    const dy = e.screenY - drag.y;
+    if (!dragged && Math.hypot(dx, dy) < 4) return; // a click, not a drag
+    dragged = true;
+    card.classList.add('dragging');
+    flowApi.answer.drag(dx, dy);
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag = null;
+    card.classList.remove('dragging');
+    if (dragged) flowApi.answer.dragEnd();
+  };
+  card.addEventListener('pointerup', endDrag);
+  card.addEventListener('pointercancel', endDrag);
 
   copy.addEventListener('click', () => {
     flowApi.answer.copy();

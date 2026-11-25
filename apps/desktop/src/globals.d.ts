@@ -124,6 +124,9 @@ declare const flowApi: {
     onFade(cb: () => void): void;
     interactive(on: boolean): void;
     hover(on: boolean): void;
+    dragStart(rect: { left: number; top: number; width: number; height: number }): void;
+    drag(dx: number, dy: number): void;
+    dragEnd(): void;
     reminderDone(): void;
     reminderSnooze(): void;
     onSpeechEnd(cb: () => void): void;

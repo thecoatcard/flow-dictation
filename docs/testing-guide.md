@@ -238,6 +238,12 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 
 | 10.42 | Close the keyboard and leave every text field (for example on the home screen) | The floating mic is still on screen, a little fainter; tapping it says to tap a text field first |
 
+| 10.43 | On the home screen (no text field), tap the mic | It listens and says **Ask, remind or remember** (not "tap a text field") |
+| 10.44 | There, say "what is the capital of Australia" | The card opens from the mic with the answer; nothing is typed |
+| 10.45 | There, say "remind me to test this in two minutes", then "remember the gate code is 1234" | A reminder is set; a note is saved |
+| 10.46 | Open a chat, tap its text box, tap the mic and say "see you at five" | The words are typed into the box, as before |
+| 10.47 | In that same box say "Ask Flow, what is the capital of Australia" | Nothing is typed; the card answers |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
@@ -270,7 +276,8 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.10 | After any edit, say "undo" | The original text comes back |
 | 12.11 | Tap the shortcut quickly instead of holding | Does not latch like dictation; too little audio, so nothing happens |
 | 12.12 | Settings → **Command Mode shortcut → Turn off**, then try 12.1 | Nothing happens; **Record shortcut** turns it back on |
-| 12.14 | Hold the **Ask shortcut** (default Ctrl+Alt+Q) and say "what is the capital of Australia" | The overlay says **Thinking…**, then a small card grows out of the floating icon with the answer, sized to fit it. Nothing is typed in your app. It fades after 15 seconds; hovering keeps it open |
+| 12.14a | With the normal dictation key say "Ask Flow, what is the capital of Australia" | It asks instead of typing: the card grows from the icon with the answer |
+| 12.14 | Hold the **Ask shortcut** (default Ctrl+Alt+Q) and say "what is the capital of Australia" | The overlay says **Thinking…**, then a small card grows out of the floating icon with the answer, sized to fit it. Nothing is typed in your app. It fades after 8 seconds; hovering keeps it open. Drag it by any part (not the buttons) and it stays where you drop it |
 | 12.15 | On the card: the copy icon, then paste in Notepad; the speaker icon, then again to stop | The answer pastes; the PC reads it and stops; the card stays while it speaks, then fades |
 | 12.16 | Dictate a sentence, then say "read that back" (or "read that again", "read it out loud") with the dictation key | The PC reads the sentence aloud. Right after Flow starts it reads your newest saved dictation; with no history the overlay says **Nothing to read back** |
 | 12.17 | Hold the Ask shortcut and say "remember my locker code is 4821", then "what is my locker code" | The card says it saved the note, then answers 4821. **Notes and reminders** in Settings lists it |

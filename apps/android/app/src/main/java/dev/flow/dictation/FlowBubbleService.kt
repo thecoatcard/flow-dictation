@@ -171,6 +171,7 @@ class FlowBubbleService : Service() {
     private var limitJob: Job? = null
     private var target: FlowAccessibilityService.Target? = null
     private var holdMode = false
+    private var askOnly = false // no text field was focused when listening began: what is said is an Ask
     private var cued = false // the start chime played, so the stop chime should too
     private var lastTarget: FlowAccessibilityService.Target? = null
     private var lastInserted = ""
@@ -420,10 +421,9 @@ class FlowBubbleService : Service() {
     }
 
     private fun startDictation() {
-        val access = FlowAccessibilityService.active
-        if (access == null) { showStatus("Enable text access in Flow"); return }
-        val focused = try { access.capture() }
-            catch (error: IllegalStateException) { showStatus(error.message.orEmpty()); return }
+        // With no usable text field (the home screen, a password box, or text access switched off) Flow still listens,
+        // and whatever is said is something to ask: a question, a note to remember, or a reminder.
+        val focused = try { FlowAccessibilityService.active?.capture() } catch (_: IllegalStateException) { null }
         val key = settings.apiKey()
         if (key == null) { showStatus("Add API key in Flow"); return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -432,6 +432,7 @@ class FlowBubbleService : Service() {
         }
         if (!isOnline()) { showStatus("No internet · try again later"); return }
         target = focused
+        askOnly = focused == null
         state = State.CONNECTING
         promote(micActive = true)
         wave?.level = 0f
@@ -510,6 +511,7 @@ class FlowBubbleService : Service() {
         showStatus("Working on it · tap to cancel")
         val mic = recorder
         val destination = target
+        val noField = askOnly
         finishJob = scope.launch {
             var live: GeminiLiveTranscriber? = null
             try {
@@ -563,7 +565,8 @@ class FlowBubbleService : Service() {
                     }
                     return@launch
                 }
-                val result = DictationPipeline.process(transcript, settings.snapshot(destination?.packageName), key)
+                val result = if (noField) DictationPipeline.routeAskOnly(transcript)
+                    else DictationPipeline.process(transcript, settings.snapshot(destination?.packageName), key)
                 when (result) {
                     is DictationResult.Insert -> {
                         lastText = result.text
@@ -652,6 +655,7 @@ class FlowBubbleService : Service() {
         if (settings.voiceEditing && destination != null) FlowAccessibilityService.active?.selectedText(destination) else null
 
     private fun listeningText(): String = when {
+        askOnly -> if (holdMode) "Ask, remind or remember · release to finish" else "Ask, remind or remember · tap to finish"
         selectionToEdit(target) != null -> "Say what to change · tap to finish"
         holdMode -> "Listening · release to finish"
         else -> "Listening · tap to finish"

@@ -70,6 +70,14 @@ object DictationPipeline {
         return DictationResult.Insert(join(cleaned), enter)
     }
 
+    /**
+     * With no text field to type into, everything said is meant for Flow itself: "read that back" still reads, and
+     * anything else is a question, a note to remember or a reminder, with or without saying "Ask Flow" first.
+     */
+    internal fun routeAskOnly(raw: String): DictationResult =
+        if (detectCommand(raw) == DictationResult.ReadBack) DictationResult.ReadBack
+        else DictationResult.Ask(AskMode.detect(raw) ?: raw.trim())
+
     private val trailingPunctuation = Regex("[.,!?;:\\s]+$")
     private val trailingEnter = Regex("[\\s,.;:!?]*\\bpress enter\\b[\\s.!?,;:]*$", RegexOption.IGNORE_CASE)
 

@@ -104,6 +104,14 @@ class CleanupPromptTest {
         assertTrue(cut.endsWith("."))
     }
 
+    @Test fun withoutATextFieldEverythingSaidIsAnAsk() {
+        assertEquals(DictationResult.Ask("Remind me to call Dhriti at 5 pm"), DictationPipeline.routeAskOnly("Remind me to call Dhriti at 5 pm "))
+        assertEquals(DictationResult.Ask("what is my locker code"), DictationPipeline.routeAskOnly("Ask Flow, what is my locker code"))
+        assertEquals(DictationResult.ReadBack, DictationPipeline.routeAskOnly("read that back"))
+        // Commands that need a field are just words here.
+        assertEquals(DictationResult.Ask("select all"), DictationPipeline.routeAskOnly("select all"))
+    }
+
     @Test fun readBackIsAWholeUtteranceCommand() {
         assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("Read that back."))
         assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("read it back"))

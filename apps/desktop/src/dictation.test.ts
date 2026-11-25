@@ -211,6 +211,24 @@ describe('Dictation', () => {
       expect(d.state).toBe('idle');
     });
 
+    it('"Ask Flow, ..." with the normal dictation key asks instead of typing', async () => {
+      const asked: string[] = [];
+      const { d, calls } = setup(
+        {
+          ask: async (q) => (asked.push(q), 'Canberra.'),
+          showAnswer: () => undefined,
+          process: async (): Promise<PipelineResult> => {
+            throw new Error('an Ask must not run normal cleanup');
+          },
+        },
+        { text: 'Ask Flow, what is the capital of Australia' },
+      );
+      await d.keyDown();
+      await d.keyUp();
+      expect(asked).toEqual(['what is the capital of Australia']);
+      expect(calls).toEqual(['mic.start', 'mic.stop']);
+    });
+
     it('shows an error when there is no answer', async () => {
       const shown: string[] = [];
       const { d, overlays } = setup({ ask: async () => null, showAnswer: (_q, a) => void shown.push(a) });
