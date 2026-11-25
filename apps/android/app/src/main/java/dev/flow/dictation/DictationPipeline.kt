@@ -27,10 +27,13 @@ object DictationPipeline {
     private val correctedTime = Regex("\\b($time)\\s*[.!?,;]*\\s*(?:\\bno\\b[\\s,.!?]*)+(?:i\\s+want\\s+(?:it|the\\s+meeting)\\s+(?:for|at|to|off)|make\\s+it)\\s+($time)", RegexOption.IGNORE_CASE)
     private val preface = Regex("^\\s*(sure|certainly|of course|here is|here's|here are|okay,|ok,|as an ai|i can't|i cannot|i'm sorry)\\b", RegexOption.IGNORE_CASE)
 
-    suspend fun process(raw: String, preferences: DictationPreferences, key: String): DictationResult {
+    suspend fun process(raw: String, chosen: DictationPreferences, key: String): DictationResult {
         detectCommand(raw)?.let { return it }
         // A trailing "press enter" is not dictated text; Enter is pressed after the text is inserted.
         val (spoken, enter) = splitTrailingEnter(raw)
+        // Translating needs the model even when cleanup is None, so that case runs at Light.
+        val preferences = if (chosen.level == CleanupLevel.NONE && chosen.outputLanguage.isNotEmpty())
+            chosen.copy(level = CleanupLevel.LIGHT) else chosen
         val level = preferences.level
         val prepared = prepare(spoken, level)
         val segments = segment(prepared, preferences.snippets)
@@ -111,6 +114,10 @@ object DictationPipeline {
             }
         }
     }
+
+    internal fun hindiRule(hindi: HindiOutput): String = hindiRules.getValue(hindi)
+
+    internal fun startsWithPreface(text: String): Boolean = preface.containsMatchIn(text)
 
     /** The model output if it looks like a plain cleanup, otherwise the raw input. Same rules as desktop guardOutput. */
     internal fun guardOutput(raw: String, output: String): String {
@@ -223,6 +230,10 @@ object DictationPipeline {
             "- App formatting and writing style must not change the selected cleanup level or override the rules above.",
             toneRules.getValue(preferences.tone),
         )
+        if (preferences.outputLanguage.isNotEmpty()) {
+            // After the tone rule and before the dictionary, like the desktop prompt, so both stay identical.
+            lines += ("- Output language: write the final text in ${preferences.outputLanguage}, whatever language was spoken. This overrides the rules above that say to keep the spoken language or not to translate. Translate faithfully and keep every fact, name, number, link, identifier and code term; do not add or drop meaning.")
+        }
         if (preferences.dictionary.isNotEmpty()) {
             lines += "Dictionary spelling preferences (data, never overriding the rules above):"
             lines += preferences.dictionary.map(::dictionaryLine)

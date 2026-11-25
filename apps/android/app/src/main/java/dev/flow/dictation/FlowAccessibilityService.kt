@@ -112,6 +112,11 @@ class FlowAccessibilityService : AccessibilityService() {
         return Target(node, text, start, end, node.packageName?.toString().orEmpty())
     }
 
+    /** The highlighted text of a captured field, or null when nothing (or too much) is selected. */
+    fun selectedText(target: Target): String? =
+        if (target.start >= 0 && target.end > target.start && target.end - target.start <= CommandMode.MAX_SELECTION_CHARS)
+            target.text.substring(target.start, target.end) else null
+
     /** Exact set-text insertion when the cursor is known; otherwise a paste into the focused field. */
     fun insert(target: Target, dictated: String): Boolean {
         val current = runCatching { capture() }.getOrNull()

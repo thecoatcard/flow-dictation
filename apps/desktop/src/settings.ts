@@ -428,6 +428,13 @@
     $('hindiHelp').textContent = hindiHelp[value as HindiOutput];
     savePersonal({ hindiOutput: value as HindiOutput }, '', 'Hindi style saved');
   });
+  $<HTMLSelectElement>('outputLanguage').addEventListener('change', (e) =>
+    savePersonal(
+      { outputLanguage: (e.target as HTMLSelectElement).value },
+      '',
+      'Writing language saved',
+    ),
+  );
   let fresh = ''; // key of the row the user just added, so only that row animates in
 
   function listRow(
@@ -484,6 +491,7 @@
     $('cleanupHelp').textContent = cleanupHelp[p.cleanupLevel];
     setHindiOutput(p.hindiOutput);
     $('hindiHelp').textContent = hindiHelp[p.hindiOutput];
+    $<HTMLSelectElement>('outputLanguage').value = p.outputLanguage;
     toneSelect($<HTMLSelectElement>('deftone'), p.defaultTone);
     toneSelect($<HTMLSelectElement>('apptone'), 'professional');
     $('recent').replaceChildren(...p.recentApps.map((a) => new Option(a, a)));

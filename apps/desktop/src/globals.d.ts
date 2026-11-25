@@ -48,6 +48,7 @@ interface PersonalDto {
   defaultTone: Tone;
   cleanupLevel: CleanupLevel;
   hindiOutput: HindiOutput;
+  outputLanguage: string;
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];

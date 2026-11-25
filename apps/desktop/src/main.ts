@@ -6,6 +6,7 @@ import {
   classifyError,
   exportPersonalization,
   friendlyMessage,
+  cleanLanguage,
   importPersonalization,
   estimateCost,
   summarizeStyle,
@@ -336,6 +337,7 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
       defaultTone: c.defaultTone,
       cleanupLevel: c.cleanupLevel,
       hindiOutput: c.hindiOutput,
+      outputLanguage: c.outputLanguage,
       snippets: c.snippets,
       style: c.style,
       recentApps: c.app.recentApps,
@@ -350,6 +352,7 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
       if (patch.defaultTone) c.defaultTone = patch.defaultTone;
       if (patch.cleanupLevel) c.cleanupLevel = patch.cleanupLevel;
       if (patch.hindiOutput) c.hindiOutput = patch.hindiOutput;
+      if (typeof patch.outputLanguage === 'string') c.outputLanguage = cleanLanguage(patch.outputLanguage);
       if (patch.snippets) c.snippets = patch.snippets;
       if (typeof patch.style === 'string') c.style = patch.style;
     });

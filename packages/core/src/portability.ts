@@ -11,6 +11,7 @@ export interface PersonalizationExport {
   defaultTone: FlowConfig['defaultTone'];
   cleanupLevel: FlowConfig['cleanupLevel'];
   hindiOutput?: FlowConfig['hindiOutput'];
+  outputLanguage?: string;
   snippets: FlowConfig['snippets'];
   style: string;
 }
@@ -24,6 +25,7 @@ export function exportPersonalization(c: FlowConfig): PersonalizationExport {
     defaultTone: c.defaultTone,
     cleanupLevel: c.cleanupLevel,
     hindiOutput: c.hindiOutput,
+    outputLanguage: c.outputLanguage,
     snippets: c.snippets,
     style: c.style,
   };
@@ -41,6 +43,7 @@ export function importPersonalization(current: FlowConfig, raw: unknown): FlowCo
     defaultTone: r.defaultTone,
     cleanupLevel: r.cleanupLevel ?? current.cleanupLevel,
     hindiOutput: r.hindiOutput ?? current.hindiOutput,
+    outputLanguage: r.outputLanguage ?? current.outputLanguage,
     snippets: r.snippets,
     style: r.style,
   });

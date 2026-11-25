@@ -20,7 +20,7 @@ object FastPath {
     private val spacing = Regex("\\s{2,}|\\s[,.;:!?]")
 
     fun isClearAlready(text: String, preferences: DictationPreferences): Boolean {
-        if (preferences.level != CleanupLevel.AUTO || preferences.tone == Tone.CODE) return false
+        if (preferences.level != CleanupLevel.AUTO || preferences.tone == Tone.CODE || preferences.outputLanguage.isNotEmpty()) return false
         val t = text.trim()
         if (t.isEmpty() || t.length > MAX_CHARS || t.contains('\n')) return false
         if (preferences.hindi == HindiOutput.DEVANAGARI || devanagari.containsMatchIn(t)) return false

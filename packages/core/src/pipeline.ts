@@ -75,12 +75,15 @@ export async function processTranscript(
   const inserted = (text: string): PipelineResult =>
     enter ? { kind: 'insert', text, pressEnter: true } : { kind: 'insert', text };
 
+  // Translating needs the model even when cleanup is None, so that case runs at Light.
+  const config: FlowConfig =
+    o.config.cleanupLevel === 'none' && o.config.outputLanguage
+      ? { ...o.config, cleanupLevel: 'light' }
+      : o.config;
   const text =
-    o.config.cleanupLevel === 'none'
-      ? spoken
-      : repairSentenceBoundary(resolveTimeBacktrack(spoken));
-  const segments = segmentTranscript(text, o.config.snippets);
-  if (o.config.cleanupLevel === 'none') {
+    config.cleanupLevel === 'none' ? spoken : repairSentenceBoundary(resolveTimeBacktrack(spoken));
+  const segments = segmentTranscript(text, config.snippets);
+  if (config.cleanupLevel === 'none') {
     // None skips the editing model, but Hindi must still come out in Roman letters when asked.
     const wantsRoman = o.config.hindiOutput === 'hinglish';
     const romanized = await Promise.all(
@@ -92,11 +95,11 @@ export async function processTranscript(
     );
     return inserted(joinSegments(romanized).trim());
   }
-  const tone = resolveTone(o.config, o.appId);
-  const system = buildSystemPrompt(o.config, tone, o.context);
+  const tone = resolveTone(config, o.appId);
+  const system = buildSystemPrompt(config, tone, o.context);
   const cleaned = await Promise.all(
     segments.map(async (s) =>
-      s.kind !== 'text' || isClearAlready(s.text, o.config, tone)
+      s.kind !== 'text' || isClearAlready(s.text, config, tone)
         ? s // snippets, and text Auto would leave unchanged, skip the model round trip
         : { ...s, text: await cleanOne(s.text, system, o) },
     ),

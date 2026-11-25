@@ -350,6 +350,19 @@ class MainActivity : Activity() {
             if (code != settings.language) { settings.language = code; toast("Language saved. It applies to the next dictation.") }
         }
 
+        val writeIn = section("WRITE IN")
+        writeIn.label("Speak in any language and Flow writes it in the one you pick. Leave it on As I speak to keep the language you spoke. This uses the cleanup model, so it takes a moment longer.")
+        val writePicker = writeIn.picker(Languages.writeIn.map { it.ifEmpty { "As I speak" } })
+        writePicker.setSelection(Languages.writeIn.indexOf(settings.outputLanguage).coerceAtLeast(0))
+        writePicker.onItemSelected { index ->
+            val language = Languages.writeIn[index]
+            if (language != settings.outputLanguage) { settings.outputLanguage = language; toast("Saved. It applies to the next dictation.") }
+        }
+
+        val editing = section("EDIT BY VOICE")
+        editing.label("Select some text, tap the mic, and say what to do: make this shorter, fix the grammar, translate to Hindi, turn into a list. Flow rewrites the selection. Say delete that to undo. Turn this off to dictate over a selection instead.")
+        editing.switchRow("Rewrite selected text", settings.voiceEditing) { settings.voiceEditing = it }
+
         val feedback = section("FEEDBACK")
         feedback.switchRow("Start and stop sounds", settings.soundCues) { settings.soundCues = it }
         feedback.switchRow("Vibrate on start and stop", settings.haptics) { settings.haptics = it }

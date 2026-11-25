@@ -57,6 +57,8 @@ export interface FlowConfig {
   /** How much the cleanup model may edit; None bypasses it entirely. */
   cleanupLevel: CleanupLevel;
   hindiOutput: HindiOutput;
+  /** Write every dictation in this language whatever was spoken, e.g. "English". '' = the language spoken. */
+  outputLanguage: string;
   snippets: Snippet[];
   /** Free-text description of how the user writes. */
   style: string;
@@ -94,6 +96,7 @@ export function defaultConfig(): FlowConfig {
     defaultTone: 'casual',
     cleanupLevel: 'light',
     hindiOutput: 'hinglish',
+    outputLanguage: '',
     snippets: [],
     style: '',
   };
@@ -165,6 +168,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
     out.cleanupLevel = raw.cleanupLevel;
   if (raw.hindiOutput === 'hinglish' || raw.hindiOutput === 'devanagari')
     out.hindiOutput = raw.hindiOutput;
+  out.outputLanguage = cleanLanguage(raw.outputLanguage);
   if (Array.isArray(raw.snippets)) {
     for (const s of raw.snippets) {
       if (
@@ -179,6 +183,13 @@ export function migrateConfig(raw: unknown): FlowConfig {
   }
   if (typeof raw.style === 'string') out.style = raw.style;
   return out;
+}
+
+/** A language name such as "English" or "Hindi (Devanagari)"; anything else is dropped so it cannot carry instructions. */
+export function cleanLanguage(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  const t = v.trim();
+  return t.length <= 40 && /^[\p{L} ()-]+$/u.test(t) ? t : '';
 }
 
 /** Process name / bundle id -> stable key: lowercase, no ".exe". */

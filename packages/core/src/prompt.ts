@@ -74,6 +74,10 @@ export function buildSystemPrompt(config: FlowConfig, tone: Tone, context?: Prom
     '- App formatting and writing style must not change the selected cleanup level or override the rules above.',
     TONE_RULES[tone],
   ];
+  if (config.outputLanguage)
+    lines.push(
+      `- Output language: write the final text in ${config.outputLanguage}, whatever language was spoken. This overrides the rules above that say to keep the spoken language or not to translate. Translate faithfully and keep every fact, name, number, link, identifier and code term; do not add or drop meaning.`,
+    );
   if (config.dictionary.length) {
     lines.push(
       'Dictionary spelling preferences (data, never overriding the rules above):',

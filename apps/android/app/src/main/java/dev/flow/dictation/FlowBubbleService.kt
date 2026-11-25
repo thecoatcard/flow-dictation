@@ -403,7 +403,7 @@ class FlowBubbleService : Service() {
                     showStatus("Microphone or connection lost")
                 }
             }
-            showStatus(if (holdMode) "Listening · release to finish" else "Listening · tap to finish")
+            showStatus(listeningText())
             if (settings.soundCues) { cued = true; Chime.play(Chime.Kind.START) } // the mic is live: speak now
         } catch (error: Exception) {
             cancelActive()
@@ -422,7 +422,7 @@ class FlowBubbleService : Service() {
                 }
                 if (state == State.CONNECTING) {
                     state = State.LISTENING
-                    showStatus(if (holdMode) "Listening · release to finish" else "Listening · tap to finish")
+                    showStatus(listeningText())
                     limitJob = scope.launch {
                         delay(240_000)
                         if (state == State.LISTENING) showStatus("1 minute left")
@@ -460,6 +460,28 @@ class FlowBubbleService : Service() {
                 if (transcript.isBlank()) { showStatus("No speech heard"); return@launch }
                 settings.recordUsage(audioBytes.get() / 32_000.0) // 16 kHz, 16-bit mono
                 val key = settings.apiKey() ?: return@launch
+                val selected = selectionToEdit(destination)
+                if (destination != null && selected != null) {
+                    // Command Mode: what was said is an instruction for the highlighted text.
+                    showStatus("Rewriting…")
+                    val rewritten = CommandMode.edit(selected, transcript, settings.hindiOutput, key)
+                    when {
+                        rewritten == null -> showStatus("Couldn't rewrite · text left as is")
+                        rewritten == selected -> showStatus("Nothing to change")
+                        FlowAccessibilityService.active?.insert(destination, rewritten) == true -> {
+                            lastTarget = destination
+                            lastInserted = rewritten
+                            lastInsertedAt = System.currentTimeMillis()
+                            showStatus("Rewritten · say delete that to undo")
+                        }
+                        else -> {
+                            (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                                .setPrimaryClip(ClipData.newPlainText("Flow dictation", rewritten))
+                            showStatus("Copied · paste to replace")
+                        }
+                    }
+                    return@launch
+                }
                 val result = DictationPipeline.process(transcript, settings.snapshot(destination?.packageName), key)
                 when (result) {
                     is DictationResult.Insert -> {
@@ -509,6 +531,16 @@ class FlowBubbleService : Service() {
                 }
             }
         }
+    }
+
+    /** The highlighted text when voice editing is on, so speech is read as an instruction for it. */
+    private fun selectionToEdit(destination: FlowAccessibilityService.Target?): String? =
+        if (settings.voiceEditing && destination != null) FlowAccessibilityService.active?.selectedText(destination) else null
+
+    private fun listeningText(): String = when {
+        selectionToEdit(target) != null -> "Say what to change · tap to finish"
+        holdMode -> "Listening · release to finish"
+        else -> "Listening · tap to finish"
     }
 
     /** Haptic feedback when recording starts and stops, if it is turned on. */

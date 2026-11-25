@@ -19,6 +19,18 @@ object Languages {
         Language("ko-KR", "Korean"),
     )
 
+    /** Languages the text can be written in whatever was spoken. The first entry, "", keeps the spoken language. */
+    val writeIn = listOf(
+        "", "English", "Hindi", "Bengali", "Gujarati", "Marathi", "Tamil", "Telugu", "Urdu",
+        "Spanish", "French", "German", "Portuguese", "Arabic",
+    )
+
+    /** A plain language name only (letters, spaces, brackets, hyphen; at most 40), so it cannot carry instructions. */
+    fun cleanWriteIn(value: String?): String {
+        val t = value?.trim().orEmpty()
+        return if (t.length <= 40 && Regex("^[\\p{L} ()-]+$").matches(t)) t else ""
+    }
+
     fun byCode(code: String): Language = all.firstOrNull { it.code == code } ?: all.first()
 
     /** What goes into the transcription setup: nothing for auto-detect, otherwise the one language. */

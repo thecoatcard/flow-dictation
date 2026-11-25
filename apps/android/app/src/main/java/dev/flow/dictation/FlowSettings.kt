@@ -23,6 +23,8 @@ data class DictationPreferences(
     val style: String,
     val snippets: Map<String, String>,
     val hindi: HindiOutput = HindiOutput.HINGLISH,
+    /** Write every dictation in this language whatever was spoken; '' keeps the spoken language. */
+    val outputLanguage: String = "",
 )
 
 class FlowSettings(context: Context) {
@@ -47,6 +49,16 @@ class FlowSettings(context: Context) {
     var language: String
         get() = prefs.getString("language", "").orEmpty()
         set(value) { prefs.edit().putString("language", value).apply() }
+
+    /** With text selected, what you say is an instruction to rewrite it ("make this shorter") instead of new text. */
+    var voiceEditing: Boolean
+        get() = prefs.getBoolean("voice-editing", true)
+        set(value) { prefs.edit().putBoolean("voice-editing", value).apply() }
+
+    /** Language the text is written in whatever was spoken, or '' to keep the spoken language. */
+    var outputLanguage: String
+        get() = Languages.cleanWriteIn(prefs.getString("output-language", ""))
+        set(value) { prefs.edit().putString("output-language", Languages.cleanWriteIn(value)).apply() }
 
     /** The floating mic stays on, and comes back by itself, until the user stops it. On by default. */
     var bubbleEnabled: Boolean
@@ -138,7 +150,8 @@ class FlowSettings(context: Context) {
         }
 
     fun snapshot(appId: String? = null) = DictationPreferences(
-        cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets, hindiOutput
+        cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets, hindiOutput,
+        outputLanguage,
     )
 
     fun apiKey(): String? {

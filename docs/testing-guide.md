@@ -89,6 +89,8 @@ Now switch **Hindi** to **Devanagari** and repeat 4.1: expect `मैं कल 
 
 With **Auto cleanup = None**, repeat 4.1 in Hinglish mode: Hindi should still come out in Roman letters (only the script is converted).
 
+**Write in (Windows):** in Settings → Writing style, set **Write in** to English and say 4.1 in Hindi. Expect the English sentence, even with cleanup on None (translating runs at Light). Set it back to **As I speak** afterwards.
+
 ## 5. Dictionary, snippets and tone
 
 Add these first (Words and tone): dictionary `Spring Boot`, `Kubernetes`, `pnpm`; snippet trigger `my email` = `me@example.com`.
@@ -211,6 +213,12 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.20 | Pull down the shade, add the **Flow mic** tile, tap it twice | Floating mic turns off, then on; the tile follows |
 | 10.21 | ☰ → **Dictation → Speech language**, pick Hindi (India), say a Hindi sentence | Transcribed as Hindi (Roman or Devanagari per your Hindi setting) |
 | 10.22 | ☰ → **Permissions → Keep the mic alive** | Shows if background use is allowed, and steps for your phone's brand |
+| 10.23 | ☰ → **Dictation → Write in**, pick English; say a Hindi sentence in a text field | The sentence is inserted in English. Set it back to **As I speak** and it stays Hindi |
+| 10.24 | Type "i am running late", select it, tap the mic and say "make this formal" | Status says "Say what to change". The selection is replaced by a formal version |
+| 10.25 | Right after 10.24, tap the mic and say "delete that" | The original text comes back |
+| 10.26 | ☰ → **Dictation → Edit by voice**, turn **Rewrite selected text** off, repeat 10.24 | What you say replaces the selection as plain dictation |
+
+Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
 

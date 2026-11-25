@@ -16,7 +16,7 @@ const MAX_CHARS = 600;
  * missing sentence mark sends the text to the model as before.
  */
 export function isClearAlready(text: string, config: FlowConfig, tone: Tone): boolean {
-  if (config.cleanupLevel !== 'auto' || tone === 'code') return false;
+  if (config.cleanupLevel !== 'auto' || tone === 'code' || config.outputLanguage) return false;
   const t = text.trim();
   if (!t || t.length > MAX_CHARS || t.includes('\n')) return false;
   if (config.hindiOutput === 'devanagari' || DEVANAGARI.test(t)) return false; // script handling needs the model
