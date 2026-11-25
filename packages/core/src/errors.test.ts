@@ -69,6 +69,7 @@ describe('app settings migration', () => {
       autostart: true,
       recentApps: [],
       sttUsdPerHour: 0.54,
+      keepHistory: true,
       overlay: 'always',
       overlayPos: null,
     });

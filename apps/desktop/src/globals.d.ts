@@ -20,6 +20,7 @@ interface SettingsDto {
     micDeviceId: string;
     autostart: boolean;
     sttUsdPerHour: number;
+    keepHistory: boolean;
     overlay: 'always' | 'active';
     overlayPos: { x: number; y: number } | null;
   };
@@ -42,6 +43,13 @@ interface PersonalDto {
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];
+}
+
+interface HistoryEntryDto {
+  id: string;
+  at: string;
+  app: string;
+  text: string;
 }
 
 interface UpdateStatusDto {
@@ -95,6 +103,10 @@ declare const flowApi: {
     getPersonal(): Promise<PersonalDto>;
     setPersonal(patch: Partial<PersonalDto>): Promise<PersonalDto>;
     openPermission(name: string): void;
+    listHistory(query: string): Promise<HistoryEntryDto[]>;
+    copyHistory(id: string): Promise<boolean>;
+    removeHistory(id: string): Promise<void>;
+    clearHistory(): Promise<void>;
     getUpdate(): Promise<UpdateStatusDto>;
     checkUpdate(): Promise<void>;
     installUpdate(): Promise<void>;

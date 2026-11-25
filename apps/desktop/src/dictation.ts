@@ -30,6 +30,8 @@ export interface DictationDeps {
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
   now(): number;
+  /** The final inserted text and the app it went into, for the history page. */
+  recordHistory?(entry: { text: string; app?: string }): void;
   /** Billable usage for cost tracking (counts only). */
   recordUsage?(u: Partial<UsageTotals>): void;
   /** User-facing text for a failure (bad key, offline, quota...). */
@@ -85,7 +87,8 @@ export class Dictation {
 
       this.state = 'cleaning';
       const t1 = this.d.now();
-      const result = await this.d.process(r.text, await this.app);
+      const appId = await this.app;
+      const result = await this.d.process(r.text, appId);
       this.d.log('cleanup', { ms: this.d.now() - t1 });
 
       if (result.kind === 'command') {
@@ -107,6 +110,7 @@ export class Dictation {
         this.lastText = result.text;
         await this.d.inserter.insert(result.text);
         this.lastInserted = true;
+        this.d.recordHistory?.({ text: result.text, app: appId });
       }
       if (result.pressEnter) await this.d.inserter.press('enter');
       this.d.log('insert', { ms: this.d.now() - t2, total: this.d.now() - t0 });

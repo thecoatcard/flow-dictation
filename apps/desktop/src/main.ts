@@ -33,6 +33,7 @@ import {
   onUpdateStatus,
   startAutoUpdate,
 } from './updater';
+import { HistoryStore } from './history-store';
 import { UsageStore } from './usage-store';
 
 const APP_NAME = 'Flow';
@@ -63,6 +64,7 @@ interface Services {
   vault: KeyVault;
   mic: MicCapture;
   usage: UsageStore;
+  history: HistoryStore;
 }
 
 function openSettings(): void {
@@ -126,7 +128,10 @@ const vocabulary = (store: ConfigStore): string[] =>
     .dictionary.slice(0, 100)
     .map((d) => d.term);
 
-function createDictation({ store, vault, mic, usage }: Services, overlay: Overlay): Dictation {
+function createDictation(
+  { store, vault, mic, usage, history }: Services,
+  overlay: Overlay,
+): Dictation {
   const inserter = new Inserter();
   return new Dictation({
     mic: {
@@ -155,6 +160,9 @@ function createDictation({ store, vault, mic, usage }: Services, overlay: Overla
     log: debugLog,
     now: Date.now,
     recordUsage: (u) => usage.add(u),
+    recordHistory: (e) => {
+      if (store.get().app.keepHistory) history.add(e.text, e.app);
+    },
     describeError: friendlyMessage,
   });
 }
@@ -186,7 +194,19 @@ function applyAutostart(enabled: boolean): void {
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
 }
 
-function registerSettings({ store, vault, mic, usage }: Services, overlay: Overlay): void {
+function registerSettings({ store, vault, mic, usage, history }: Services, overlay: Overlay): void {
+  ipcMain.handle('history:list', (_e, query: unknown) =>
+    history.list(typeof query === 'string' ? query : ''),
+  );
+  ipcMain.handle('history:copy', (_e, id: unknown) => {
+    const e = typeof id === 'string' ? history.get(id) : undefined;
+    if (e) clipboard.writeText(e.text);
+    return !!e;
+  });
+  ipcMain.handle('history:remove', (_e, id: unknown) => {
+    if (typeof id === 'string') history.remove(id);
+  });
+  ipcMain.handle('history:clear', () => history.clear());
   ipcMain.handle('usage:get', () => {
     const { month, totals } = usage.current();
     return { month, totals, cost: estimateCost(totals, store.get().app.sttUsdPerHour) };
@@ -316,6 +336,7 @@ if (!app.requestSingleInstanceLock()) {
       vault: new KeyVault(path.join(dir, 'api-key.bin')),
       mic: new MicCapture(),
       usage: new UsageStore(path.join(dir, 'usage.json')),
+      history: new HistoryStore(path.join(dir, 'history.json')),
     };
     const overlay = new Overlay({
       mode: () => svc.store.get().app.overlay,

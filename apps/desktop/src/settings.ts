@@ -118,6 +118,7 @@
     setMode(s.app.mode);
     setOverlay(s.app.overlay);
     autostart.setAttribute('aria-checked', String(s.app.autostart));
+    $('keephistory').setAttribute('aria-checked', String(s.app.keepHistory));
     $('autonote').textContent = s.packaged
       ? 'Launch Flow quietly in the tray when you sign in.'
       : 'Works in the built app only, not in development runs.';
@@ -562,6 +563,62 @@
         } else if (r.error) toast(r.error, 'err');
       }),
   );
+
+  // ---------- history ----------
+  const histq = $<HTMLInputElement>('histq');
+  const histlist = $('histlist');
+  const when = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  function renderHistory(): void {
+    void api.listHistory(histq.value).then((items) => {
+      if (!items.length) {
+        histlist.replaceChildren(
+          emptyRow(histq.value ? 'No dictations match.' : 'Nothing here yet. Dictate something.'),
+        );
+        return;
+      }
+      histlist.replaceChildren(
+        ...items.map((e) => {
+          const li = document.createElement('li');
+          const d = document.createElement('div');
+          const n = document.createElement('span');
+          n.className = 'name';
+          n.textContent = e.text;
+          const small = document.createElement('small');
+          small.textContent = e.app ? `${when(e.at)} · ${e.app}` : when(e.at);
+          n.append(small);
+          const copy = document.createElement('button');
+          copy.type = 'button';
+          copy.className = 'btn quiet';
+          copy.textContent = 'Copy';
+          copy.addEventListener(
+            'click',
+            () => void api.copyHistory(e.id).then(() => toast('Copied')),
+          );
+          const rm = document.createElement('button');
+          rm.type = 'button';
+          rm.className = 'btn quiet';
+          rm.textContent = 'Delete';
+          rm.addEventListener('click', () => void api.removeHistory(e.id).then(renderHistory));
+          d.append(n, copy, rm);
+          li.append(d);
+          return li;
+        }),
+      );
+    });
+  }
+  pageHooks['history'] = renderHistory;
+  histq.addEventListener('input', renderHistory);
+  on('keephistory', 'click', () =>
+    save({ keepHistory: $('keephistory').getAttribute('aria-checked') !== 'true' }),
+  );
+  on('histclear', 'click', () => {
+    if (confirm('Delete all saved dictations from this PC?'))
+      void api.clearHistory().then(() => {
+        renderHistory();
+        toast('History cleared');
+      });
+  });
 
   // ---------- updates ----------
   const paintUpdate = (u: UpdateStatusDto): void => {

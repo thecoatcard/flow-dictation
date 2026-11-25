@@ -25,6 +25,8 @@ export interface AppSettings {
   recentApps: string[];
   /** Live transcription price in USD per audio hour, for the cost estimate. */
   sttUsdPerHour: number;
+  /** Save the final text of each dictation on this PC so it can be searched and copied later. */
+  keepHistory: boolean;
   /** Floating icon: always on screen, or only while dictating. */
   overlay: 'always' | 'active';
   /** Where the user dragged the floating icon (window origin); null = default spot. */
@@ -61,6 +63,7 @@ export function defaultConfig(): FlowConfig {
       autostart: false,
       recentApps: [],
       sttUsdPerHour: 0.54,
+      keepHistory: true,
       overlay: 'always',
       overlayPos: null,
     },
@@ -92,6 +95,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
     if (typeof a.autostart === 'boolean') out.app.autostart = a.autostart;
     if (typeof a.sttUsdPerHour === 'number' && a.sttUsdPerHour >= 0 && a.sttUsdPerHour < 1000)
       out.app.sttUsdPerHour = a.sttUsdPerHour;
+    if (typeof a.keepHistory === 'boolean') out.app.keepHistory = a.keepHistory;
     if (a.overlay === 'always' || a.overlay === 'active') out.app.overlay = a.overlay;
     if (isObj(a.overlayPos)) {
       const { x, y } = a.overlayPos;

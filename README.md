@@ -102,6 +102,7 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 - The API key is encrypted with the OS keychain (Electron `safeStorage`) in its own file, never in the config JSON, never logged.
 - The debug log (`flow-debug.log` in the app data folder) holds timings and redacted error details, never audio or transcripts.
 - "Learn style" sends your pasted samples to Google once; the samples are not stored.
+- Settings > History keeps the final text of your last 300 dictations in `history.json` in the app data folder, on this PC only and not encrypted. Turn it off or press Clear all there; the debug log still never holds transcripts.
 
 ## Known limits
 

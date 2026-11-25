@@ -20,6 +20,7 @@
           <button data-page="words">Words and tone</button>
           <button data-page="style">Writing style</button>
           <button data-page="usage">Usage</button>
+          <button data-page="history">History</button>
           <button data-page="updates">Updates</button>
           <button data-page="access">Permissions</button>
           <button data-page="backup">Backup</button>
@@ -206,7 +207,8 @@
           <h2>Snippets</h2>
           <p class="hint">
             Say the trigger and Flow types the expansion exactly as written. “New line”, “new
-            paragraph”, “delete that”, “select all”, “undo”, “press enter”, “press tab” and “press escape” already work. Say “press enter” after your text to send it.
+            paragraph”, “delete that”, “select all”, “undo”, “press enter”, “press tab” and “press
+            escape” already work. Say “press enter” after your text to send it.
           </p>
           <ul class="list" id="snips"></ul>
           <div class="adder">
@@ -318,6 +320,45 @@
           </div>
         </section>
 
+        <!-- ===== History ===== -->
+        <section class="page" id="page-history" hidden>
+          <header class="ph">
+            <h1>History</h1>
+            <p>
+              Your recent dictations, saved only on this PC. Search them, copy one, or delete it.
+            </p>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Keep dictation history</div>
+                <div class="d">
+                  Saves the final text of each dictation here, newest first, up to 300. Turn it off
+                  to stop saving.
+                </div>
+              </div>
+              <div class="ctl">
+                <button
+                  class="switch"
+                  id="keephistory"
+                  role="switch"
+                  aria-checked="true"
+                  aria-label="Keep dictation history"
+                ></button>
+              </div>
+            </div>
+          </div>
+          <div class="adder">
+            <input
+              id="histq"
+              type="search"
+              placeholder="Search your dictations"
+              aria-label="Search history"
+            />
+            <button class="btn quiet" id="histclear" type="button">Clear all</button>
+          </div>
+          <ul class="list" id="histlist"></ul>
+        </section>
         <!-- ===== Updates ===== -->
         <section class="page" id="page-updates" hidden>
           <header class="ph">
