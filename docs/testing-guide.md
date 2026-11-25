@@ -137,7 +137,7 @@ Settings → Dictation → **How it listens**: **Hold to talk**.
 | 7.1 | Hold the hotkey for 3 seconds while speaking, then release | Records only while held, then inserts |
 | 7.2 | Tap the hotkey quickly, speak, tap again | A quick tap keeps recording until the next tap |
 | 7.3 | Switch to **Press to start and stop**; press, speak, press | Same result with plain taps |
-| 7.4 | Choose the **Copilot key (F23)** | It works as tap to start, tap to stop |
+| 7.4 | Choose the **Copilot key (F23)** (in either mode) | Tap once: the overlay shows Listening and stays there while you speak. Tap again: it processes. It never stops by itself, because this key cannot be held |
 | 7.5 | **Record shortcut**, press `Ctrl+Alt+D` | The list shows `Custom: Ctrl+Alt+D`; holding that combo dictates |
 | 7.6 | With that combo set, press only `D` or `Ctrl+D` | Nothing happens |
 | 7.7 | **Record shortcut**, press a plain letter | Refused with a message |

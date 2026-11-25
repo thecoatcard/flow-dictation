@@ -25,6 +25,11 @@ const NO_MODS: Mods = { ctrl: false, alt: false, shift: false, meta: false };
 export interface Chord {
   key: number;
   mods?: Mods;
+  /**
+   * The key reports its release almost at once (a laptop Copilot key sends press and release as one
+   * macro), so it cannot be held. It always works as tap to start, tap again to stop.
+   */
+  tapOnly?: boolean;
 }
 
 const sameMods = (a: Mods, b: Mods) =>
@@ -110,9 +115,10 @@ export function createHotkeyHandler(
   let stopping = false; // this press ended a latched recording; its release must not do anything
   return {
     down(code, mods = NO_MODS) {
-      if (!matches(getChord(), code, mods) || held) return;
+      const chord = getChord();
+      if (!matches(chord, code, mods) || held) return;
       held = true;
-      if (getMode() === 'toggle') {
+      if (getMode() === 'toggle' || chord.tapOnly) {
         latched = false;
         void (d.state === 'recording' ? d.keyUp() : d.keyDown());
         return;
@@ -128,8 +134,10 @@ export function createHotkeyHandler(
       void d.keyDown();
     },
     up(code) {
-      if (code !== getChord().key) return;
+      const chord = getChord();
+      if (code !== chord.key) return;
       held = false;
+      if (chord.tapOnly) return; // the release carries no meaning for a key that cannot be held
       if (stopping) {
         stopping = false;
         return;

@@ -61,7 +61,7 @@ const commandChordFor = (label: string): Chord =>
 /** A preset key, or a saved combination like "Ctrl+Alt+D"; anything else falls back to the default. */
 const chordFor = (id: string): Chord =>
   isPreset(id)
-    ? { key: KEY_CODES[id]! }
+    ? { key: KEY_CODES[id]!, ...(id === 'F23' ? { tapOnly: true } : {}) } // the Copilot key cannot be held
     : (parseCombo(id, KEY_CODES)?.chord ?? { key: KEY_CODES[DEFAULT_HOTKEY]! });
 
 /** Icons live in apps/desktop/assets, next to dist/ in dev and inside app.asar when packaged. */

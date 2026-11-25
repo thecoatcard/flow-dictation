@@ -85,6 +85,21 @@ describe('createHotkeyHandler', () => {
     h.up(7);
     expect(calls).toEqual(['down', 'up']);
   });
+  it('a tap-only key (the Copilot key) toggles even in hold mode, whenever its release arrives', () => {
+    const { h, calls, wait } = setup('hold', { key: 7, tapOnly: true });
+    h.down(7);
+    wait(400); // its release can come well after 250 ms, which hold mode would have taken for a real hold
+    h.up(7);
+    expect(calls).toEqual(['down']); // still recording
+    wait(3000);
+    h.down(7);
+    h.up(7);
+    expect(calls).toEqual(['down', 'up']);
+    h.down(7);
+    h.up(7);
+    expect(calls).toEqual(['down', 'up', 'down']); // and starts again on the next tap
+  });
+
   it('latch off: even a quick tap stops on release, so Command Mode records exactly while held', () => {
     const calls: string[] = [];
     let t = 0;
