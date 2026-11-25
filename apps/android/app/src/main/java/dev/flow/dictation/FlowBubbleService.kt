@@ -110,6 +110,7 @@ class FlowBubbleService : Service() {
     private var limitJob: Job? = null
     private var target: FlowAccessibilityService.Target? = null
     private var holdMode = false
+    private var cued = false // the start chime played, so the stop chime should too
     private var lastTarget: FlowAccessibilityService.Target? = null
     private var lastInserted = ""
     private var lastInsertedAt = 0L
@@ -121,6 +122,7 @@ class FlowBubbleService : Service() {
     override fun onCreate() {
         super.onCreate()
         active = this
+        FlowTileService.update(this)
         createNotificationChannel()
         val notification = notification("Voice dictation is ready")
         try {
@@ -187,6 +189,7 @@ class FlowBubbleService : Service() {
         bubble = null
         scope.cancel()
         if (active === this) active = null
+        FlowTileService.update(this)
         super.onDestroy()
     }
 
@@ -372,9 +375,14 @@ class FlowBubbleService : Service() {
         promote(micActive = true)
         wave?.level = 0f
         audioBytes.set(0)
-        bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        cued = false
+        buzz()
         showStatus("Starting mic…")
-        val live = GeminiLiveTranscriber(key, settings.dictionary.map { it.substringBefore('|').trim() })
+        val live = GeminiLiveTranscriber(
+            key,
+            settings.dictionary.map { it.substringBefore('|').trim() },
+            Languages.codes(settings.language),
+        )
         val mic = MicRecorder()
         val audioLock = Any()
         val pendingAudio = ArrayDeque<ByteArray>()
@@ -396,6 +404,7 @@ class FlowBubbleService : Service() {
                 }
             }
             showStatus(if (holdMode) "Listening · release to finish" else "Listening · tap to finish")
+            if (settings.soundCues) { cued = true; Chime.play(Chime.Kind.START) } // the mic is live: speak now
         } catch (error: Exception) {
             cancelActive()
             showStatus(error.message?.take(48) ?: "Could not open microphone")
@@ -434,7 +443,7 @@ class FlowBubbleService : Service() {
         limitJob?.cancel()
         limitJob = null
         state = State.PROCESSING
-        bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        buzz()
         showStatus("Working on it · tap to cancel")
         val mic = recorder
         val destination = target
@@ -442,6 +451,8 @@ class FlowBubbleService : Service() {
             var live: GeminiLiveTranscriber? = null
             try {
                 mic?.stop()
+                if (cued && settings.soundCues) Chime.play(Chime.Kind.STOP) // the mic is off, so the chime is not recorded
+                cued = false
                 startJob?.join()
                 live = session
                 if (live == null || state != State.PROCESSING) return@launch
@@ -453,18 +464,28 @@ class FlowBubbleService : Service() {
                 when (result) {
                     is DictationResult.Insert -> {
                         lastText = result.text
-                        if (result.text.isEmpty()) showStatus("No speech heard")
-                        else if (destination != null &&
-                            FlowAccessibilityService.active?.insert(destination, result.text) == true) {
-                            lastTarget = destination
-                            lastInserted = result.text
-                            lastInsertedAt = System.currentTimeMillis()
-                            showStatus("Inserted")
+                        if (result.text.isEmpty()) {
+                            if (result.pressEnter) pressEnterNow() else showStatus("No speech heard")
                         } else {
-                            (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
-                                .setPrimaryClip(ClipData.newPlainText("Flow dictation", result.text))
-                            showStatus("Copied · paste in your text field")
+                            if (settings.keepHistory)
+                                HistoryStore.get(this@FlowBubbleService).add(result.text, destination?.packageName.orEmpty())
+                            if (destination != null &&
+                                FlowAccessibilityService.active?.insert(destination, result.text) == true) {
+                                lastTarget = destination
+                                lastInserted = result.text
+                                lastInsertedAt = System.currentTimeMillis()
+                                if (result.pressEnter) { delay(150); pressEnterNow() } else showStatus("Inserted")
+                            } else {
+                                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                                    .setPrimaryClip(ClipData.newPlainText("Flow dictation", result.text))
+                                showStatus("Copied · paste in your text field")
+                            }
                         }
+                    }
+                    is DictationResult.Key -> when (result.action) {
+                        KeyAction.SELECT_ALL ->
+                            showStatus(if (FlowAccessibilityService.active?.selectAll() == true) "Selected all" else "Could not select")
+                        KeyAction.ENTER -> pressEnterNow()
                     }
                     DictationResult.DeleteLast -> {
                         val removed = System.currentTimeMillis() - lastInsertedAt < 60_000 &&
@@ -488,6 +509,15 @@ class FlowBubbleService : Service() {
                 }
             }
         }
+    }
+
+    /** Haptic feedback when recording starts and stops, if it is turned on. */
+    private fun buzz() {
+        if (settings.haptics) bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+
+    private fun pressEnterNow() {
+        showStatus(if (FlowAccessibilityService.active?.pressEnter() == true) "Sent" else "Enter is not available here")
     }
 
     private fun cancelActive() {

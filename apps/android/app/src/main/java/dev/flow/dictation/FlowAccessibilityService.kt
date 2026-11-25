@@ -137,6 +137,24 @@ class FlowAccessibilityService : AccessibilityService() {
         return current.node.performAction(AccessibilityNodeInfo.ACTION_PASTE) || fail("paste_rejected")
     }
 
+    /** Selects everything in the focused field ("select all"). */
+    fun selectAll(): Boolean {
+        val node = focusedField() ?: return false
+        node.refresh()
+        val length = (if (node.isShowingHintText) "" else node.text?.toString().orEmpty()).length
+        return node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, Bundle().apply {
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, length)
+        })
+    }
+
+    /** Presses the keyboard's Enter or Send action in the focused field. Needs Android 11 or newer. */
+    fun pressEnter(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 30) return false
+        val node = focusedField() ?: return false
+        return node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+    }
+
     private fun fail(reason: String): Boolean { Log.w("FlowInsert", reason); return false }
 
     fun undo(target: Target, dictated: String): Boolean {

@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.11.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.12.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.11.apk
+adb install -r .\Flow-Android-0.1.12.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -39,12 +39,13 @@ The home screen has the **Floating mic** button (Show or Stop). Tap the **☰** 
 
 | Page | What is on it |
 | --- | --- |
-| **Dictation** | Google API key (save, test, remove), reset bubble position, copy last dictation |
+| **Dictation** | Google API key (save, test, remove), speech language, start and stop sounds, vibration, reset bubble position, copy last dictation |
+| **History** | Search, copy, fix and delete past dictations; keep-history switch; clear all |
 | **Words and tone** | Default tone, tone by app, dictionary, snippets |
 | **Writing style** | Auto cleanup, Hindi output, your style, draft my style |
 | **Usage** | This month's dictations, minutes and estimated cost, speech price |
 | **Updates** | Installed version and Check for updates |
-| **Permissions** | Microphone, floating bubble and text insertion |
+| **Permissions** | Microphone, floating bubble and text insertion, and a battery helper that keeps the mic from being closed |
 | **Backup** | Export and import your settings |
 
 Open **Flow**, then **Permissions** from the ☰ menu, and allow:
@@ -76,7 +77,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.11.apk
+adb install -r .\Flow-Android-0.1.12.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -108,7 +109,25 @@ Drag the bubble to move it; it snaps to the nearest screen edge. **Reset bubble 
 
 - "**New line**" and "**new paragraph**" insert line breaks.
 - "**Delete that**" or "**scratch that**" removes the last dictation if the field has not changed since. It works when Flow inserted the text directly; it can not undo a paste (see Troubleshooting).
+- "**Select all**" selects everything in the field.
+- "**Press enter**" presses the keyboard's Enter or Send key (Android 11 or newer). Say it after a sentence, like "sounds good, press enter", to type the sentence and then press Enter. Said inside a longer sentence, such as "I will press enter now", it is just typed.
 - Your own **snippets** expand when you say the trigger phrase.
+
+### Quick Settings tile
+
+Pull down the notification shade, tap the pencil (edit) and drag the **Flow mic** tile into your tiles. Tapping it turns the floating mic on or off. If a permission is missing, it opens Flow so you can allow it.
+
+### History
+
+Every dictation is saved on the phone (never uploaded) so you can find it later. Open **History** from the ☰ menu to search, **Copy**, **Fix** or **Delete** an entry. **Fix** lets you correct the text; if you changed names, product names or acronyms, Flow offers to add them to your dictionary, the same as the Windows app. Turn **Keep a history of dictations** off to stop saving, and **Clear all history** deletes everything. The last 300 are kept.
+
+### Sounds, vibration and language
+
+On **Dictation**, **Start and stop sounds** plays a short rising note when the mic is live and a softer falling note when it stops (the stop sound plays after the mic is off, so it is never recorded). **Vibrate on start and stop** controls the haptics. **Play the sounds** previews them. **Speech language** lets you pick one language for better accuracy; **Auto-detect** (the default) handles mixed speech such as Hinglish.
+
+### Keep the mic alive on strict phones
+
+Open **Permissions → Keep the mic alive**. It shows whether Android lets Flow run in the background, opens the system screen to allow it, and lists the exact steps for your phone's brand (vivo, Xiaomi, Oppo, Samsung, Huawei and others).
 
 ## 5. Make it sound like you
 

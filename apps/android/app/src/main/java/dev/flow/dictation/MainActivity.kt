@@ -13,13 +13,17 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
+import android.text.format.DateUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.Switch
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -69,6 +73,9 @@ class MainActivity : Activity() {
     private val pages = LinkedHashMap<String, Pair<String, ScrollView>>() // id -> title, view
     private var openPage: String? = null
     private var pendingUpdate: UpdateInfo? = null
+    private lateinit var historyList: LinearLayout
+    private lateinit var historySearch: EditText
+    private lateinit var batteryStatus: TextView
 
     private companion object {
         const val EXPORT_REQUEST = 41
@@ -164,6 +171,7 @@ class MainActivity : Activity() {
         titleView.text = title
         content.removeAllViews()
         content.addView(view)
+        if (id == "history") renderHistory()
         if (drawerOpen) setDrawer(false)
     }
 
@@ -222,6 +230,7 @@ class MainActivity : Activity() {
         })
         list.menuRow("home", "Home", "Floating mic and status")
         list.menuRow("dictation", "Dictation", "Google API key and floating mic tools")
+        list.menuRow("history", "History", "Search, copy and fix past dictations")
         list.menuRow("words", "Words and tone", "App tone, dictionary and snippets")
         list.menuRow("style", "Writing style", "Auto cleanup, Hindi output and your style")
         list.menuRow("usage", "Usage", "Dictations, minutes and estimated cost")
@@ -265,6 +274,7 @@ class MainActivity : Activity() {
 
     private fun buildPages() {
         pages["dictation"] = "Dictation" to dictationPage()
+        pages["history"] = "History" to historyPage()
         pages["words"] = "Words and tone" to wordsPage()
         pages["style"] = "Writing style" to stylePage()
         pages["usage"] = "Usage" to usagePage()
@@ -331,6 +341,23 @@ class MainActivity : Activity() {
             refreshStatus()
         }
 
+        val speech = section("SPEECH LANGUAGE")
+        speech.label("Pick the language you speak, or leave Auto-detect to mix languages freely (Hinglish works either way).")
+        val languagePicker = speech.picker(Languages.all.map { it.label })
+        languagePicker.setSelection(Languages.all.indexOfFirst { it.code == settings.language }.coerceAtLeast(0))
+        languagePicker.onItemSelected { index ->
+            val code = Languages.all[index].code
+            if (code != settings.language) { settings.language = code; toast("Language saved. It applies to the next dictation.") }
+        }
+
+        val feedback = section("FEEDBACK")
+        feedback.switchRow("Start and stop sounds", settings.soundCues) { settings.soundCues = it }
+        feedback.switchRow("Vibrate on start and stop", settings.haptics) { settings.haptics = it }
+        feedback.button("Play the sounds") {
+            Chime.play(Chime.Kind.START)
+            scope.launch { kotlinx.coroutines.delay(500); Chime.play(Chime.Kind.STOP) }
+        }
+
         val tools = section("FLOATING MIC TOOLS")
         tools.button("Reset bubble position") {
             settings.bubblePosition = null
@@ -346,6 +373,92 @@ class MainActivity : Activity() {
                 toast("Copied last dictation.")
             }
         }
+    }
+
+    private fun historyPage() = page {
+        label("Your recent dictations stay on this phone. Fix a mistake and Flow offers to remember the words you corrected.")
+        historySearch = EditText(this@MainActivity).apply {
+            hint = "Search dictations"
+            isSingleLine = true
+            styleField()
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun afterTextChanged(s: android.text.Editable?) = renderHistory()
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            })
+        }
+        addView(historySearch, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 12.dp })
+        val options = section("OPTIONS")
+        options.switchRow("Keep a history of dictations", settings.keepHistory) { settings.keepHistory = it }
+        options.button("Clear all history") {
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("Clear all history?")
+                .setMessage("This deletes every saved dictation from this phone. It cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Clear") { _, _ -> HistoryStore.get(this@MainActivity).clear(); renderHistory() }
+                .show()
+        }
+        historyList = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL }
+        addView(historyList, LinearLayout.LayoutParams(-1, -2))
+    }
+
+    private fun renderHistory() {
+        if (!::historyList.isInitialized) return
+        historyList.removeAllViews()
+        val entries = HistoryStore.get(this).search(historySearch.text.toString())
+        if (entries.isEmpty()) {
+            historyList.label(if (historySearch.text.isNotBlank()) "Nothing matches that search."
+                else if (settings.keepHistory) "No dictations yet. Your next ones appear here." else "History is off.")
+            return
+        }
+        entries.take(100).forEach { entry ->
+            val card = historyList.section(DateUtils.getRelativeTimeSpanString(entry.at).toString())
+            card.label(entry.text)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.smallButton("Copy") {
+                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Flow dictation", entry.text))
+                toast("Copied.")
+            }
+            row.smallButton("Fix") { fixEntry(entry) }
+            row.smallButton("Delete") { HistoryStore.get(this).remove(entry.id); renderHistory() }
+            card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 6.dp })
+        }
+    }
+
+    /** Lets the user correct an entry, then offers to add the words they changed to the dictionary. */
+    private fun fixEntry(entry: HistoryEntry) {
+        val field = EditText(this).apply { setText(entry.text); minLines = 3; styleField() }
+        AlertDialog.Builder(this)
+            .setTitle("Fix this dictation")
+            .setView(field)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Save") { _, _ ->
+                val fixed = field.text.toString().trim()
+                if (fixed.isEmpty() || fixed == entry.text) return@setPositiveButton
+                HistoryStore.get(this).update(entry.id, fixed)
+                renderHistory()
+                val known = settings.dictionary.map { it.substringBefore('|').trim() }
+                val terms = Learn.terms(entry.text, fixed, known)
+                if (terms.isNotEmpty()) offerTerms(terms)
+            }
+            .show()
+    }
+
+    private fun offerTerms(terms: List<String>) {
+        val chosen = BooleanArray(terms.size) { true }
+        AlertDialog.Builder(this)
+            .setTitle("Add to your dictionary?")
+            .setMultiChoiceItems(terms.toTypedArray(), chosen) { _, index, checked -> chosen[index] = checked }
+            .setNegativeButton("No thanks", null)
+            .setPositiveButton("Add") { _, _ ->
+                val picked = terms.filterIndexed { index, _ -> chosen[index] }
+                if (picked.isNotEmpty()) {
+                    settings.dictionary = settings.dictionary + picked
+                    toast("Added ${picked.size} to your dictionary.")
+                }
+            }
+            .show()
     }
 
     private fun wordsPage() = page {
@@ -514,6 +627,21 @@ class MainActivity : Activity() {
                 }
                 .show()
         }
+
+        val battery = section("KEEP THE MIC ALIVE")
+        battery.label(BatteryHelp.WHY)
+        batteryStatus = battery.label("")
+        battery.button("Allow background activity") {
+            val intent = if (Build.VERSION.SDK_INT >= 23)
+                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            runCatching { startActivity(intent) }
+        }
+        battery.button("Open Flow's app settings") {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
+        battery.label("For your ${Build.MANUFACTURER.replaceFirstChar(Char::uppercase)} phone:", 18f)
+        BatteryHelp.steps(Build.MANUFACTURER).forEachIndexed { index, step -> battery.label("${index + 1}. $step") }
     }
 
     private fun backupPage() = page {
@@ -629,6 +757,9 @@ class MainActivity : Activity() {
         overlayPermission.text = if (overlay) "✓ Floating bubble allowed" else "Allow floating bubble"
         accessPermission.text = if (access) "✓ Text insertion allowed" else "Allow text insertion"
         bubbleButton.text = if (FlowBubbleService.active != null) "Stop floating mic" else "Show floating mic"
+        val unrestricted = (getSystemService(POWER_SERVICE) as PowerManager).isIgnoringBatteryOptimizations(packageName)
+        batteryStatus.text = if (unrestricted) "✓ Android lets Flow run in the background." else "Android may close Flow in the background."
+        batteryStatus.setTextColor(if (unrestricted) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
         val used = settings.usage()
         val minutes = used.audioSeconds / 60
         val cost = used.audioSeconds / 3600 * settings.sttUsdPerHour
@@ -717,5 +848,40 @@ class MainActivity : Activity() {
     private fun LinearLayout.picker(labels: List<String>): Spinner = Spinner(this@MainActivity).also {
         it.adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, labels)
         addView(it)
+    }
+
+    /** Calls [onPick] when the user chooses an item (not for the initial selection). */
+    private fun Spinner.onItemSelected(onPick: (Int) -> Unit) {
+        var first = true
+        onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (first) { first = false; return }
+                onPick(position)
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+
+    private fun LinearLayout.switchRow(text: String, on: Boolean, onChange: (Boolean) -> Unit) {
+        addView(Switch(this@MainActivity).apply {
+            this.text = text
+            textSize = 16f
+            setTextColor(TEXT)
+            isChecked = on
+            setPadding(0, 10.dp, 0, 10.dp)
+            setOnCheckedChangeListener { _, checked -> onChange(checked) }
+        }, LinearLayout.LayoutParams(-1, -2))
+    }
+
+    private fun LinearLayout.smallButton(text: String, action: () -> Unit) {
+        addView(Button(this@MainActivity).apply {
+            this.text = text
+            isAllCaps = false
+            minHeight = 0
+            minimumHeight = 0
+            setTextColor(TEXT)
+            background = GradientDrawable().apply { setColor(Color.rgb(37, 43, 74)); cornerRadius = 10.dp.toFloat() }
+            setOnClickListener { action() }
+        }, LinearLayout.LayoutParams(0, 40.dp, 1f).apply { marginEnd = 6.dp })
     }
 }

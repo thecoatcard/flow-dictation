@@ -23,6 +23,19 @@ class DictationPipelineTest {
         )
     }
 
+    @Test fun spokenCommandsAreRecognisedOnlyWhenTheyAreTheWholeUtterance() {
+        assertEquals(DictationResult.Key(KeyAction.SELECT_ALL), DictationPipeline.detectCommand("Select all."))
+        assertEquals(DictationResult.Key(KeyAction.ENTER), DictationPipeline.detectCommand(" press enter "))
+        assertEquals(DictationResult.DeleteLast, DictationPipeline.detectCommand("Delete that!"))
+        assertEquals(null, DictationPipeline.detectCommand("please select all the files"))
+    }
+
+    @Test fun trailingPressEnterIsSplitOffButNeverLeavesNothing() {
+        assertEquals("Sounds good" to true, DictationPipeline.splitTrailingEnter("Sounds good, press enter.").let { it.first.trimEnd(' ', ',') to it.second })
+        assertEquals("press enter" to false, DictationPipeline.splitTrailingEnter("press enter"))
+        assertEquals("I will press enter now" to false, DictationPipeline.splitTrailingEnter("I will press enter now"))
+    }
+
     @Test fun timeCorrectionKeepsLaterChoiceWithoutChangingNone() {
         val input = "Meet at 8:00 p.m. No, no, I want it off 7:00 p.m."
         assertEquals("Meet at 7:00 p.m.", DictationPipeline.prepare(input, CleanupLevel.AUTO))

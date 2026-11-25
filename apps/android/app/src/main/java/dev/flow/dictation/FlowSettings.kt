@@ -28,6 +28,26 @@ data class DictationPreferences(
 class FlowSettings(context: Context) {
     private val prefs = context.getSharedPreferences("flow-settings", Context.MODE_PRIVATE)
 
+    /** Save the final text of each dictation on this phone, so it can be searched and fixed later. */
+    var keepHistory: Boolean
+        get() = prefs.getBoolean("keep-history", true)
+        set(value) { prefs.edit().putBoolean("keep-history", value).apply() }
+
+    /** A short chime when recording starts and stops. */
+    var soundCues: Boolean
+        get() = prefs.getBoolean("sound-cues", true)
+        set(value) { prefs.edit().putBoolean("sound-cues", value).apply() }
+
+    /** A small vibration when recording starts and stops. */
+    var haptics: Boolean
+        get() = prefs.getBoolean("haptics", true)
+        set(value) { prefs.edit().putBoolean("haptics", value).apply() }
+
+    /** BCP-47 code the transcription is pinned to, or '' to detect the language. */
+    var language: String
+        get() = prefs.getString("language", "").orEmpty()
+        set(value) { prefs.edit().putString("language", value).apply() }
+
     /** The floating mic stays on, and comes back by itself, until the user stops it. On by default. */
     var bubbleEnabled: Boolean
         get() = prefs.getBoolean("bubble-enabled", true)

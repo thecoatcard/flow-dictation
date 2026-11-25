@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.Log
 import android.os.SystemClock
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -28,28 +29,55 @@ import kotlin.coroutines.resumeWithException
 /** One shared connection pool. The key and dictated text are never logged. */
 private val http = OkHttpClient.Builder().build()
 
-class GeminiLiveTranscriber(private val key: String, private val vocabulary: List<String>) {
-    private val ready = CompletableDeferred<Unit>()
-    private val done = CompletableDeferred<Unit>()
+class GeminiLiveTranscriber(
+    private val key: String,
+    private val vocabulary: List<String>,
+    private val languages: List<String> = emptyList(),
+) {
+    private var ready = CompletableDeferred<Unit>()
+    private var done = CompletableDeferred<Unit>()
     private val lock = Any()
     private val finals = StringBuilder()
     private var interim = ""
     private var failure = false
     private var socket: WebSocket? = null
     @Volatile private var socketOpened = false
+    @Volatile private var lastActivity = 0L
 
+    /**
+     * Opens the Live session. If Google rejects the chosen language, it quietly retries with
+     * auto-detect so a bad language setting can never stop dictation from working.
+     */
     suspend fun connect() {
+        try {
+            open(languages)
+        } catch (error: IOException) {
+            if (languages.isEmpty()) throw error
+            Log.w("FlowTiming", "live_language_rejected, retrying with auto-detect")
+            open(emptyList())
+        }
+    }
+
+    private suspend fun open(codes: List<String>) {
+        ready = CompletableDeferred()
+        done = CompletableDeferred()
+        synchronized(lock) { finals.clear(); interim = "" }
+        failure = false
+        socketOpened = false
         val setupStart = SystemClock.elapsedRealtime()
         // This is the same v1beta WebSocket endpoint and setup shape used by @google/genai.
         val url = "https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
             .toHttpUrl().newBuilder().addQueryParameter("key", key).build().toString().replaceFirst("https:", "wss:")
         val request = Request.Builder().url(url).build()
+        val readyNow = ready
+        val doneNow = done
         socket = http.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 socketOpened = true
                 Log.i("FlowTiming", "live_socket_open_ms=${SystemClock.elapsedRealtime() - setupStart}")
                 val transcription = JSONObject()
                 if (vocabulary.isNotEmpty()) transcription.put("customVocabulary", JSONArray(vocabulary.take(100)))
+                if (codes.isNotEmpty()) transcription.put("languageCodes", JSONArray(codes))
                 val setup = JSONObject().put("model", "models/gemini-3.5-transcribe-live")
                     .put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("TEXT")))
                     .put("inputAudioTranscription", transcription)
@@ -64,9 +92,9 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
             private fun handleMessage(text: String) {
                 try {
                     val message = JSONObject(text)
-                    if (!ready.isCompleted)
+                    if (!readyNow.isCompleted)
                         Log.i("FlowTiming", "live_message_keys=${message.keys().asSequence().joinToString(",")}")
-                    if (message.has("setupComplete") && !ready.isCompleted) ready.complete(Unit)
+                    if (message.has("setupComplete") && !readyNow.isCompleted) readyNow.complete(Unit)
                     val content = message.optJSONObject("serverContent") ?: return
                     synchronized(lock) {
                         val final = content.optJSONObject("inputTranscription")?.optString("text").orEmpty()
@@ -77,12 +105,13 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
                                 finals.append(final)
                             }
                             interim = ""
+                            lastActivity = SystemClock.elapsedRealtime()
                         }
                         val partial = content.optJSONObject("interimInputTranscription")?.optString("text").orEmpty()
-                        if (partial.isNotEmpty()) interim = partial
+                        if (partial.isNotEmpty()) { interim = partial; lastActivity = SystemClock.elapsedRealtime() }
                     }
                     if (content.optBoolean("turnComplete") || content.optBoolean("generationComplete"))
-                        done.complete(Unit)
+                        doneNow.complete(Unit)
                 } catch (_: Exception) {
                     // Ignore a malformed server event; the finalization timeout still applies.
                 }
@@ -98,19 +127,19 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
                     null -> "Live network connection failed."
                     else -> "Live connection failed (HTTP ${response.code})."
                 }
-                if (!ready.isCompleted) ready.completeExceptionally(IOException(detail))
-                if (!done.isCompleted) done.complete(Unit)
+                if (!readyNow.isCompleted) readyNow.completeExceptionally(IOException(detail))
+                if (!doneNow.isCompleted) doneNow.complete(Unit)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (code != 1000) failure = true
                 if (code != 1000) Log.w("FlowTiming", "live_closed_code=$code")
-                if (!ready.isCompleted) ready.completeExceptionally(IOException("Live setup closed (code $code)."))
-                if (!done.isCompleted) done.complete(Unit)
+                if (!readyNow.isCompleted) readyNow.completeExceptionally(IOException("Live setup closed (code $code)."))
+                if (!doneNow.isCompleted) doneNow.complete(Unit)
             }
         })
         try {
-            withTimeout(7_000) { ready.await() }
+            withTimeout(7_000) { readyNow.await() }
             Log.i("FlowTiming", "live_setup_ms=${SystemClock.elapsedRealtime() - setupStart}")
         }
         catch (error: Exception) {
@@ -129,10 +158,21 @@ class GeminiLiveTranscriber(private val key: String, private val vocabulary: Lis
             throw IOException("Transcription connection closed.")
     }
 
+    /** Ends the audio and waits for the final text: until turnComplete, or until the text goes quiet. */
     suspend fun finish(): String {
         socket?.send(JSONObject().put("realtimeInput", JSONObject().put("audioStreamEnd", true)).toString())
-        withTimeoutOrNull(3_000) { done.await() }
+        val start = SystemClock.elapsedRealtime()
+        val doneNow = done
+        withTimeoutOrNull(FinishPolicy.HARD_CAP_MS) {
+            while (!doneNow.isCompleted) {
+                val idle = SystemClock.elapsedRealtime() - maxOf(lastActivity, start)
+                val hasText = synchronized(lock) { (finals.toString() + interim).isNotBlank() }
+                if (FinishPolicy.isFinal(hasText, idle)) break
+                delay(40)
+            }
+        }
         val text = synchronized(lock) { (finals.toString() + interim).trim() }
+        Log.i("FlowTiming", "live_finish_ms=${SystemClock.elapsedRealtime() - start}")
         close()
         if (text.isEmpty() && failure) throw IOException("Transcription failed.")
         return text

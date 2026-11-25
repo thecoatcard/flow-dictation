@@ -2,7 +2,7 @@
 
 A hands-on script for trying every feature. Each row gives the exact words to say and what should appear. Read the quoted text aloud in a normal voice. Cleanup is done by an AI model, so wording can differ slightly; the **Expect** column says what must be true, not a character-for-character match.
 
-Tick things off in [manual-test.md](manual-test.md) as you go. Versions this guide covers: **Windows 0.0.8** (Command Mode, section 12, arrives in the next Windows release) and **Android 0.1.11**.
+Tick things off in [manual-test.md](manual-test.md) as you go. Versions this guide covers: **Windows 0.0.8** (Command Mode, section 12, arrives in the next Windows release) and **Android 0.1.12**.
 
 ## 0. Before you start
 
@@ -201,6 +201,16 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.10 | Home → **Stop floating mic**, wait, reopen Flow | It stays off until you press **Show floating mic** |
 | 10.11 | ☰ → **Updates → Check for updates** | Up to date, or a newer version with a download button |
 | 10.12 | ☰ → **Backup → Import**, pick `flow-personalization-anand.json` | Settings load (dictionary, snippets, tones) |
+| 10.13 | Dictate "This is a test", then stop | Finishes within about a second of the last word (faster than before) |
+| 10.14 | In a text field say "Hello there", then "Select all" | Everything in the field is selected ("Selected all") |
+| 10.15 | Say "Sounds good, press enter" in a chat | The text is typed, then sent (Android 11 or newer; otherwise "Enter is not available here") |
+| 10.16 | ☰ → **History** | Your dictations are listed; searching narrows the list |
+| 10.17 | History → **Fix** on an entry, change "Spring Boat" to "Spring Boot", Save | A dialog offers to add "Spring Boot" to the dictionary |
+| 10.18 | History → **Copy**, **Delete**, then **Clear all history** | Copied; entry gone; asks to confirm, then empties |
+| 10.19 | ☰ → **Dictation → Feedback**: tap **Play the sounds** | A rising then a falling chime; switches turn the sound and vibration off |
+| 10.20 | Pull down the shade, add the **Flow mic** tile, tap it twice | Floating mic turns off, then on; the tile follows |
+| 10.21 | ☰ → **Dictation → Speech language**, pick Hindi (India), say a Hindi sentence | Transcribed as Hindi (Roman or Devanagari per your Hindi setting) |
+| 10.22 | ☰ → **Permissions → Keep the mic alive** | Shows if background use is allowed, and steps for your phone's brand |
 
 ## 11. Things that should fail gracefully
 

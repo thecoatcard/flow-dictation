@@ -6,9 +6,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 
+enum class KeyAction { SELECT_ALL, ENTER }
+
 sealed interface DictationResult {
-    data class Insert(val text: String) : DictationResult
+    /** [pressEnter]: the speaker said "press enter" after the text, so Enter is pressed once it is inserted. */
+    data class Insert(val text: String, val pressEnter: Boolean = false) : DictationResult
     data object DeleteLast : DictationResult
+    /** A spoken key command ("select all", "press enter") that is the whole utterance. */
+    data class Key(val action: KeyAction) : DictationResult
 }
 
 private sealed interface Segment {
@@ -23,9 +28,11 @@ object DictationPipeline {
     private val preface = Regex("^\\s*(sure|certainly|of course|here is|here's|here are|okay,|ok,|as an ai|i can't|i cannot|i'm sorry)\\b", RegexOption.IGNORE_CASE)
 
     suspend fun process(raw: String, preferences: DictationPreferences, key: String): DictationResult {
-        if (raw.trim().matches(Regex("(?i)(delete that|scratch that)[.,!?;:]*"))) return DictationResult.DeleteLast
+        detectCommand(raw)?.let { return it }
+        // A trailing "press enter" is not dictated text; Enter is pressed after the text is inserted.
+        val (spoken, enter) = splitTrailingEnter(raw)
         val level = preferences.level
-        val prepared = prepare(raw, level)
+        val prepared = prepare(spoken, level)
         val segments = segment(prepared, preferences.snippets)
         val editor = GeminiEditor(key)
         if (level == CleanupLevel.NONE) {
@@ -39,7 +46,7 @@ object DictationPipeline {
                     }
                 }.awaitAll()
             }
-            return DictationResult.Insert(join(romanized).trim())
+            return DictationResult.Insert(join(romanized).trim(), enter)
         }
         val prompt = prompt(preferences)
         val cleaned = coroutineScope {
@@ -49,7 +56,26 @@ object DictationPipeline {
                 }
             }.awaitAll()
         }
-        return DictationResult.Insert(join(cleaned))
+        return DictationResult.Insert(join(cleaned), enter)
+    }
+
+    private val trailingPunctuation = Regex("[.,!?;:\\s]+$")
+    private val trailingEnter = Regex("[\\s,.;:!?]*\\bpress enter\\b[\\s.!?,;:]*$", RegexOption.IGNORE_CASE)
+
+    /** Spoken commands that are the whole utterance, ignoring case and punctuation. Same words as the Windows app. */
+    internal fun detectCommand(raw: String): DictationResult? =
+        when (raw.trim().lowercase().replace(trailingPunctuation, "")) {
+            "delete that", "scratch that" -> DictationResult.DeleteLast
+            "select all" -> DictationResult.Key(KeyAction.SELECT_ALL)
+            "press enter" -> DictationResult.Key(KeyAction.ENTER)
+            else -> null
+        }
+
+    /** "Reply sounds good press enter": the words before are dictated, and Enter is pressed after them. */
+    internal fun splitTrailingEnter(raw: String): Pair<String, Boolean> {
+        val match = trailingEnter.find(raw) ?: return raw to false
+        val before = raw.substring(0, match.range.first)
+        return if (before.isBlank()) raw to false else before to true
     }
 
     internal fun prepare(raw: String, level: CleanupLevel): String =
