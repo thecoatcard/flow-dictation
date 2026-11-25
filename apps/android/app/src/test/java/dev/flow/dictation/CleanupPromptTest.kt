@@ -65,6 +65,13 @@ class CleanupPromptTest {
         )
     }
 
+    @Test fun deleteRequestsNeedNoModel() {
+        listOf("delete this", "Delete that.", "please delete the selected text", "delete the last text that it has entered", "get rid of this")
+            .forEach { assertTrue(it, CommandMode.isDeleteRequest(it)) }
+        listOf("delete the last sentence", "remove the comma", "delete this and write hello", "make this shorter")
+            .forEach { assertEquals(it, false, CommandMode.isDeleteRequest(it)) }
+    }
+
     @Test fun commandModeRejectsChattyOrRunawayOutput() {
         assertEquals("Hi.", CommandMode.acceptable("hey", "Hi."))
         assertEquals(null, CommandMode.acceptable("hey", ""))

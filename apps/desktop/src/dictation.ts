@@ -2,7 +2,7 @@ import { SpeechMeter } from './speech-gate';
 import type { Command, PipelineResult, SttResult, UsageTotals } from '@flow/core';
 
 /** Keys and shortcuts the inserter can press for spoken commands. */
-export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo';
+export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo' | 'delete';
 
 const COMMAND_KEYS: Record<Exclude<Command, 'delete-last'>, { key: KeyAction; label: string }> = {
   'select-all': { key: 'select-all', label: 'Selected all' },
@@ -178,6 +178,13 @@ export class Dictation {
     this.d.log('command', { ms: this.d.now() - t1 });
     if (edited == null) return this.finish({ state: 'error', message: 'Could not edit that text' });
     if (edited === selection) return this.finish({ state: 'done', message: 'No change' });
+    if (edited === '') {
+      // A delete request: the selection is still selected, so Backspace removes it ("undo" brings it back).
+      this.state = 'inserting';
+      await this.d.inserter.press('delete');
+      this.lastInserted = false;
+      return this.finish({ state: 'done', message: 'Deleted' });
+    }
     this.state = 'inserting';
     this.lastText = edited;
     await this.d.inserter.insert(edited); // the text is still selected, so the paste replaces it

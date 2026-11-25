@@ -13,6 +13,22 @@ export const INSTRUCTION_CLOSE = '</instruction>';
 /** Longest selection sent to the model. Longer ones are refused rather than silently cut. */
 export const MAX_SELECTION_CHARS = 20_000;
 
+const DELETE_REQUEST =
+  /^(?:please |just )?(?:delete|remove|erase|clear|get rid of)(?: (?:this|that|it|the|all|everything|selected|selection|text|last|entered|typed|inserted|dictated|written|added|just|whole|full|these|those|has|have|i|you|my|message))*$/;
+
+/**
+ * "Delete this", "remove the last text that it has entered": the whole selection should go. Answering
+ * this needs no model, and an empty rewrite would otherwise be refused as a failed edit.
+ */
+export function isDeleteRequest(instruction: string): boolean {
+  const words = instruction
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}' ]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return DELETE_REQUEST.test(words);
+}
+
 export function buildCommandPrompt(config: FlowConfig): string {
   return [
     "You rewrite the user's selected text by following their spoken instruction. You are not an assistant or an agent.",
@@ -50,14 +66,16 @@ export interface CommandOptions {
 /**
  * The rewritten text, or null when it could not be done safely (failure, timeout, empty or
  * chatty output, a selection that is too long). Null means "leave the user's text alone".
+ * An empty string is not a failure: it answers a delete request, and the selection is removed.
  */
 export async function editSelection(
   selection: string,
   instruction: string,
   o: CommandOptions,
 ): Promise<string | null> {
-  if (!selection.trim() || !instruction.trim() || selection.length > MAX_SELECTION_CHARS)
-    return null;
+  if (!selection.trim() || !instruction.trim()) return null;
+  if (isDeleteRequest(instruction)) return ''; // '' means "remove the selection"
+  if (selection.length > MAX_SELECTION_CHARS) return null;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? 8000);
   try {

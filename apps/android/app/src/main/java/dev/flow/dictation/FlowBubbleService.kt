@@ -472,7 +472,7 @@ class FlowBubbleService : Service() {
                             lastTarget = destination
                             lastInserted = rewritten
                             lastInsertedAt = System.currentTimeMillis()
-                            showStatus("Rewritten · say delete that to undo")
+                            showStatus(if (rewritten.isEmpty()) "Deleted · say delete that to undo" else "Rewritten · say delete that to undo")
                         }
                         else -> {
                             (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)

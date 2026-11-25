@@ -118,6 +118,9 @@ export class Inserter {
       case 'undo':
         uIOhook.keyTap(UiohookKey.Z, [MOD]);
         break;
+      case 'delete':
+        uIOhook.keyTap(UiohookKey.Backspace);
+        break;
     }
   }
 

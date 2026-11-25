@@ -250,6 +250,7 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.10 | After any edit, say "undo" | The original text comes back |
 | 12.11 | Tap the shortcut quickly instead of holding | Does not latch like dictation; too little audio, so nothing happens |
 | 12.12 | Settings → **Command Mode shortcut → Turn off**, then try 12.1 | Nothing happens; **Record shortcut** turns it back on |
+| 12.13 | Select some text and say "delete this" (or "remove the last text that it has entered") | The selection disappears and the overlay says **Deleted**. "Undo" brings it back. No model call |
 
 The overlay shows **Editing…** while it works and **Edited** when it is done. If the model is slow or fails, your text stays as it was and the overlay says **Could not edit that text**.
 

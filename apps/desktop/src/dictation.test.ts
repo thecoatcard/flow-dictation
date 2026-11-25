@@ -197,7 +197,7 @@ describe('Dictation', () => {
           inserter: {
             insert: async (t) => void s.calls.push(`insert:${t}`),
             undoLast: async () => undefined,
-            press: async () => undefined,
+            press: async (k) => void s.calls.push(`press:${k}`),
             copySelection: async () => selection,
           },
           command: async (sel, instruction) => {
@@ -251,6 +251,13 @@ describe('Dictation', () => {
       await run(same.d);
       expect(same.calls.some((c) => c.startsWith('insert:'))).toBe(false);
       expect(lastDone(same.overlays)).toMatchObject({ state: 'done', message: 'No change' });
+    });
+
+    it('deletes the selection with Backspace when the edit is empty (a delete request)', async () => {
+      const { d, calls, overlays } = cmdSetup('some text', '');
+      await run(d);
+      expect(calls).toEqual(['mic.start', 'mic.stop', 'press:delete']);
+      expect(lastDone(overlays)).toMatchObject({ state: 'done', message: 'Deleted' });
     });
 
     it('shows Editing while it works', async () => {

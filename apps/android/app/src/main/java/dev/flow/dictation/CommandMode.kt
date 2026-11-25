@@ -31,9 +31,19 @@ object CommandMode {
         "</instruction>",
     ).joinToString("\n")
 
-    /** The text to put back, or null when it could not be done safely (leave the user's text alone). */
+    private val deleteRequest = Regex(
+        "^(?:please |just )?(?:delete|remove|erase|clear|get rid of)(?: (?:this|that|it|the|all|everything|selected|selection|text|last|entered|typed|inserted|dictated|written|added|just|whole|full|these|those|has|have|i|you|my|message))*$"
+    )
+
+    /** "Delete this": the whole selection should go. Needs no model, and an empty rewrite would be refused as a failed edit. */
+    fun isDeleteRequest(instruction: String): Boolean =
+        deleteRequest.matches(instruction.lowercase().replace(Regex("[^\\p{L}\\p{N}' ]+"), " ").replace(Regex("\\s+"), " ").trim())
+
+    /** The text to put back ("" removes the selection), or null when it could not be done safely (leave the user's text alone). */
     suspend fun edit(selection: String, instruction: String, hindi: HindiOutput, key: String): String? {
-        if (selection.isBlank() || instruction.isBlank() || selection.length > MAX_SELECTION_CHARS) return null
+        if (selection.isBlank() || instruction.isBlank()) return null
+        if (isDeleteRequest(instruction)) return ""
+        if (selection.length > MAX_SELECTION_CHARS) return null
         val editor = GeminiEditor(key)
         var attempt = 0
         while (true) {

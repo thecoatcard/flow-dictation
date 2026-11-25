@@ -4,9 +4,37 @@ import {
   buildCommandMessage,
   buildCommandPrompt,
   editSelection,
+  isDeleteRequest,
   MAX_SELECTION_CHARS,
 } from './command';
 import { defaultConfig } from './config';
+
+describe('delete requests', () => {
+  it.each([
+    'delete this',
+    'Delete that.',
+    'remove it',
+    'please delete the selected text',
+    'delete the last text that it has entered',
+    'clear everything',
+    'get rid of this',
+  ])('%s is a delete request', (s) => expect(isDeleteRequest(s)).toBe(true));
+
+  it.each([
+    'delete the last sentence',
+    'remove the comma',
+    'delete this and write hello',
+    'make this shorter',
+    'translate this',
+  ])('%s goes to the model', (s) => expect(isDeleteRequest(s)).toBe(false));
+
+  it('answers a delete request with an empty string and no model call', async () => {
+    const c = reply('should not be used');
+    const out = await editSelection('Some text.', 'delete this', { config: defaultConfig(), client: c });
+    expect(out).toBe('');
+    expect(c.calls).toHaveLength(0);
+  });
+});
 
 const reply = (
   text: string,
