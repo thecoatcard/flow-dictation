@@ -99,7 +99,7 @@ class CleanupPromptTest {
     }
 
     @Test fun longAnswersAreCutAtASentence() {
-        val cut = AskMode.clip("This is a sentence. ".repeat(400))
+        val cut = AskMode.clip("This is a sentence. ".repeat(900))
         assertTrue(cut.length <= AskMode.MAX_ANSWER_CHARS)
         assertTrue(cut.endsWith("."))
     }

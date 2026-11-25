@@ -6,19 +6,22 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
-import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 
 /**
@@ -57,12 +60,25 @@ class AnswerCard(
 
     /** An answer from Ask. */
     fun show(answer: String) {
-        val answerView = text(answer, 14.5f, Color.WHITE).apply {
-            movementMethod = ScrollingMovementMethod()
-            setTextIsSelectable(true)
-            maxWidth = (context.resources.displayMetrics.widthPixels * 0.72f).toInt()
-            maxHeight = (context.resources.displayMetrics.heightPixels * 0.34f).toInt()
+        val metrics = context.resources.displayMetrics
+        val parts = Answer.split(answer)
+        val hasCode = parts.any { it is Answer.Part.Code }
+        val maxWidth = (metrics.widthPixels * if (hasCode) 0.84f else 0.72f).toInt()
+        val content = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            if (hasCode) minimumWidth = maxWidth
+            parts.forEach { part ->
+                addView(when (part) {
+                    is Answer.Part.Text -> text(part.text, 14.5f, Color.WHITE).apply {
+                        this.maxWidth = maxWidth
+                        setTextIsSelectable(true)
+                    }
+                    is Answer.Part.Code -> codeBlock(part.lang, part.text)
+                })
+            }
         }
+        // Long answers scroll inside the card instead of growing past the screen.
+        val answerView = CappedScrollView(context, (metrics.heightPixels * 0.5f).toInt()).apply { addView(content) }
         val copyButton = tool(R.drawable.ic_copy, "Copy the answer") { view ->
             (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
                 .setPrimaryClip(ClipData.newPlainText("Flow answer", answer))
@@ -77,7 +93,7 @@ class AnswerCard(
                 speaking = true
                 view.setImageResource(R.drawable.ic_stop)
                 view.setColorFilter(ACCENT)
-                speaker.speak(answer) {
+                speaker.speak(Answer.spokenText(answer)) {
                     speaking = false
                     view.setImageResource(R.drawable.ic_volume)
                     view.setColorFilter(Color.WHITE)
@@ -170,6 +186,8 @@ class AnswerCard(
         private var originX = 0
         private var originY = 0
         private var dragging = false
+        // The finger went down on code or text that can scroll: that gesture scrolls it, it does not move the card.
+        private var onScrollable = false
 
         // Watches the touches without taking them: the countdown waits while a finger is on the card.
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -183,8 +201,8 @@ class AnswerCard(
         // A finger that moves takes the card over from the buttons and text, so it can be dragged from anywhere on it.
         override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; dragging = false }
-                MotionEvent.ACTION_MOVE -> if (!dragging && kotlin.math.hypot(event.rawX - downX, event.rawY - downY) > slop) {
+                MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; dragging = false; onScrollable = scrollableAt(this, event.rawX.toInt(), event.rawY.toInt()) }
+                MotionEvent.ACTION_MOVE -> if (!dragging && !onScrollable && kotlin.math.hypot(event.rawX - downX, event.rawY - downY) > slop) {
                     dragging = beginDrag(this)
                     originX = params?.x ?: 0
                     originY = params?.y ?: 0
@@ -244,6 +262,68 @@ class AnswerCard(
         if (android.os.Build.VERSION.SDK_INT >= 30) windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
         else android.util.DisplayMetrics().also { @Suppress("DEPRECATION") windows.defaultDisplay.getRealMetrics(it) }.let { it.widthPixels to it.heightPixels }
 
+    /** A block of code: its language, a Copy button for just this code, and the code in a box that scrolls sideways. */
+    private fun codeBlock(lang: String, code: String): View {
+        val copy = TextView(context).apply {
+            text = "Copy"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            setPadding(10.dp, 5.dp, 10.dp, 5.dp)
+            background = GradientDrawable().apply { setColor(Color.argb(24, 255, 255, 255)); cornerRadius = 8.dp.toFloat() }
+            contentDescription = "Copy the ${lang.ifEmpty { "code" }} code"
+            setOnClickListener {
+                (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Flow code", code))
+                text = "Copied"
+                setTextColor(OK)
+                handler.postDelayed({ text = "Copy"; setTextColor(Color.WHITE) }, 1400)
+            }
+        }
+        val head = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12.dp, 4.dp, 4.dp, 4.dp)
+            setBackgroundColor(Color.argb(14, 255, 255, 255))
+            addView(TextView(context).apply {
+                text = lang.ifEmpty { "code" }.lowercase()
+                textSize = 11.5f
+                setTextColor(Color.argb(170, 238, 240, 243))
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(copy)
+        }
+        val body = TextView(context).apply {
+            text = code
+            typeface = Typeface.MONOSPACE
+            textSize = 12.5f
+            setTextColor(Color.WHITE)
+            setPadding(12.dp, 10.dp, 12.dp, 10.dp)
+            setHorizontallyScrolling(true)
+        }
+        val sideways = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(body)
+        }
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply { setColor(Color.argb(72, 0, 0, 0)); cornerRadius = 10.dp.toFloat() }
+            clipToOutline = true
+            addView(head, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            addView(sideways, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = 6.dp; bottomMargin = 2.dp }
+        }
+    }
+
+    /** True when something under the point can scroll, so a finger there scrolls it instead of moving the card. */
+    private fun scrollableAt(view: View, x: Int, y: Int): Boolean {
+        val box = Rect()
+        if (!view.getGlobalVisibleRect(box) || !box.contains(x, y)) return false
+        if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) if (scrollableAt(view.getChildAt(i), x, y)) return true
+        return view.canScrollVertically(1) || view.canScrollVertically(-1) ||
+            view.canScrollHorizontally(1) || view.canScrollHorizontally(-1)
+    }
+
     /** Opens [root] above the floating mic (below it near the top of the screen), growing out of the mic. */
     private fun present(root: View, fades: Boolean) {
         dismiss(animated = false)
@@ -272,13 +352,27 @@ class AnswerCard(
         this.params = params
         card = root
         root.post {
-            // Grow out of the mic: the pivot is the mic's centre, in the card's own coordinates.
-            val at = IntArray(2).also { root.getLocationOnScreen(it) }
-            root.pivotX = ((anchor?.centerX() ?: (at[0] + root.width)) - at[0]).toFloat()
-            root.pivotY = ((anchor?.centerY() ?: (at[1] + root.height)) - at[1]).toFloat()
-            root.scaleX = 0.2f
-            root.scaleY = 0.2f
-            root.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(DecelerateInterpolator()).start()
+            // Keep the whole card on screen: a tall card near the top or bottom is pulled back inside, never past an edge.
+            val edge = 8.dp
+            val limit = (screenSize().second - root.height - edge).coerceAtLeast(0)
+            val floor = if (params.gravity and Gravity.VERTICAL_GRAVITY_MASK == Gravity.TOP) minOf(edge, limit) else 0
+            val fixedY = params.y.coerceIn(floor, limit)
+            val open = {
+                // Grow out of the mic: the pivot is the mic's centre, in the card's own coordinates.
+                val at = IntArray(2).also { root.getLocationOnScreen(it) }
+                root.pivotX = ((anchor?.centerX() ?: (at[0] + root.width)) - at[0]).toFloat()
+                root.pivotY = ((anchor?.centerY() ?: (at[1] + root.height)) - at[1]).toFloat()
+                root.scaleX = 0.2f
+                root.scaleY = 0.2f
+                root.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(DecelerateInterpolator()).start()
+            }
+            if (fixedY != params.y) {
+                params.y = fixedY
+                runCatching { windows.updateViewLayout(root, params) }
+                root.post(open) // measure the pivot after the card has moved
+            } else {
+                open()
+            }
         }
         arm(SHOW_MS)
     }
@@ -309,4 +403,13 @@ class AnswerCard(
         setBackgroundResource(android.R.drawable.list_selector_background)
         setOnClickListener { onClick(this) }
     }
+}
+
+
+/** A scroll view that never grows taller than [maxHeight], so a long answer scrolls inside the card. */
+private class CappedScrollView(context: Context, private val maxHeight: Int) : ScrollView(context) {
+    init { isVerticalScrollBarEnabled = false }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) =
+        super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(maxHeight, View.MeasureSpec.AT_MOST))
 }

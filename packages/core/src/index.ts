@@ -11,5 +11,6 @@ export * from './portability';
 export * from './command';
 export * from './ask';
 export * from './memory';
+export * from './format';
 export * from './usage';
 export * from './learn';

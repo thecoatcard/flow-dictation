@@ -63,6 +63,8 @@ export interface FlowConfig {
   hindiOutput: HindiOutput;
   /** Write every dictation in this language whatever was spoken, e.g. "English". '' = the language spoken. */
   outputLanguage: string;
+  /** The cleanup model shapes long or structured speech into lists, paragraphs and bold. On by default. */
+  smartFormatting: boolean;
   snippets: Snippet[];
   /** Free-text description of how the user writes. */
   style: string;
@@ -103,6 +105,7 @@ export function defaultConfig(): FlowConfig {
     cleanupLevel: 'light',
     hindiOutput: 'hinglish',
     outputLanguage: '',
+    smartFormatting: true,
     snippets: [],
     style: '',
   };
@@ -177,6 +180,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
   if (raw.hindiOutput === 'hinglish' || raw.hindiOutput === 'devanagari')
     out.hindiOutput = raw.hindiOutput;
   out.outputLanguage = cleanLanguage(raw.outputLanguage);
+  if (typeof raw.smartFormatting === 'boolean') out.smartFormatting = raw.smartFormatting;
   if (Array.isArray(raw.snippets)) {
     for (const s of raw.snippets) {
       if (

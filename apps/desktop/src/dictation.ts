@@ -38,7 +38,8 @@ export interface DictationDeps {
   /** Title of the focused window, read at key-down like activeApp. */
   activeTitle?(): Promise<string | undefined>;
   inserter: {
-    insert(text: string): Promise<void>;
+    /** `html` is the same text with bold, lists and paragraphs; apps that accept rich paste use it, the rest use `text`. */
+    insert(text: string, html?: string): Promise<void>;
     undoLast(): Promise<void>;
     press(key: KeyAction): Promise<void>;
     /** The selected text in the focused app, or ''. */
@@ -207,7 +208,7 @@ export class Dictation {
       const t2 = this.d.now();
       if (result.text) {
         this.lastText = result.text;
-        await this.d.inserter.insert(result.text);
+        await this.d.inserter.insert(result.text, result.html);
         this.lastInserted = true;
         this.d.recordHistory?.({ text: result.text, app: appId });
       }

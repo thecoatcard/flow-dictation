@@ -7,6 +7,7 @@ import {
   Menu,
   nativeTheme,
   powerMonitor,
+  screen,
   Tray,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
@@ -402,6 +403,7 @@ function registerSettings(
       cleanupLevel: c.cleanupLevel,
       hindiOutput: c.hindiOutput,
       outputLanguage: c.outputLanguage,
+      smartFormatting: c.smartFormatting,
       snippets: c.snippets,
       style: c.style,
       recentApps: c.app.recentApps,
@@ -417,6 +419,7 @@ function registerSettings(
       if (patch.cleanupLevel) c.cleanupLevel = patch.cleanupLevel;
       if (patch.hindiOutput) c.hindiOutput = patch.hindiOutput;
       if (typeof patch.outputLanguage === 'string') c.outputLanguage = cleanLanguage(patch.outputLanguage);
+      if (typeof patch.smartFormatting === 'boolean') c.smartFormatting = patch.smartFormatting;
       if (patch.snippets) c.snippets = patch.snippets;
       if (typeof patch.style === 'string') c.style = patch.style;
     });
@@ -530,7 +533,20 @@ if (!app.requestSingleInstanceLock()) {
       overlay.refreshPending();
       answers.refreshQueue();
     });
-    powerMonitor.on('resume', () => watcher.check());
+    // Windows can drop a floating window's z-order, mouse setting or screen without telling the app; set them right
+    // again whenever the PC wakes, unlocks, or a display is added, removed or resized.
+    const reassert = () => {
+      overlay.reassert();
+      answers.reassert();
+    };
+    powerMonitor.on('resume', () => {
+      watcher.check();
+      reassert();
+    });
+    powerMonitor.on('unlock-screen', reassert);
+    screen.on('display-added', reassert);
+    screen.on('display-removed', reassert);
+    screen.on('display-metrics-changed', reassert);
     watcher.start();
     registerDebugRecord(svc, dictation);
     registerSettings(svc, overlay);

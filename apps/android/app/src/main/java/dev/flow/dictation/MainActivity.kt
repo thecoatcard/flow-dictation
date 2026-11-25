@@ -611,6 +611,10 @@ class MainActivity : Activity() {
             toast("Cleanup level saved.")
         }
 
+        val formatting = section("SMART FORMATTING")
+        formatting.label("When you speak at length, Flow shapes the text as it cleans it up: points become lists and topics get their own paragraphs. Short messages stay as you said them. Code and literal tones are never formatted.")
+        formatting.switchRow("Lists and paragraphs", settings.smartFormatting) { settings.smartFormatting = it }
+
         val hindi = section("HINDI")
         hindi.label("Choose how spoken Hindi is written. English stays English, and other languages are written as spoken.")
         val hindiHelp = mapOf(

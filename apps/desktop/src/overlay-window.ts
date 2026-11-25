@@ -2,10 +2,12 @@ import { BrowserWindow, ipcMain, screen } from 'electron';
 import * as path from 'node:path';
 import type { OverlayStatus } from './dictation';
 import { clampOrigin, defaultOrigin, type Point } from './overlay-position';
+import { PointerGate, type Box } from './pointer-gate';
 
 const W = 260;
 const H = 64;
 const SIZE = { width: W, height: H };
+const PILL_HEIGHT = 40;
 
 export interface OverlayHost {
   mode(): 'always' | 'active';
@@ -15,33 +17,39 @@ export interface OverlayHost {
   onClick(): void;
   /** How many reminders are due and waiting. While there are any, the icon is red and stays on screen. */
   pending(): number;
-  /** The pointer entered or left the icon. */
+  /** The pointer came onto the icon or left it. */
   onHover(on: boolean): void;
 }
 
 /**
  * The floating icon. Never focusable, so pasting still goes to the user's app. The window is
- * click-through except while the pointer is over the icon itself, which can then be dragged.
+ * click-through except while the pointer is over the icon itself, which can then be dragged. Where the pointer is
+ * decided here from the real cursor position (see PointerGate), so the icon can always be grabbed.
  */
 export class Overlay {
   private win: BrowserWindow | null = null;
   private ready: Promise<void> | null = null;
   private hideTimer: NodeJS.Timeout | null = null;
   private dragFrom: Point | null = null;
+  private pillWidth = PILL_HEIGHT;
+  private gate: PointerGate | null = null;
 
   constructor(private readonly host: OverlayHost) {
     const mine = (e: Electron.IpcMainEvent) => e.sender === this.win?.webContents;
 
-    ipcMain.on('overlay:interactive', (e, on: boolean) => {
-      if (mine(e)) this.win?.setIgnoreMouseEvents(!on, { forward: true });
+    // The renderer says how wide the pill is, so the part that takes the mouse matches what is drawn.
+    ipcMain.on('overlay:pill', (e, width: number) => {
+      if (mine(e) && Number.isFinite(width)) this.pillWidth = Math.min(W, Math.max(PILL_HEIGHT, width));
     });
     ipcMain.on('overlay:drag-start', (e) => {
       if (!mine(e) || !this.win) return;
       const [x, y] = this.win.getPosition();
       this.dragFrom = { x, y };
+      this.gate?.hold();
     });
     ipcMain.on('overlay:drag', (e, d: { dx: number; dy: number }) => {
       if (!mine(e) || !this.win || !this.dragFrom) return;
+      this.gate?.hold();
       // Offsets are from the drag start, so lag in this handler cannot make the icon drift.
       const p = clampOrigin(
         { x: this.dragFrom.x + d.dx, y: this.dragFrom.y + d.dy },
@@ -50,14 +58,16 @@ export class Overlay {
       );
       this.win.setPosition(p.x, p.y);
     });
+    // A drag can also end without the page seeing the button go up (focus taken, capture lost): the page says so.
     ipcMain.on('overlay:drag-end', (e) => {
-      if (!mine(e) || !this.win || !this.dragFrom) return;
+      if (!mine(e) || !this.win) return;
+      this.gate?.release();
+      if (!this.dragFrom) return;
       this.dragFrom = null;
       const [x, y] = this.win.getPosition();
       this.host.savePos({ x, y });
     });
     ipcMain.on('overlay:click', (e) => mine(e) && this.host.onClick());
-    ipcMain.on('overlay:hover', (e, on: boolean) => mine(e) && this.host.onHover(on));
   }
 
   private lastState: OverlayStatus['state'] = 'hidden';
@@ -69,6 +79,16 @@ export class Overlay {
 
   private areas() {
     return screen.getAllDisplays().map((d) => d.workArea);
+  }
+
+  /** The part of the window the pill covers, in window coordinates. */
+  private pillBox(): Box {
+    return {
+      x: (W - this.pillWidth) / 2,
+      y: (H - PILL_HEIGHT) / 2,
+      width: this.pillWidth,
+      height: PILL_HEIGHT,
+    };
   }
 
   private create(): BrowserWindow {
@@ -95,6 +115,20 @@ export class Overlay {
     win.setIgnoreMouseEvents(true, { forward: true });
     this.ready = win.loadFile(path.join(__dirname, 'overlay.html'));
     this.win = win;
+    this.gate = new PointerGate({
+      win: () => this.win,
+      area: () => this.pillBox(),
+      onChange: (inside) => {
+        this.host.onHover(inside);
+        // A faded icon comes back when the pointer is where it was, so it can always be found and dragged.
+        if (inside && !win.isDestroyed()) win.webContents.send('overlay:wake');
+      },
+    });
+    this.gate.start();
+    win.once('closed', () => {
+      this.gate?.stop();
+      this.gate = null;
+    });
     this.place();
     return win;
   }
@@ -107,6 +141,22 @@ export class Overlay {
       ? clampOrigin(saved, SIZE, this.areas())
       : defaultOrigin(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea, SIZE);
     this.win.setPosition(p.x, p.y);
+  }
+
+  /**
+   * After the PC wakes, unlocks, or a display changes: put the icon back on top, back on a screen that exists, and
+   * make sure the mouse setting is right. Windows can drop any of these without telling the app.
+   */
+  reassert(): void {
+    const win = this.win;
+    if (!win || win.isDestroyed()) return;
+    win.setAlwaysOnTop(true, 'screen-saver');
+    if (!this.dragFrom) {
+      const [x, y] = win.getPosition();
+      const p = clampOrigin({ x: x!, y: y! }, SIZE, this.areas());
+      if (p.x !== x || p.y !== y) win.setPosition(p.x, p.y);
+    }
+    this.gate?.tick();
   }
 
   /** Centre of the round icon on screen, where the answer popup grows out of. */

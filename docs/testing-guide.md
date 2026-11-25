@@ -246,6 +246,10 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 
 | 10.48 | Ask "who is the PM of India" and "what is the weather in Delhi today" | A direct, current answer. It never says it has no internet or real-time data (if search is off for your key it answers from memory and says it may be out of date) |
 
+| 10.49 | Ask "Two Sum in Python" | A card with the approach line, a python code block with its own **Copy** button, and the complexity line. Long code scrolls sideways; touching the code scrolls it instead of moving the card |
+| 10.50 | Drag the floating mic near the top of the screen, ask a coding question | The card opens below it and is fully on screen |
+| 10.51 | Dictate a long, structured note into a notes app | Clean "- " bullets and paragraphs with no stray symbols. A short message stays plain. Turn **Smart formatting** off in Writing style to stop it |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
@@ -294,6 +298,13 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.23 | Settings → **Notes and reminders**: turn off "Let Ask read my notes", ask "what is my locker code" | It says it has no note about that (only the question was sent), but "remember ..." and "remind me ..." still work |
 | 12.24 | Close Flow with a reminder due, then open it | The icon is red straight away: reminders that came due while Flow was closed are not lost |
 | 12.25 | Watch the floating pill while you hold the dictation key, speak, and let go | A red ring around the pill swells with your voice (faint and slowly breathing when you are quiet). On release the ring turns blue and the arc spins in place while it works. When the text lands the pill tints green, gives a small pop, a ring ripples out and the check draws itself. A failure tints amber and shakes once. Hover grows it slightly; pressing shrinks it; when idle it shrinks a little as it fades |
+| 12.26 | Leave Flow running, lock the PC and unlock it (or let it sleep and wake it). Then drag the floating icon. Also let the icon fade and move the pointer to where it was | The icon can always be grabbed and dragged, and a faded icon comes back as soon as the pointer is over it. No restart is ever needed |
+| 12.27 | Open an answer card or a reminder card and drag it by any part except the buttons, several times | It follows the pointer every time and stays where you drop it until it closes; it cannot be dragged off the screen |
+| 12.28 | Drag the icon into a corner of the screen, then ask something. Repeat near each edge and on a second monitor if you have one | The card is always fully on screen, beside the icon and never covering it |
+| 12.29 | Ask "Two Sum in Python" | One short line on the approach, then a python code block with a **Copy** button that copies only the code, then a line with the time and space complexity. Reading it aloud skips the code |
+| 12.30 | Ask "Two Sum in Java, just the code" and then "explain Two Sum step by step" | The first gives only a java code block; the second explains first, with code after |
+| 12.31 | Ask a general question ("what is the capital of Australia"), then "explain REST in two sentences" | Short plain answers shaped as asked, with no code block |
+| 12.32 | Dictate a long, structured note into Word or Outlook: "meeting notes, we need to finish the pricing page, email the beta users and book the demo room, and the budget is important" | Real bullets and bold in the rich-text app; the same text pasted into Notepad has clean "- " bullets and no symbols. A short message stays plain. Turn **Smart formatting** off in Writing style to stop it |
 | 12.13 | Select some text and say "delete this" (or "remove the last text that it has entered") | The selection disappears and the overlay says **Deleted**. "Undo" brings it back. No model call |
 
 The overlay shows **Editing…** while it works and **Edited** when it is done. If the model is slow or fails, your text stays as it was and the overlay says **Could not edit that text**.

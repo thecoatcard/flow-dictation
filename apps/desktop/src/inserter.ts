@@ -46,12 +46,14 @@ export class Inserter {
   /** The user's real clipboard, waiting to be put back after the last paste. */
   private pending: { saved: ClipboardSnapshot; timer: NodeJS.Timeout } | null = null;
 
-  async insert(text: string): Promise<void> {
+  async insert(text: string, html?: string): Promise<void> {
     // A restore still waiting from the previous insert holds the user's real clipboard; keep that one.
     const saved = this.pending?.saved ?? snapshot();
     if (this.pending) clearTimeout(this.pending.timer);
     this.pending = null;
-    clipboard.writeText(text);
+    // Rich-text apps (Word, Outlook, Gmail, Slack, Teams, Notion) take the HTML; everything else takes the text.
+    if (html) clipboard.write({ text, html });
+    else clipboard.writeText(text);
     try {
       uIOhook.keyTap(UiohookKey.V, [MOD]);
     } catch (e) {

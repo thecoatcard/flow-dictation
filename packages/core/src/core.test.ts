@@ -96,7 +96,7 @@ describe('prompt', () => {
       'I actually enjoyed it',
       'deliberate repetition',
       'Explicit punctuation takes precedence',
-      'numbered list',
+      '"1. ", "2. "',
       'web addresses, email addresses, filenames',
     ])
       expect(prompt).toContain(rule);

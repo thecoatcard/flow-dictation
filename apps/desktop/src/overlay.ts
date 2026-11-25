@@ -22,7 +22,6 @@
     fadeTimer = setTimeout(() => {
       if (state !== 'idle' || icon.matches(':hover') || start) return;
       icon.classList.add('faded');
-      flowApi.overlay.interactive(false);
     }, IDLE_FADE_MS);
   }
 
@@ -61,6 +60,7 @@
     resize?.cancel();
     pillWidth = nextWidth;
     icon.style.setProperty('--pill-width', `${nextWidth}px`);
+    flowApi.overlay.pill(nextWidth); // the part of the window that takes the mouse follows the pill
     icon.style.setProperty('--glyph-x', `${(dotWidth - nextWidth) / 2}px`);
     if (!reduced.matches) {
       resize = pill.animate(
@@ -88,7 +88,10 @@
       state === 'reminder' ? (text ? `${text} reminders due` : 'One reminder due') : text;
     if (status.textContent !== announcement) status.textContent = announcement;
     if (previous === 'listening' && state !== 'listening') resetWaveform();
-    if (icon.matches(':hover')) flowApi.overlay.interactive(true);
+    scheduleFade();
+  });
+  flowApi.overlay.onWake(() => {
+    icon.classList.remove('faded');
     scheduleFade();
   });
   flowApi.overlay.onLevel((v) => {
@@ -109,12 +112,8 @@
 
   icon.addEventListener('pointerenter', () => {
     clearTimeout(fadeTimer);
-    if (!icon.classList.contains('faded')) flowApi.overlay.interactive(true);
-    flowApi.overlay.hover(true);
   });
   icon.addEventListener('pointerleave', () => {
-    if (!start) flowApi.overlay.interactive(false);
-    flowApi.overlay.hover(false);
     scheduleFade();
   });
 
@@ -141,9 +140,16 @@
     icon.classList.remove('dragging');
     if (moved) flowApi.overlay.dragEnd();
     else flowApi.overlay.click();
-    if (!icon.matches(':hover')) flowApi.overlay.interactive(false);
     scheduleFade();
   };
   icon.addEventListener('pointerup', end);
   icon.addEventListener('pointercancel', end);
+  // Capture lost without a release (focus taken, a window popped up): end the drag, and it is not a click.
+  icon.addEventListener('lostpointercapture', () => {
+    if (!start) return;
+    start = null;
+    icon.classList.remove('dragging');
+    flowApi.overlay.dragEnd();
+    scheduleFade();
+  });
 })();

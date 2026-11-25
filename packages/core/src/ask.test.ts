@@ -172,7 +172,7 @@ describe('askFlow', () => {
   });
 
   it('cuts a very long answer at a sentence', async () => {
-    const long = JSON.stringify({ action: 'answer', text: 'This is a sentence. '.repeat(400) });
+    const long = JSON.stringify({ action: 'answer', text: 'This is a sentence. '.repeat(900) });
     const out = await askFlow('tell me a lot', ctx(), { config, client: reply(long) });
     const text = (out as { text: string }).text;
     expect(text.length).toBeLessThanOrEqual(MAX_ANSWER_CHARS);

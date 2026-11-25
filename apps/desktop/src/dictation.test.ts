@@ -55,6 +55,26 @@ describe('Dictation', () => {
     expect(overlays.map((o) => o.state)).toEqual(['listening', 'processing', 'done']);
   });
 
+  it('hands the rich version to the inserter together with the plain text', async () => {
+    const pasted: Array<[string, string | undefined]> = [];
+    const { d } = setup({
+      process: async (): Promise<PipelineResult> => ({
+        kind: 'insert',
+        text: '- a\n- b',
+        html: '<ul><li>a</li><li>b</li></ul>',
+      }),
+      inserter: {
+        insert: async (t, h) => void pasted.push([t, h]),
+        undoLast: async () => undefined,
+        press: async () => undefined,
+      },
+    });
+    await d.keyDown();
+    await d.keyUp();
+    expect(pasted).toEqual([['- a\n- b', '<ul><li>a</li><li>b</li></ul>']]);
+    expect(d.lastText).toBe('- a\n- b');
+  });
+
   it('ignores repeated keydowns and a second press while busy', async () => {
     const { d, calls } = setup();
     await d.keyDown();

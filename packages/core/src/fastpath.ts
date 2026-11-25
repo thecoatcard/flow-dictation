@@ -19,6 +19,8 @@ export function isClearAlready(text: string, config: FlowConfig, tone: Tone): bo
   if (config.cleanupLevel !== 'auto' || tone === 'code' || config.outputLanguage) return false;
   const t = text.trim();
   if (!t || t.length > MAX_CHARS || t.includes('\n')) return false;
+  // Long or multi-sentence speech may need lists and paragraphs, so it goes to the model.
+  if (config.smartFormatting && tone !== 'literal' && (t.length > 240 || (t.match(/[.?!]\s+\S/g)?.length ?? 0) >= 2)) return false;
   if (config.hindiOutput === 'devanagari' || DEVANAGARI.test(t)) return false; // script handling needs the model
   if (!/^[\p{Lu}\p{N}"'(]/u.test(t) || !/[.?!…]["')]*$/.test(t)) return false; // needs capital and end mark
   if (FILLERS.test(t) || CORRECTIONS.test(t) || SPOKEN_MARKS.test(t) || SPOKEN_SYMBOLS.test(t)) return false;

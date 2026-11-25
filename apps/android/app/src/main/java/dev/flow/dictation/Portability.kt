@@ -21,6 +21,7 @@ fun FlowSettings.exportPersonalization(): String = JSONObject()
     .put("cleanupLevel", cleanupLevel.name.lowercase())
     .put("hindiOutput", hindiOutput.name.lowercase())
     .put("outputLanguage", outputLanguage)
+    .put("smartFormatting", smartFormatting)
     .put("snippets", JSONArray().also { list ->
         snippets.forEach { (trigger, expansion) ->
             list.put(JSONObject().put("trigger", trigger).put("expansion", expansion))
@@ -66,4 +67,5 @@ fun FlowSettings.importPersonalization(raw: String) {
     HindiOutput.entries.firstOrNull { it.name.equals(root.optString("hindiOutput"), ignoreCase = true) }
         ?.let { hindiOutput = it } // an older export without the field keeps the current choice
     if (root.has("outputLanguage")) outputLanguage = root.optString("outputLanguage")
+    if (root.has("smartFormatting")) smartFormatting = root.optBoolean("smartFormatting", true)
 }

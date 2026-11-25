@@ -51,6 +51,7 @@ interface PersonalDto {
   cleanupLevel: CleanupLevel;
   hindiOutput: HindiOutput;
   outputLanguage: string;
+  smartFormatting: boolean;
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];
@@ -103,12 +104,12 @@ declare const flowApi: {
   overlay: {
     onStatus(cb: (s: { state: string; message?: string }) => void): void;
     onLevel(cb: (v: number) => void): void;
-    interactive(on: boolean): void;
     dragStart(): void;
     drag(dx: number, dy: number): void;
     dragEnd(): void;
     click(): void;
-    hover(on: boolean): void;
+    pill(width: number): void;
+    onWake(cb: () => void): void;
   };
   answer: {
     onShow(
@@ -118,12 +119,15 @@ declare const flowApi: {
         answer: string;
         meta?: string;
         up: boolean;
+        parts?: Array<{ kind: 'text'; text: string } | { kind: 'code'; text: string; lang: string }>;
         originX: number;
       }) => void,
     ): void;
     onFade(cb: () => void): void;
-    interactive(on: boolean): void;
-    hover(on: boolean): void;
+    onPointer(cb: (inside: boolean) => void): void;
+    onOrigin(cb: (o: { up: boolean; originX: number }) => void): void;
+    rect(box: { left: number; top: number; width: number; height: number }): void;
+    copyText(text: string): void;
     dragStart(rect: { left: number; top: number; width: number; height: number }): void;
     drag(dx: number, dy: number): void;
     dragEnd(): void;

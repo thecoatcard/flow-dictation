@@ -8,6 +8,8 @@ interface AnswerCardData {
   /** Reminder only: when it is due, and its place in the queue. */
   meta?: string;
   up: boolean;
+  /** The answer split into prose and code blocks. */
+  parts?: Array<{ kind: 'text'; text: string } | { kind: 'code'; text: string; lang: string }>;
   originX: number;
 }
 
@@ -29,18 +31,24 @@ contextBridge.exposeInMainWorld('flowApi', {
     onStatus: (cb: (s: { state: string; message?: string }) => void) =>
       ipcRenderer.on('overlay:status', (_e, s) => cb(s)),
     onLevel: (cb: (v: number) => void) => ipcRenderer.on('overlay:level', (_e, v) => cb(v)),
-    interactive: (on: boolean) => ipcRenderer.send('overlay:interactive', on),
     dragStart: () => ipcRenderer.send('overlay:drag-start'),
     drag: (dx: number, dy: number) => ipcRenderer.send('overlay:drag', { dx, dy }),
     dragEnd: () => ipcRenderer.send('overlay:drag-end'),
     click: () => ipcRenderer.send('overlay:click'),
-    hover: (on: boolean) => ipcRenderer.send('overlay:hover', on),
+    // The width of the pill, so the part of the window that takes the mouse matches what is drawn.
+    pill: (width: number) => ipcRenderer.send('overlay:pill', width),
+    onWake: (cb: () => void) => ipcRenderer.on('overlay:wake', () => cb()),
   },
   answer: {
     onShow: (cb: (d: AnswerCardData) => void) => ipcRenderer.on('answer:show', (_e, d) => cb(d)),
     onFade: (cb: () => void) => ipcRenderer.on('answer:fade', () => cb()),
-    interactive: (on: boolean) => ipcRenderer.send('answer:interactive', on),
-    hover: (on: boolean) => ipcRenderer.send('answer:hover', on),
+    onPointer: (cb: (inside: boolean) => void) =>
+      ipcRenderer.on('answer:pointer', (_e, inside: boolean) => cb(inside)),
+    onOrigin: (cb: (o: { up: boolean; originX: number }) => void) =>
+      ipcRenderer.on('answer:origin', (_e, o) => cb(o)),
+    rect: (box: { left: number; top: number; width: number; height: number }) =>
+      ipcRenderer.send('answer:rect', box),
+    copyText: (text: string) => ipcRenderer.send('answer:copy-text', text),
     dragStart: (rect: { left: number; top: number; width: number; height: number }) =>
       ipcRenderer.send('answer:drag-start', rect),
     drag: (dx: number, dy: number) => ipcRenderer.send('answer:drag', { dx, dy }),

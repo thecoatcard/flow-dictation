@@ -12,6 +12,7 @@ export interface PersonalizationExport {
   cleanupLevel: FlowConfig['cleanupLevel'];
   hindiOutput?: FlowConfig['hindiOutput'];
   outputLanguage?: string;
+  smartFormatting?: boolean;
   snippets: FlowConfig['snippets'];
   style: string;
 }
@@ -26,6 +27,7 @@ export function exportPersonalization(c: FlowConfig): PersonalizationExport {
     cleanupLevel: c.cleanupLevel,
     hindiOutput: c.hindiOutput,
     outputLanguage: c.outputLanguage,
+    smartFormatting: c.smartFormatting,
     snippets: c.snippets,
     style: c.style,
   };
@@ -44,6 +46,7 @@ export function importPersonalization(current: FlowConfig, raw: unknown): FlowCo
     cleanupLevel: r.cleanupLevel ?? current.cleanupLevel,
     hindiOutput: r.hindiOutput ?? current.hindiOutput,
     outputLanguage: r.outputLanguage ?? current.outputLanguage,
+    smartFormatting: r.smartFormatting ?? current.smartFormatting,
     snippets: r.snippets,
     style: r.style,
   });

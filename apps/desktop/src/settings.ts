@@ -491,6 +491,13 @@
     $('hindiHelp').textContent = hindiHelp[value as HindiOutput];
     savePersonal({ hindiOutput: value as HindiOutput }, '', 'Hindi style saved');
   });
+  on('smartformat', 'click', () =>
+    savePersonal(
+      { smartFormatting: $('smartformat').getAttribute('aria-checked') !== 'true' },
+      '',
+      'Formatting saved',
+    ),
+  );
   $<HTMLSelectElement>('outputLanguage').addEventListener('change', (e) =>
     savePersonal(
       { outputLanguage: (e.target as HTMLSelectElement).value },
@@ -606,6 +613,7 @@
     setHindiOutput(p.hindiOutput);
     $('hindiHelp').textContent = hindiHelp[p.hindiOutput];
     $<HTMLSelectElement>('outputLanguage').value = p.outputLanguage;
+    $('smartformat').setAttribute('aria-checked', String(p.smartFormatting));
     toneSelect($<HTMLSelectElement>('deftone'), p.defaultTone);
     toneSelect($<HTMLSelectElement>('apptone'), 'professional');
     $('recent').replaceChildren(...p.recentApps.map((a) => new Option(a, a)));

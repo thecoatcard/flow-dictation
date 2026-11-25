@@ -17,12 +17,16 @@ object FastPath {
     private val lowerI = Regex("(?:^|[\\s(])i(?:$|[\\s',.!?])")
     private val start = Regex("^[\\p{Lu}\\p{N}\"'(]")
     private val end = Regex("[.?!…][\"')]*$")
+    private val sentenceBreak = Regex("[.?!]\\s+\\S")
     private val spacing = Regex("\\s{2,}|\\s[,.;:!?]")
 
     fun isClearAlready(text: String, preferences: DictationPreferences): Boolean {
         if (preferences.level != CleanupLevel.AUTO || preferences.tone == Tone.CODE || preferences.outputLanguage.isNotEmpty()) return false
         val t = text.trim()
         if (t.isEmpty() || t.length > MAX_CHARS || t.contains('\n')) return false
+        // Long or multi-sentence speech may need lists and paragraphs, so it goes to the model.
+        if (preferences.smartFormatting && preferences.tone != Tone.LITERAL &&
+            (t.length > 240 || sentenceBreak.findAll(t).count() >= 2)) return false
         if (preferences.hindi == HindiOutput.DEVANAGARI || devanagari.containsMatchIn(t)) return false
         if (!start.containsMatchIn(t) || !end.containsMatchIn(t)) return false
         if (fillers.containsMatchIn(t) || corrections.containsMatchIn(t) ||

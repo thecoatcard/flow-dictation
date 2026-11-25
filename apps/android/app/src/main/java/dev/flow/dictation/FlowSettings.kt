@@ -25,6 +25,8 @@ data class DictationPreferences(
     val hindi: HindiOutput = HindiOutput.HINGLISH,
     /** Write every dictation in this language whatever was spoken; '' keeps the spoken language. */
     val outputLanguage: String = "",
+    /** The cleanup model shapes long or structured speech into lists and paragraphs. On by default. */
+    val smartFormatting: Boolean = true,
 )
 
 class FlowSettings(context: Context) {
@@ -59,6 +61,11 @@ class FlowSettings(context: Context) {
     var askUsesNotes: Boolean
         get() = prefs.getBoolean("ask-uses-notes", true)
         set(value) { prefs.edit().putBoolean("ask-uses-notes", value).apply() }
+
+    /** Lists and paragraphs for long or structured speech. */
+    var smartFormatting: Boolean
+        get() = prefs.getBoolean("smart-formatting", true)
+        set(value) { prefs.edit().putBoolean("smart-formatting", value).apply() }
 
     /** Language the text is written in whatever was spoken, or '' to keep the spoken language. */
     var outputLanguage: String
@@ -156,7 +163,7 @@ class FlowSettings(context: Context) {
 
     fun snapshot(appId: String? = null) = DictationPreferences(
         cleanupLevel, appTones[appId?.lowercase()] ?: defaultTone, dictionary, style, snippets, hindiOutput,
-        outputLanguage,
+        outputLanguage, smartFormatting,
     )
 
     fun apiKey(): String? {

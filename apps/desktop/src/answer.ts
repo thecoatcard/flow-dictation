@@ -1,8 +1,11 @@
+/** One piece of an answer, as the app sends it: prose, or a fenced code block with its language. */
+type AnswerPartDto = { kind: 'text'; text: string } | { kind: 'code'; text: string; lang: string };
+
 // Renderer for the card that grows out of the icon. Text is only ever set with textContent, so an answer or a
 // reminder cannot inject markup.
 (() => {
   const card = document.getElementById('card') as HTMLDivElement;
-  const a = document.getElementById('a') as HTMLParagraphElement;
+  const a = document.getElementById('a') as HTMLDivElement;
   const meta = document.getElementById('meta') as HTMLElement;
   const copy = document.getElementById('copy') as HTMLButtonElement;
   const speak = document.getElementById('speak') as HTMLButtonElement;
@@ -25,7 +28,6 @@
     clearTimeout(timer);
     entrance?.cancel();
     card.classList.add('out');
-    flowApi.answer.interactive(false);
     timer = setTimeout(() => flowApi.answer.close(), duration('base'));
   };
   /** Starts the countdown for an answer; it waits while the pointer is on the card or the answer is being read. */
@@ -42,6 +44,89 @@
     if (!on && !hovering) arm(AFTER_HOVER_MS);
   };
 
+  /** `code` spans inside a line of prose; everything is set with textContent, so nothing can become markup. */
+  const prose = (text: string): HTMLParagraphElement => {
+    const p = document.createElement('p');
+    p.className = 'prose';
+    text.split(/(`[^`\n]+`)/g).forEach((piece) => {
+      if (piece.length > 2 && piece.startsWith('`') && piece.endsWith('`')) {
+        const c = document.createElement('code');
+        c.className = 'inline';
+        c.textContent = piece.slice(1, -1);
+        p.append(c);
+      } else if (piece) {
+        p.append(document.createTextNode(piece));
+      }
+    });
+    return p;
+  };
+  /** A code block: its language, a Copy button that copies just this code, and the code in a monospace box. */
+  const codeBlock = (lang: string, code: string): HTMLDivElement => {
+    const box = document.createElement('div');
+    box.className = 'code';
+    const head = document.createElement('div');
+    head.className = 'code-head';
+    const label = document.createElement('span');
+    label.className = 'lang';
+    label.textContent = lang || 'code';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'code-copy';
+    button.textContent = 'Copy';
+    button.setAttribute('aria-label', `Copy the ${lang || 'code'} code`);
+    button.addEventListener('click', () => {
+      flowApi.answer.copyText(code);
+      button.textContent = 'Copied';
+      button.classList.add('done');
+      setTimeout(() => {
+        button.textContent = 'Copy';
+        button.classList.remove('done');
+      }, 1400);
+    });
+    head.append(label, button);
+    const pre = document.createElement('pre');
+    const body = document.createElement('code');
+    body.textContent = code;
+    pre.append(body);
+    box.append(head, pre);
+    return box;
+  };
+  const renderParts = (parts: AnswerPartDto[] | undefined, fallback: string) => {
+    const list = parts?.length ? parts : [{ kind: 'text' as const, text: fallback }];
+    a.replaceChildren(
+      ...list.map((p) => (p.kind === 'code' ? codeBlock(p.lang, p.text) : prose(p.text))),
+    );
+    card.classList.toggle('wide', list.some((p) => p.kind === 'code'));
+  };
+
+  // The app tells the page where the pointer really is, so fading and hover never depend on pointer events
+  // that a click-through window may not receive.
+  const setHovering = (on: boolean) => {
+    hovering = on;
+    if (on) {
+      clearTimeout(timer);
+      if (card.classList.contains('out')) card.classList.add('returning');
+      card.classList.remove('out');
+      card.classList.add('in');
+    } else if (!speaking) {
+      arm(AFTER_HOVER_MS);
+    }
+  };
+  flowApi.answer.onPointer(setHovering);
+  // Which side of the card the icon is on can change when the card is placed to fit the screen.
+  flowApi.answer.onOrigin((o) => {
+    card.style.transformOrigin = `${o.originX - card.offsetLeft}px ${o.up ? "100%" : "0%"}`;
+  });
+  // Tell the app how big the card is whenever that changes, so the window is placed to fit it.
+  const report = () =>
+    flowApi.answer.rect({
+      left: card.offsetLeft,
+      top: card.offsetTop,
+      width: card.offsetWidth,
+      height: card.offsetHeight,
+    });
+  new ResizeObserver(report).observe(card);
+
   flowApi.answer.onShow((d) => {
     clearTimeout(timer);
     const swapping =
@@ -55,7 +140,7 @@
     card.classList.toggle('reminder', reminder);
     card.classList.remove('out', 'returning');
     if (changed) {
-      a.textContent = d.answer;
+      renderParts(d.parts, d.answer);
       a.scrollTop = 0;
       meta.textContent = d.meta ?? '';
     }
@@ -75,27 +160,13 @@
         easing: tokens.getPropertyValue('--ease-enter').trim(),
       });
     }
-    if (hovering) flowApi.answer.interactive(true);
     arm(SHOW_MS);
   });
   flowApi.answer.onSpeechEnd(() => setSpeaking(false));
   flowApi.answer.onFade(() => fade());
 
-  card.addEventListener('pointerenter', () => {
-    hovering = true;
-    clearTimeout(timer);
-    if (card.classList.contains('out')) card.classList.add('returning');
-    card.classList.remove('out');
-    card.classList.add('in');
-    flowApi.answer.interactive(true);
-    flowApi.answer.hover(true);
-  });
-  card.addEventListener('pointerleave', () => {
-    hovering = false;
-    flowApi.answer.interactive(false);
-    flowApi.answer.hover(false);
-    if (!speaking) arm(AFTER_HOVER_MS);
-  });
+  card.addEventListener('pointerenter', () => setHovering(true));
+  card.addEventListener('pointerleave', () => setHovering(false));
 
   // Drag the card by any part of it except the buttons; it stays where it is dropped.
   let drag: { x: number; y: number } | null = null;
@@ -126,6 +197,8 @@
   };
   card.addEventListener('pointerup', endDrag);
   card.addEventListener('pointercancel', endDrag);
+  card.addEventListener('lostpointercapture', endDrag);
+  // Report the card at the start of a drag too, so it is kept on screen by its real size.
 
   copy.addEventListener('click', () => {
     flowApi.answer.copy();

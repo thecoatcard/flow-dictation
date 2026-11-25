@@ -3,6 +3,7 @@ import { repairSentenceBoundary, resolveTimeBacktrack } from './backtrack';
 import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
 import { isClearAlready } from './fastpath';
+import { escapeHtml, hasMarkup, markdownToHtml, markdownToPlain } from './format';
 import { guardOutput, stripNoiseTags } from './guard';
 import {
   buildSystemPrompt,
@@ -19,7 +20,8 @@ import {
 } from './segments';
 
 export type PipelineResult =
-  { kind: 'insert'; text: string; pressEnter?: boolean } | { kind: 'command'; command: Command };
+  | { kind: 'insert'; text: string; /** Rich version with bold, lists and paragraphs, when there is formatting to keep. */ html?: string; pressEnter?: boolean }
+  | { kind: 'command'; command: Command };
 
 export interface PipelineOptions {
   config: FlowConfig;
@@ -76,8 +78,12 @@ export async function processTranscript(
 
   // A trailing "press enter" is not dictated text; Enter is pressed after the text is inserted.
   const { text: spoken, enter } = splitTrailingEnter(transcript);
-  const inserted = (text: string): PipelineResult =>
-    enter ? { kind: 'insert', text, pressEnter: true } : { kind: 'insert', text };
+  const inserted = (text: string, html?: string): PipelineResult => ({
+    kind: 'insert',
+    text,
+    ...(html ? { html } : {}),
+    ...(enter ? { pressEnter: true } : {}),
+  });
 
   // Translating needs the model even when cleanup is None, so that case runs at Light.
   const config: FlowConfig =
@@ -108,5 +114,17 @@ export async function processTranscript(
         : { ...s, text: await cleanOne(s.text, system, o) },
     ),
   );
-  return inserted(joinSegments(cleaned));
+  // The model writes lists, paragraphs and **bold** as Markdown. Apps that take only text get clean plain text;
+  // apps that accept rich paste also get the formatting. Code and literal tones never ask for formatting.
+  if (!config.smartFormatting || tone === 'code' || tone === 'literal') return inserted(joinSegments(cleaned));
+  const plain = joinSegments(cleaned.map((s) => (s.kind === 'text' ? { ...s, text: markdownToPlain(s.text) } : s)));
+  if (!cleaned.some((s) => s.kind === 'text' && hasMarkup(s.text))) return inserted(plain);
+  const html = joinSegments(
+    cleaned.map((s) =>
+      s.kind === 'text'
+        ? { ...s, text: markdownToHtml(s.text) }
+        : { ...s, text: (s.kind === 'literal' ? escapeHtml(s.text) : s.text).replace(/\n/g, '<br>') },
+    ),
+  );
+  return inserted(plain, html);
 }

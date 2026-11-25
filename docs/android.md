@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.23.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.24.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.23.apk
+adb install -r .\Flow-Android-0.1.24.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -77,7 +77,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.23.apk
+adb install -r .\Flow-Android-0.1.24.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -132,6 +132,14 @@ On **Dictation → Write in**, pick a language such as English and Flow writes e
 ### Edit by voice
 
 Select text in any field, tap the mic, and say what to do: "make this shorter", "fix the grammar", "translate to Hindi", "turn this into a list". The status reads **Say what to change**, and the selection is replaced with the rewrite. Say **delete that** to undo. If the model fails or answers with something that is not an edit, your text is left alone. Some apps, WhatsApp among them, never tell Flow where the selection is. Flow then asks the field to copy its selection, reads that, and puts your clipboard back afterwards. Turn off **Dictation → Edit by voice → Rewrite selected text** if you would rather dictate over a selection. This is the Windows Command Mode, using the same prompt.
+
+### Coding and "how you ask" answers
+
+Ask handles coding questions as well as general ones. "Two Sum in Python" gives a short line on the approach, the full solution in a code block with its own **Copy** button, and the time and space complexity. The answer follows how you ask: "just the code" gives only the code, "explain step by step" explains first, "in Java" changes the language, "short" or "in two sentences" keeps it brief. Long code scrolls sideways inside its box; touch it to scroll, or drag the card by the rest of its surface to move it. Reading aloud skips the code. The card always opens fully on screen, below the mic when it is near the top.
+
+### Smart formatting
+
+When you dictate at length, the cleanup step shapes the text as it tidies it: points become "- " lists, topics get their own paragraphs, and short messages stay as you said them. Bold cannot be shown in a plain-text field, so words you stress are written normally here. Turn it off in **Writing style → Smart formatting**. Code and literal tones are never formatted.
 
 ### Ask anywhere, dictate in a text field
 
