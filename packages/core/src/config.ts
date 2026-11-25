@@ -27,6 +27,11 @@ export interface AppSettings {
   sttUsdPerHour: number;
   /** Save the final text of each dictation on this PC so it can be searched and copied later. */
   keepHistory: boolean;
+  /** First-run guide: hidden by the user, and the steps it can only learn from the app. */
+  guideDismissed: boolean;
+  keyTested: boolean;
+  micChecked: boolean;
+  tipsSeen: boolean;
   /** Hold this combination, say what to do, and the selected text is rewritten. '' turns it off. */
   commandHotkey: string;
   /** Tell the cleanup model the focused window's title, only to help it spell names. */
@@ -72,6 +77,10 @@ export function defaultConfig(): FlowConfig {
       recentApps: [],
       sttUsdPerHour: 0.54,
       keepHistory: true,
+      guideDismissed: false,
+      keyTested: false,
+      micChecked: false,
+      tipsSeen: false,
       commandHotkey: 'Ctrl+Alt+E',
       useWindowContext: true,
       soundCues: true,
@@ -108,6 +117,8 @@ export function migrateConfig(raw: unknown): FlowConfig {
     if (typeof a.sttUsdPerHour === 'number' && a.sttUsdPerHour >= 0 && a.sttUsdPerHour < 1000)
       out.app.sttUsdPerHour = a.sttUsdPerHour;
     if (typeof a.keepHistory === 'boolean') out.app.keepHistory = a.keepHistory;
+    for (const flag of ['guideDismissed', 'keyTested', 'micChecked', 'tipsSeen'] as const)
+      if (typeof a[flag] === 'boolean') out.app[flag] = a[flag];
     if (typeof a.commandHotkey === 'string') out.app.commandHotkey = a.commandHotkey;
     if (typeof a.useWindowContext === 'boolean') out.app.useWindowContext = a.useWindowContext;
     if (typeof a.soundCues === 'boolean') out.app.soundCues = a.soundCues;

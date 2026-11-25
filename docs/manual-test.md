@@ -1,5 +1,7 @@
 # Manual test checklist
 
+- [ ] First run: Settings > Dictation shows a Get started card whose steps tick off as the key is saved and tested, the mic is checked, and a first dictation is made; Hide removes it and Show again brings it back
+
 For the exact words to say and what to expect for every feature, see the [testing guide](testing-guide.md).
 
 ## Floating icon and Windows setup

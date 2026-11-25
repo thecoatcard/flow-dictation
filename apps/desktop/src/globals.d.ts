@@ -22,6 +22,10 @@ interface SettingsDto {
     sttUsdPerHour: number;
     keepHistory: boolean;
     commandHotkey: string;
+    guideDismissed: boolean;
+    keyTested: boolean;
+    micChecked: boolean;
+    tipsSeen: boolean;
     useWindowContext: boolean;
     soundCues: boolean;
     muteWhileDictating: boolean;

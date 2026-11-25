@@ -121,6 +121,8 @@
     setOverlay(s.app.overlay);
     autostart.setAttribute('aria-checked', String(s.app.autostart));
     $('keephistory').setAttribute('aria-checked', String(s.app.keepHistory));
+    latest = s;
+    renderGuide();
     $('usecontext').setAttribute('aria-checked', String(s.app.useWindowContext));
     $('cmdkey').textContent = s.app.commandHotkey || 'Off';
     $('cmdoff').style.display = s.app.commandHotkey ? '' : 'none';
@@ -312,6 +314,7 @@
       $('keychip').className = `chip ${r.ok ? 'ok' : 'bad'}`;
       $('keychiptext').textContent = r.ok ? 'Key works' : 'Key rejected';
       say($('keymsg'), r.ok ? '' : r.message, !r.ok);
+      if (r.ok) void api.set({ keyTested: true }).then(apply);
     });
   });
   on('clearkey', 'click', () => {
@@ -390,6 +393,7 @@
         box.textContent = 'No speech heard. Check that the right microphone is selected.';
       } else {
         box.textContent = r.text;
+        void api.set({ micChecked: true }).then(apply);
         const small = document.createElement('small');
         small.textContent = `Transcribed in ${r.finalizeMs} ms${r.timedOut ? ' (partial text: the final one was late)' : ''}`;
         box.append(small);
@@ -690,6 +694,145 @@
   on('mutewhile', 'click', () =>
     save({ muteWhileDictating: $('mutewhile').getAttribute('aria-checked') !== 'true' }),
   );
+
+  // ---------- first-run guide ----------
+  let latest: SettingsDto | undefined;
+  let dictations = 0;
+  let showTips = false;
+  const guide = $('guide');
+  const guideSteps = $('guidesteps');
+  function renderGuide(): void {
+    const s = latest;
+    if (!s || s.app.guideDismissed) {
+      guide.hidden = true;
+      return;
+    }
+    guide.hidden = false;
+    const key = s.hotkeys.find((h) => h.id === s.app.hotkey)?.label ?? s.app.hotkey;
+    interface Step {
+      title: string;
+      desc: string;
+      done: boolean;
+      action?: { label: string; disabled?: boolean; run: () => void };
+    }
+    const steps: Step[] = [
+      {
+        title: 'Add your Google API key',
+        desc: 'Flow talks straight to Google with your own key. Paste it in the box below and press Save key.',
+        done: s.hasKey,
+        action: {
+          label: 'Go to the key box',
+          run: () => {
+            $('key').scrollIntoView({ block: 'center' });
+            $('key').focus();
+          },
+        },
+      },
+      {
+        title: 'Test the key',
+        desc: 'Make sure Google accepts it.',
+        done: s.app.keyTested,
+        action: { label: 'Test key', disabled: !s.hasKey, run: () => $('testkey').click() },
+      },
+      {
+        title: 'Check your microphone',
+        desc: 'Speak for five seconds and your words should appear.',
+        done: s.app.micChecked,
+        action: {
+          label: 'Start the check',
+          run: () => {
+            $('rec').scrollIntoView({ block: 'center' });
+            $('rec').click();
+          },
+        },
+      },
+      {
+        title: 'Dictate once',
+        desc: `Click in any text box, hold ${key}, say "Hello Flow" and let go. (A Copilot key works as tap to start, tap again to stop.)`,
+        done: dictations > 0,
+      },
+      {
+        title: 'Learn the extras',
+        desc: 'A minute of tips on commands, Command Mode and History.',
+        done: s.app.tipsSeen,
+        action: {
+          label: showTips ? 'Got it' : 'Show tips',
+          run: () => {
+            if (showTips) {
+              showTips = false;
+              void api.set({ tipsSeen: true }).then(apply);
+            } else {
+              showTips = true;
+              renderGuide();
+            }
+          },
+        },
+      },
+    ];
+    const finished = steps.filter((x) => x.done).length;
+    $('guidesub').textContent =
+      finished === steps.length
+        ? "You're all set."
+        : `${finished} of ${steps.length} done. These tick off as you go.`;
+    $('guidehide').textContent = finished === steps.length ? 'Done' : 'Hide';
+    guideSteps.replaceChildren(
+      ...steps.map((st, i) => {
+        const li = document.createElement('li');
+        li.classList.toggle('done', st.done);
+        const tick = document.createElement('span');
+        tick.className = 'tick';
+        tick.textContent = st.done ? '\u2713' : '';
+        const body = document.createElement('div');
+        body.className = 'body';
+        const t = document.createElement('div');
+        t.className = 't';
+        t.textContent = st.title;
+        const d = document.createElement('div');
+        d.className = 'd';
+        d.textContent = st.desc;
+        body.append(t, d);
+        if (i === steps.length - 1 && showTips) {
+          const tips = document.createElement('ul');
+          tips.className = 'tips';
+          for (const text of [
+            'Say "new line", "new paragraph" or "delete that". Say "press enter" after a message to send it.',
+            `Select text, hold ${s.app.commandHotkey || 'your Command Mode shortcut'} and say "make this shorter" or "translate to Hindi": the selection is rewritten.`,
+            'History keeps your dictations. Press Fix on one to teach Flow new names.',
+            'Words and tone holds your dictionary, snippets and a tone for each app.',
+          ]) {
+            const item = document.createElement('li');
+            item.style.cssText = 'display:list-item;border:0;padding:0';
+            item.textContent = text;
+            tips.append(item);
+          }
+          body.append(tips);
+        }
+        li.append(tick, body);
+        if (st.action && !st.done) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn';
+          b.textContent = st.action.label;
+          b.disabled = !!st.action.disabled;
+          b.addEventListener('click', st.action.run);
+          li.append(b);
+        }
+        return li;
+      }),
+    );
+  }
+  const refreshGuide = () =>
+    void api.usage().then((u) => {
+      dictations = u.totals.dictations;
+      renderGuide();
+    });
+  on('guidehide', 'click', () => void api.set({ guideDismissed: true }).then(apply));
+  on('guideshow', 'click', () => void api.set({ guideDismissed: false }).then(apply));
+  pageHooks['dictation'] = () => {
+    requestAnimationFrame(draw);
+    refreshGuide();
+  };
+  refreshGuide();
 
   // ---------- history ----------
   const histq = $<HTMLInputElement>('histq');

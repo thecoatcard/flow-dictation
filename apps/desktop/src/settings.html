@@ -38,6 +38,17 @@
             <p>Hold the hotkey, speak, let go. Cleaned-up text appears wherever your cursor is.</p>
           </header>
 
+          <div class="guide" id="guide" hidden>
+            <div class="guide-h">
+              <div>
+                <div class="t">Get started</div>
+                <div class="d" id="guidesub"></div>
+              </div>
+              <button class="btn quiet" id="guidehide" type="button">Hide</button>
+            </div>
+            <ol id="guidesteps"></ol>
+          </div>
+
           <div class="rows">
             <div class="row stack">
               <div>
@@ -228,6 +239,17 @@
                   aria-checked="false"
                   aria-label="Start with Windows"
                 ></button>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <div class="t">Setup guide</div>
+                <div class="d">
+                  The short checklist at the top of this page for first-time setup.
+                </div>
+              </div>
+              <div class="ctl">
+                <button class="btn" id="guideshow" type="button">Show again</button>
               </div>
             </div>
           </div>

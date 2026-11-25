@@ -426,6 +426,12 @@ if (!app.requestSingleInstanceLock()) {
       overlay.level(v);
       if (settings && !settings.isDestroyed()) settings.webContents.send('mic:level', v);
     };
+    // People who already use Flow do not need the first-run guide.
+    if (
+      !svc.store.get().app.guideDismissed &&
+      (svc.history.list().length > 0 || svc.usage.current().totals.dictations > 0)
+    )
+      svc.store.update((c) => (c.app.guideDismissed = true));
     svc.mic.warm();
     const dictation = createDictation(svc, overlay);
     registerDebugRecord(svc, dictation);

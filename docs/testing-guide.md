@@ -14,6 +14,20 @@ Tick things off in [manual-test.md](manual-test.md) as you go. Versions this gui
 
 How to read a result: speak, release, and the text should appear at your cursor within about **1–1.5 seconds**. Speak after the start chime.
 
+### First-run guide (Windows, after 0.0.9)
+
+On a fresh install, Settings → Dictation starts with a **Get started** card of five steps that tick themselves off: add the key, test the key, check the microphone, dictate once, and read the tips.
+
+| # | Do | Expect |
+| --- | --- | --- |
+| 0.1 | Open Settings on a new install (or press **Show again** at the bottom of Dictation) | The card shows "0 of 5 done" with a button for each step |
+| 0.2 | Paste a key and **Save key** | Step 1 ticks |
+| 0.3 | Press **Test key** from the card | Step 2 ticks once Google accepts the key |
+| 0.4 | **Start the check**, say something for five seconds | Step 3 ticks when your words appear |
+| 0.5 | Dictate "Hello Flow" in any text box | Step 4 ticks |
+| 0.6 | **Show tips**, then **Got it** | Four short tips appear, then step 5 ticks |
+| 0.7 | **Hide** (or **Done** when all are ticked) | The card disappears; people who already use Flow never see it |
+
 ## 1. Basic dictation (Windows and Android)
 
 | # | Say | Expect |
