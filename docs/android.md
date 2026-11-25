@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.20.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.21.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.20.apk
+adb install -r .\Flow-Android-0.1.21.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -77,7 +77,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.20.apk
+adb install -r .\Flow-Android-0.1.21.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -135,7 +135,7 @@ Select text in any field, tap the mic, and say what to do: "make this shorter", 
 
 ### Ask Flow
 
-Start a dictation with **"Ask Flow"** (or **"Hey Flow"**) and then your question: "Ask Flow, what is the capital of Australia" or "Hey Flow, explain a REST API in two lines". Nothing is typed into your app. A small card grows out of the floating mic, as big as the answer needs, with a copy icon and a speaker icon. It fades away by itself after 15 seconds unless you are touching it or it is reading aloud. The answer is short by design, and Flow says so when it is not sure. It cannot see your screen or the internet, so questions that need them are answered with that limit. The same wording typed anywhere else, such as "I will ask flow tomorrow", is just dictation, because only an utterance that starts with the phrase counts.
+Start a dictation with **"Ask Flow"** (or **"Hey Flow"**) and then your question: "Ask Flow, what is the capital of Australia" or "Hey Flow, explain a REST API in two lines". Nothing is typed into your app. A small card grows out of the floating mic, as big as the answer needs, with a copy icon and a speaker icon. It fades away by itself after 8 seconds unless you are touching it or it is reading aloud. Drag it anywhere on the screen to move it out of the way; it stays where you drop it until it closes. The answer is short by design, and Flow says so when it is not sure. It cannot see your screen or the internet, so questions that need them are answered with that limit. The same wording typed anywhere else, such as "I will ask flow tomorrow", is just dictation, because only an utterance that starts with the phrase counts.
 
 ### Remember, remind, and recall
 
@@ -199,7 +199,7 @@ These match the Windows app. Cleanup, Hindi and style are on **Writing style**; 
 
 **Text is pasted instead of typed, or only copied.** Some apps do not report their cursor position. Flow then pastes into the focused field. If the app refuses even that, the text is copied to the clipboard for you to paste. Either way your last dictation is on the clipboard, and **Copy last dictation** (in the Get ready card) copies it again. *Delete that* does not work after a paste.
 
-**The bubble does not appear.** It only shows while the keyboard is open and a supported text field is focused. Check that the three permissions are allowed and that you have not stopped it (the button should say **Stop floating mic**). Flow restarts itself when the system closes it. On phones with strict battery managers, such as vivo, Xiaomi, Oppo or Samsung, also set Flow to **Unrestricted** battery use and allow it to start automatically so the system does not block the restart.
+**The bubble does not appear.** It stays on screen while Flow runs (a little fainter when no text field is focused). Check that the three permissions are allowed and that you have not stopped it (the button should say **Stop floating mic**). Flow restarts itself when the system closes it. On phones with strict battery managers, such as vivo, Xiaomi, Oppo or Samsung, also set Flow to **Unrestricted** battery use and allow it to start automatically so the system does not block the restart.
 
 **"Tap a text field before speaking" or "Voice insertion is unavailable in this field."** The focused field is a password, number, phone or address field, or the app does not expose it to Accessibility.
 

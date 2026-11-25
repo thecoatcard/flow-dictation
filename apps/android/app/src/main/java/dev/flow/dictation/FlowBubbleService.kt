@@ -110,7 +110,8 @@ class FlowBubbleService : Service() {
             bubble?.animate()?.alpha(1f)?.setDuration(240)?.start()
         } else {
             label?.visibility = View.GONE
-            bubble?.animate()?.alpha(0.82f)?.setDuration(240)?.start()
+            val typing = FlowAccessibilityService.active?.hasEligibleField() == true
+            bubble?.animate()?.alpha(if (typing) 0.82f else 0.55f)?.setDuration(240)?.start()
             icon?.setImageResource(R.drawable.ic_mic)
             icon?.setColorFilter(ACCENT)
             (bubble?.background as? GradientDrawable)?.setStroke(2.dp, EDGE)
@@ -257,16 +258,12 @@ class FlowBubbleService : Service() {
         super.onDestroy()
     }
 
+    /** The mic is always on screen while Flow runs; it is only a little fainter when there is no text field to dictate into. */
     fun refreshVisibility() {
         applyState()
-        val eligible = FlowAccessibilityService.active?.hasEligibleField() == true
-        val show = eligible || state != State.IDLE
-        if (state == State.IDLE && label?.visibility != View.VISIBLE) {
-            icon?.setImageResource(R.drawable.ic_mic)
-            icon?.setColorFilter(ACCENT)
-        }
-        bubble?.visibility = if (show) View.VISIBLE else View.GONE
-        if (show && state == State.IDLE) scheduleFade()
+        if (state == State.IDLE && label?.visibility != View.VISIBLE) restingLook()
+        bubble?.visibility = View.VISIBLE
+        if (state == State.IDLE) scheduleFade()
     }
 
     /** Puts the bubble back at its default spot (right edge, middle of the screen). */

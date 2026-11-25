@@ -218,7 +218,7 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.25 | Right after 10.24, tap the mic and say "delete that" | The original text comes back |
 | 10.26 | ☰ → **Dictation → Edit by voice**, turn **Rewrite selected text** off, repeat 10.24 | What you say replaces the selection as plain dictation |
 
-| 10.27 | Tap the mic and say "Ask Flow, what is the capital of Australia" | Nothing is typed. A small card grows out of the floating mic with a short answer (Canberra), as small as the answer needs, with copy and speaker icons. It fades by itself after 15 seconds unless you touch it |
+| 10.27 | Tap the mic and say "Ask Flow, what is the capital of Australia" | Nothing is typed. A small card grows out of the floating mic with a short answer (Canberra), as small as the answer needs, with copy and speaker icons. It fades by itself after 8 seconds unless you touch it; drag it anywhere and it follows your finger |
 | 10.28 | On the card, tap the speaker icon, then tap it again; tap the copy icon and paste somewhere | The answer is spoken; the second tap stops it; the card stays open while it speaks, then fades; the copy icon puts the answer on the clipboard |
 | 10.29 | Dictate a sentence, then tap the mic and say "read that back" (or "read that again", "read it out loud") | The sentence is read aloud in the phone's voice. If the phone has no voice engine it says **No text-to-speech voice on this phone** |
 | 10.30 | Tap the mic and say "I will ask flow tomorrow" | Inserted as normal text; no card |
@@ -235,6 +235,8 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.39 | **Snooze** one | It disappears and returns 10 minutes later; **Later** closes the card but the mic stays red, and tapping the red mic reopens it |
 | 10.40 | Say "Ask Flow, cancel the test reminder" with two similar reminders | Nothing is deleted; it asks which one |
 | 10.41 | Restart the phone with a reminder set for later | It still rings on time |
+
+| 10.42 | Close the keyboard and leave every text field (for example on the home screen) | The floating mic is still on screen, a little fainter; tapping it says to tap a text field first |
 
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 

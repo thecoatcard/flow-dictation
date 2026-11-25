@@ -13,6 +13,7 @@ import android.text.method.ScrollingMovementMethod
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Button
@@ -36,6 +37,7 @@ class AnswerCard(
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private var card: View? = null
+    private var params: WindowManager.LayoutParams? = null
     private var speaking = false
     private var touching = false
     private var autoFade = true
@@ -44,7 +46,7 @@ class AnswerCard(
     private val Int.dp: Int get() = (this * context.resources.displayMetrics.density).toInt()
 
     companion object {
-        private const val SHOW_MS = 15_000L // an answer fades by itself after this long if nobody is looking at it
+        private const val SHOW_MS = 8_000L // an answer fades by itself after this long if nobody is touching it
         private const val AFTER_TOUCH_MS = 5_000L // and this long after the last touch
         private val SURFACE = Color.rgb(24, 24, 27)
         private val EDGE = Color.argb(190, 140, 155, 255)
@@ -160,15 +162,52 @@ class AnswerCard(
         addView(tools)
     })
 
-    /** The glass card around [content]: the floating mic's surface, edge and shadow. */
+    /** The glass card around [content]: the floating mic's surface, edge and shadow. Drag it anywhere to move it. */
     private fun frame(content: View): LinearLayout = object : LinearLayout(context) {
+        private val slop = ViewConfiguration.get(context).scaledTouchSlop
+        private var downX = 0f
+        private var downY = 0f
+        private var originX = 0
+        private var originY = 0
+        private var dragging = false
+
         // Watches the touches without taking them: the countdown waits while a finger is on the card.
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> { touching = true; handler.removeCallbacks(fade) }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { touching = false; arm(AFTER_TOUCH_MS) }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { touching = false; dragging = false; arm(AFTER_TOUCH_MS) }
             }
             return super.dispatchTouchEvent(event)
+        }
+
+        // A finger that moves takes the card over from the buttons and text, so it can be dragged from anywhere on it.
+        override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; dragging = false }
+                MotionEvent.ACTION_MOVE -> if (!dragging && kotlin.math.hypot(event.rawX - downX, event.rawY - downY) > slop) {
+                    dragging = beginDrag(this)
+                    originX = params?.x ?: 0
+                    originY = params?.y ?: 0
+                    return dragging
+                }
+            }
+            return dragging
+        }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; return true }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!dragging && kotlin.math.hypot(event.rawX - downX, event.rawY - downY) > slop) {
+                        dragging = beginDrag(this)
+                        originX = params?.x ?: 0
+                        originY = params?.y ?: 0
+                    }
+                    if (dragging) moveTo(this, originX + (event.rawX - downX).toInt(), originY + (event.rawY - downY).toInt())
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> dragging = false
+            }
+            return true
         }
     }.apply {
         orientation = LinearLayout.VERTICAL
@@ -181,6 +220,29 @@ class AnswerCard(
         elevation = 18.dp.toFloat()
         addView(content)
     }
+
+    /** The card was opened against the screen's bottom or right edge; from the first drag on it is placed by its top-left corner. */
+    private fun beginDrag(view: View): Boolean {
+        val p = params ?: return false
+        val at = IntArray(2).also { view.getLocationOnScreen(it) }
+        p.gravity = Gravity.TOP or Gravity.START
+        p.x = at[0]
+        p.y = at[1]
+        return true
+    }
+
+    private fun moveTo(view: View, x: Int, y: Int) {
+        val p = params ?: return
+        val (width, height) = screenSize()
+        p.x = x.coerceIn(0, maxOf(0, width - view.width))
+        p.y = y.coerceIn(0, maxOf(0, height - view.height))
+        runCatching { windows.updateViewLayout(view, p) }
+    }
+
+    /** The whole screen, so a card can be dragged to any edge and never lost off it. */
+    private fun screenSize(): Pair<Int, Int> =
+        if (android.os.Build.VERSION.SDK_INT >= 30) windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
+        else android.util.DisplayMetrics().also { @Suppress("DEPRECATION") windows.defaultDisplay.getRealMetrics(it) }.let { it.widthPixels to it.heightPixels }
 
     /** Opens [root] above the floating mic (below it near the top of the screen), growing out of the mic. */
     private fun present(root: View, fades: Boolean) {
@@ -195,17 +257,19 @@ class AnswerCard(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = (if (below) Gravity.TOP else Gravity.BOTTOM) or (if (onRight) Gravity.END else Gravity.START)
             x = 12.dp
             y = if (anchor == null) 120.dp
                 else if (below) anchor.bottom + gap
-                else metrics.heightPixels - anchor.top + gap
+                else screenSize().second - anchor.top + gap
         }
         root.alpha = 0f
         if (runCatching { windows.addView(root, params) }.isFailure) return
+        this.params = params
         card = root
         root.post {
             // Grow out of the mic: the pivot is the mic's centre, in the card's own coordinates.
