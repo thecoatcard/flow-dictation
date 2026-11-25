@@ -171,7 +171,7 @@ Look at `finalizeMs` (should be a few hundred ms, and `"timedOut":false`), `clea
 | 9.1 | Dictate three sentences, open **History** | Newest first, with time and app |
 | 9.2 | Type `report` in the search box | Only matching entries |
 | 9.3 | **Copy** an entry, paste it somewhere | Its text |
-| 9.4 | **Delete** one, then **Clear all** | Removed; list shows "Nothing here yet" |
+| 9.4 | **Delete** one, then **Clear all** | **Clear all** asks "Clear all history?" in an in-app dialog (Cancel has focus, Esc cancels); confirming empties the list, which shows "Nothing here yet" |
 | 9.5 | Turn off **Keep dictation history**, dictate | Nothing new is saved |
 | 9.6 | **Usage** after a few dictations | Dictations and minutes increased |
 | 9.7 | **Backup → Export**, change a snippet, **Import** the file | Your saved settings come back |

@@ -525,6 +525,22 @@
         </section>
       </main>
     </div>
+    <div class="scrim" id="dialog" hidden>
+      <div
+        class="dlg"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="dlgtitle"
+        aria-describedby="dlgbody"
+      >
+        <h3 id="dlgtitle"></h3>
+        <p id="dlgbody"></p>
+        <div class="dlg-actions">
+          <button class="btn" id="dlgcancel" type="button">Cancel</button>
+          <button class="btn danger" id="dlgok" type="button"></button>
+        </div>
+      </div>
+    </div>
     <div id="toasts" role="status" aria-live="polite"></div>
     <script src="settings.js"></script>
   </body>

@@ -710,6 +710,73 @@ select {
 }
 
 /* ---------- toasts ---------- */
+/* In-app confirmation dialog, in place of the browser's native confirm box. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 10, 13, 0.55);
+  animation: scrim-in 140ms var(--ease);
+}
+.scrim[hidden] {
+  display: none;
+}
+.dlg {
+  width: min(420px, 100%);
+  padding: 22px 22px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  animation: dlg-in 160ms var(--ease);
+}
+.dlg h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+.dlg p {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.btn.danger {
+  background: var(--rec);
+  border-color: var(--rec);
+  color: #fff;
+  font-weight: 600;
+}
+.btn.danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dlg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dlg {
+    animation: none;
+  }
+}
+
 #toasts {
   position: fixed;
   right: 20px;

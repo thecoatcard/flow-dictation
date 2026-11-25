@@ -150,7 +150,7 @@
       s.hotkeys.find((h) => h.id === s.app.hotkey)?.label ?? s.app.hotkey ?? 'your hotkey';
     $('raildot').className = `dot ${s.hasKey ? 'ok' : 'warn'}`;
     $('railtext').textContent = s.hasKey
-      ? `${s.app.mode === 'hold' ? 'Hold' : 'Press'} ${label} to dictate`
+      ? `${s.app.hotkey === 'F23' ? 'Tap' : s.app.mode === 'hold' ? 'Hold' : 'Press'} ${label} to dictate`
       : 'Add your API key to start';
   }
 
@@ -834,6 +834,55 @@
   };
   refreshGuide();
 
+  /** Asks before something destructive. Cancel has focus, Esc cancels, Tab stays inside the dialog. */
+  function confirmDialog(
+    title: string,
+    message: string,
+    okLabel: string,
+    danger = true,
+  ): Promise<boolean> {
+    const dlg = $('dialog');
+    const ok = $<HTMLButtonElement>('dlgok');
+    const cancel = $<HTMLButtonElement>('dlgcancel');
+    $('dlgtitle').textContent = title;
+    $('dlgbody').textContent = message;
+    ok.textContent = okLabel;
+    ok.className = `btn ${danger ? 'danger' : 'primary'}`;
+    const before = document.activeElement as HTMLElement | null;
+    dlg.hidden = false;
+    cancel.focus();
+    return new Promise((resolve) => {
+      const close = (answer: boolean) => {
+        dlg.hidden = true;
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onCancel);
+        dlg.removeEventListener('mousedown', onBackdrop);
+        window.removeEventListener('keydown', onKey, true);
+        before?.focus();
+        resolve(answer);
+      };
+      const onOk = () => close(true);
+      const onCancel = () => close(false);
+      const onBackdrop = (e: MouseEvent) => {
+        if (e.target === dlg) close(false);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          close(false);
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          (document.activeElement === cancel ? ok : cancel).focus();
+        }
+      };
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onCancel);
+      dlg.addEventListener('mousedown', onBackdrop);
+      window.addEventListener('keydown', onKey, true);
+    });
+  }
+
   // ---------- history ----------
   const histq = $<HTMLInputElement>('histq');
   const histlist = $('histlist');
@@ -939,13 +988,22 @@
   on('keephistory', 'click', () =>
     save({ keepHistory: $('keephistory').getAttribute('aria-checked') !== 'true' }),
   );
-  on('histclear', 'click', () => {
-    if (confirm('Delete all saved dictations from this PC?'))
-      void api.clearHistory().then(() => {
-        renderHistory();
-        toast('History cleared');
-      });
-  });
+  on(
+    'histclear',
+    'click',
+    () =>
+      void confirmDialog(
+        'Clear all history?',
+        'This deletes every saved dictation from this PC. It cannot be undone.',
+        'Delete all',
+      ).then((yes) => {
+        if (!yes) return;
+        void api.clearHistory().then(() => {
+          renderHistory();
+          toast('History cleared');
+        });
+      }),
+  );
 
   // ---------- updates ----------
   const paintUpdate = (u: UpdateStatusDto): void => {
