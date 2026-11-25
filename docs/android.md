@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.16.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.18.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.16.apk
+adb install -r .\Flow-Android-0.1.18.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -77,7 +77,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.16.apk
+adb install -r .\Flow-Android-0.1.18.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -135,11 +135,11 @@ Select text in any field, tap the mic, and say what to do: "make this shorter", 
 
 ### Ask Flow
 
-Start a dictation with **"Ask Flow"** (or **"Hey Flow"**) and then your question: "Ask Flow, what is the capital of Australia" or "Hey Flow, explain a REST API in two lines". Nothing is typed into your app. A card opens near the bottom of the screen with the answer and three buttons: **Copy**, **Read aloud** and **Close**. The answer is short by design, and Flow says so when it is not sure. It cannot see your screen or the internet, so questions that need them are answered with that limit. The same wording typed anywhere else, such as "I will ask flow tomorrow", is just dictation, because only an utterance that starts with the phrase counts.
+Start a dictation with **"Ask Flow"** (or **"Hey Flow"**) and then your question: "Ask Flow, what is the capital of Australia" or "Hey Flow, explain a REST API in two lines". Nothing is typed into your app. A small card grows out of the floating mic, as big as the answer needs, with a copy icon and a speaker icon. It fades away by itself after 15 seconds unless you are touching it or it is reading aloud. The answer is short by design, and Flow says so when it is not sure. It cannot see your screen or the internet, so questions that need them are answered with that limit. The same wording typed anywhere else, such as "I will ask flow tomorrow", is just dictation, because only an utterance that starts with the phrase counts.
 
 ### Read that back
 
-Say **"read that back"** as a whole dictation and the last text Flow inserted (or rewrote) is read aloud with your phone's own voice. It uses the phone's text-to-speech, so nothing is sent anywhere and it costs nothing. Install a Hindi voice in the phone's text-to-speech settings if you want Devanagari read in Hindi.
+Say **"read that back"** (or "read that again", "read it out loud") as a whole dictation and the last text Flow inserted (or rewrote) is read aloud with your phone's own voice. Right after Flow starts it reads your newest saved dictation. It uses the phone's text-to-speech, so nothing is sent anywhere and it costs nothing. Install a Hindi voice in the phone's text-to-speech settings if you want Devanagari read in Hindi.
 
 ### Hands-free
 

@@ -29,10 +29,14 @@ const COMMANDS: Array<[string, Command]> = [
   ['press enter', 'press-enter'],
   ['press tab', 'press-tab'],
   ['press escape', 'press-escape'],
-  ['read that back', 'read-back'],
-  ['read it back', 'read-back'],
-  ['read back', 'read-back'],
 ];
+
+/**
+ * "Read that back", "read it back to me", "read that again", "read it out loud", "please read this aloud":
+ * the many ways people ask to hear the last text. Only the whole utterance counts.
+ */
+const READ_BACK =
+  /^(?:(?:please|can you|could you)\s+)?read\s+(?:(?:that|it|this|the last (?:one|text|dictation|thing)|my last (?:text|dictation))\s+)?(?:back|again|aloud|out loud|out)(?:\s+to me)?$|^(?:(?:please|can you|could you)\s+)?read\s+(?:that|it|this)\s+to me$/;
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const phraseRe = (p: string) =>
@@ -47,6 +51,7 @@ export function detectCommand(transcript: string): Command | null {
     .trim()
     .toLowerCase()
     .replace(/[.,!?;:\s]+$/g, '');
+  if (READ_BACK.test(t.replace(/\s+/g, ' '))) return 'read-back';
   return COMMANDS.find(([p]) => p === t)?.[1] ?? null;
 }
 

@@ -211,7 +211,8 @@ function createDictation(
         onError: (e) => debugLog('ask-error', { kind: classifyError(e) }),
       }),
     showAnswer: (question, answer) => answers.show(question, answer),
-    speak: (text) => void speak(text),
+    speak: (text) => speak(text),
+    lastSaved: () => history.list()[0]?.text,
     activeTitle: async () => (store.get().app.useWindowContext ? activeWindowTitle() : undefined),
     process: (transcript, appId, title) =>
       processTranscript(transcript, {
@@ -454,7 +455,7 @@ if (!app.requestSingleInstanceLock()) {
     )
       svc.store.update((c) => (c.app.guideDismissed = true));
     svc.mic.warm();
-    const answers = new AnswerWindow();
+    const answers = new AnswerWindow(() => overlay.anchor());
     const dictation = createDictation(svc, overlay, answers);
     registerDebugRecord(svc, dictation);
     registerSettings(svc, overlay);

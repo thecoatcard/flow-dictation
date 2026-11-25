@@ -95,6 +95,21 @@ export class Overlay {
     this.win.setPosition(p.x, p.y);
   }
 
+  /** Centre of the round icon on screen, where the answer popup grows out of. */
+  anchor(): Point {
+    let origin: Point;
+    if (this.win && !this.win.isDestroyed()) {
+      const [x, y] = this.win.getPosition();
+      origin = { x: x!, y: y! };
+    } else {
+      const saved = this.host.savedPos();
+      origin = saved
+        ? clampOrigin(saved, SIZE, this.areas())
+        : defaultOrigin(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea, SIZE);
+    }
+    return { x: origin.x + W / 2, y: origin.y + H / 2 };
+  }
+
   /** Re-read the mode and saved position (after a settings change). */
   refresh(): void {
     if (this.host.mode() === 'always') {

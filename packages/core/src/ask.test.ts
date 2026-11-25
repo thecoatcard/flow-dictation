@@ -59,10 +59,22 @@ describe('Ask', () => {
 });
 
 describe('read back command', () => {
-  it.each(['read that back', 'Read it back.', 'read back'])('%s is the read-back command', (s) =>
-    expect(detectCommand(s)).toBe('read-back'),
-  );
+  it.each([
+    'read that back',
+    'Read it back.',
+    'read back',
+    'read that again',
+    'Read it out loud.',
+    'read that back to me',
+    'please read that aloud',
+    'can you read this back',
+    'read the last text back',
+    'read it to me',
+    'Read   that   back',
+  ])('%s is the read-back command', (s) => expect(detectCommand(s)).toBe('read-back'));
   it('only counts when it is the whole utterance', () => {
-    expect(detectCommand('please read that back to me')).toBeNull();
+    expect(detectCommand('please read that back to me tomorrow')).toBeNull();
+    expect(detectCommand('I read it again')).toBeNull();
+    expect(detectCommand('read the report back to the team')).toBeNull();
   });
 });

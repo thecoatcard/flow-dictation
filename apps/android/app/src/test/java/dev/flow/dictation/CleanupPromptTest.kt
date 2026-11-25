@@ -91,7 +91,10 @@ class CleanupPromptTest {
     @Test fun readBackIsAWholeUtteranceCommand() {
         assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("Read that back."))
         assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("read it back"))
-        assertEquals(null, DictationPipeline.detectCommand("please read that back to me"))
+        listOf("read that again", "Read it out loud.", "read that back to me", "please read that aloud", "can you read this back", "read the last text back", "read it to me", "Read   that   back")
+            .forEach { assertEquals(it, DictationResult.ReadBack, DictationPipeline.detectCommand(it)) }
+        listOf("please read that back to me tomorrow", "I read it again", "read the report back to the team")
+            .forEach { assertEquals(it, null, DictationPipeline.detectCommand(it)) }
     }
 
     @Test fun deleteRequestsNeedNoModel() {

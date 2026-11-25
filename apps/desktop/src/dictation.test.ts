@@ -239,6 +239,35 @@ describe('Dictation', () => {
       expect(second.calls.some((c) => c.startsWith('insert'))).toBe(false);
     });
 
+    it('reads the newest saved dictation when nothing was dictated since Flow started', async () => {
+      const spoken: string[] = [];
+      const { d } = setup(
+        {
+          speak: (t) => void spoken.push(t),
+          lastSaved: () => 'From yesterday.',
+          process: async (): Promise<PipelineResult> => ({ kind: 'command', command: 'read-back' }),
+        },
+        { text: 'read that back' },
+      );
+      await d.keyDown();
+      await d.keyUp();
+      expect(spoken).toEqual(['From yesterday.']);
+    });
+
+    it('says so when the system has no voice', async () => {
+      const { d, overlays } = setup(
+        {
+          speak: () => false,
+          lastSaved: () => 'Some text.',
+          process: async (): Promise<PipelineResult> => ({ kind: 'command', command: 'read-back' }),
+        },
+        { text: 'read that back' },
+      );
+      await d.keyDown();
+      await d.keyUp();
+      expect(overlays.at(-1)).toMatchObject({ state: 'error', message: 'No voice available to read it' });
+    });
+
     it('says so when there is nothing to read back', async () => {
       const spoken: string[] = [];
       const { d, overlays } = setup(

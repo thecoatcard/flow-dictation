@@ -25,8 +25,9 @@ contextBridge.exposeInMainWorld('flowApi', {
     click: () => ipcRenderer.send('overlay:click'),
   },
   answer: {
-    onShow: (cb: (d: { question: string; answer: string }) => void) =>
+    onShow: (cb: (d: { question: string; answer: string; up: boolean; originX: number }) => void) =>
       ipcRenderer.on('answer:show', (_e, d) => cb(d)),
+    interactive: (on: boolean) => ipcRenderer.send('answer:interactive', on),
     onSpeechEnd: (cb: () => void) => ipcRenderer.on('answer:speech-end', () => cb()),
     copy: () => ipcRenderer.send('answer:copy'),
     speak: () => ipcRenderer.send('answer:speak'),

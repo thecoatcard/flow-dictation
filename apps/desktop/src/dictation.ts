@@ -40,8 +40,10 @@ export interface DictationDeps {
   ask?(question: string): Promise<string | null>;
   /** Shows a question and its answer in the popup. */
   showAnswer?(question: string, answer: string): void;
-  /** Reads text aloud with the system voice ("read that back"). */
-  speak?(text: string): void;
+  /** Reads text aloud with the system voice ("read that back"). False when there is no voice to use. */
+  speak?(text: string): boolean | void;
+  /** The newest saved dictation, for "read that back" right after Flow starts (nothing dictated yet this session). */
+  lastSaved?(): string | undefined;
   overlay(s: OverlayStatus): void;
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
@@ -156,8 +158,10 @@ export class Dictation {
           return this.finish({ state: 'done', message: 'Removed' });
         }
         if (result.command === 'read-back') {
-          if (!this.lastText) return this.finish({ state: 'error', message: 'Nothing to read back' });
-          this.d.speak?.(this.lastText);
+          const text = this.lastText || this.d.lastSaved?.() || '';
+          if (!text) return this.finish({ state: 'error', message: 'Nothing to read back' });
+          if (this.d.speak?.(text) === false)
+            return this.finish({ state: 'error', message: 'No voice available to read it' });
           return this.finish({ state: 'done', message: 'Reading it back' });
         }
         const action = COMMAND_KEYS[result.command];

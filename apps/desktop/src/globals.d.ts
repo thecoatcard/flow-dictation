@@ -98,7 +98,8 @@ declare const flowApi: {
     click(): void;
   };
   answer: {
-    onShow(cb: (d: { question: string; answer: string }) => void): void;
+    onShow(cb: (d: { question: string; answer: string; up: boolean; originX: number }) => void): void;
+    interactive(on: boolean): void;
     onSpeechEnd(cb: () => void): void;
     copy(): void;
     speak(): void;

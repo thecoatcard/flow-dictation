@@ -103,7 +103,13 @@ class FlowBubbleService : Service() {
     private var speaker: Speaker? = null
     private var answerCard: AnswerCard? = null
     private fun speaker() = speaker ?: Speaker(this).also { speaker = it }
-    private fun answerCard() = answerCard ?: AnswerCard(this, windows, speaker()).also { answerCard = it }
+    private fun answerCard() = answerCard ?: AnswerCard(this, windows, speaker()) { bubbleRect() }.also { answerCard = it }
+
+    /** The floating mic's rectangle on screen, which the answer card grows out of. */
+    private fun bubbleRect(): android.graphics.Rect? = bubble?.takeIf { it.isAttachedToWindow }?.let { view ->
+        val at = IntArray(2).also { view.getLocationOnScreen(it) }
+        android.graphics.Rect(at[0], at[1], at[0] + view.width, at[1] + view.height)
+    }
     private val audioBytes = java.util.concurrent.atomic.AtomicLong()
     private var params: WindowManager.LayoutParams? = null
     private var state = State.IDLE
@@ -519,14 +525,20 @@ class FlowBubbleService : Service() {
                             showStatus(if (FlowAccessibilityService.active?.selectAll() == true) "Selected all" else "Could not select")
                         KeyAction.ENTER -> pressEnterNow()
                     }
-                    DictationResult.ReadBack ->
-                        if (lastText.isEmpty()) showStatus("Nothing to read back")
-                        else { speaker().speak(lastText); showStatus("Reading it back") }
+                    DictationResult.ReadBack -> {
+                        // Right after the app starts nothing was dictated yet, so fall back to the newest saved text.
+                        val text = lastText.ifEmpty { HistoryStore.get(this@FlowBubbleService).search("").firstOrNull()?.text.orEmpty() }
+                        if (text.isEmpty()) showStatus("Nothing to read back")
+                        else {
+                            speaker().speak(text, onFail = { showStatus("No text-to-speech voice on this phone") })
+                            showStatus("Reading it back")
+                        }
+                    }
                     is DictationResult.Ask -> {
                         showStatus("Thinking…")
                         val answer = AskMode.answer(result.question, settings.hindiOutput, key)
                         if (answer == null) showStatus("Could not answer that")
-                        else { answerCard().show(result.question, answer); showStatus("Answer ready") }
+                        else { answerCard().show(answer); showStatus("Answer ready") }
                     }
                     DictationResult.DeleteLast -> {
                         val removed = System.currentTimeMillis() - lastInsertedAt < 60_000 &&

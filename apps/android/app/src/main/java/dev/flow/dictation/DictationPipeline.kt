@@ -74,14 +74,22 @@ object DictationPipeline {
     private val trailingEnter = Regex("[\\s,.;:!?]*\\bpress enter\\b[\\s.!?,;:]*$", RegexOption.IGNORE_CASE)
 
     /** Spoken commands that are the whole utterance, ignoring case and punctuation. Same words as the Windows app. */
-    internal fun detectCommand(raw: String): DictationResult? =
-        when (raw.trim().lowercase().replace(trailingPunctuation, "")) {
-            "delete that", "scratch that" -> DictationResult.DeleteLast
-            "select all" -> DictationResult.Key(KeyAction.SELECT_ALL)
-            "press enter" -> DictationResult.Key(KeyAction.ENTER)
-            "read that back", "read it back", "read back" -> DictationResult.ReadBack
+    internal fun detectCommand(raw: String): DictationResult? {
+        val spoken = raw.trim().lowercase().replace(trailingPunctuation, "").replace(Regex("\\s+"), " ")
+        return when {
+            spoken == "delete that" || spoken == "scratch that" -> DictationResult.DeleteLast
+            spoken == "select all" -> DictationResult.Key(KeyAction.SELECT_ALL)
+            spoken == "press enter" -> DictationResult.Key(KeyAction.ENTER)
+            readBack.matches(spoken) -> DictationResult.ReadBack
             else -> null
         }
+    }
+
+    /** "Read that back", "read it back to me", "read that again", "read it out loud": same wording as the desktop. */
+    private val readBack = Regex(
+        "^(?:(?:please|can you|could you) )?read (?:(?:that|it|this|the last (?:one|text|dictation|thing)|my last (?:text|dictation)) )?(?:back|again|aloud|out loud|out)(?: to me)?$" +
+            "|^(?:(?:please|can you|could you) )?read (?:that|it|this) to me$"
+    )
 
     /** "Reply sounds good press enter": the words before are dictated, and Enter is pressed after them. */
     internal fun splitTrailingEnter(raw: String): Pair<String, Boolean> {
