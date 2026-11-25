@@ -44,6 +44,14 @@ interface PersonalDto {
   recentApps: string[];
 }
 
+interface UpdateStatusDto {
+  state: 'idle' | 'checking' | 'downloading' | 'ready' | 'uptodate' | 'error' | 'unavailable';
+  version: string;
+  latest?: string;
+  percent?: number;
+  message?: string;
+}
+
 interface UsageDto {
   month: string;
   totals: { audioSeconds: number; inputTokens: number; outputTokens: number; dictations: number };
@@ -87,5 +95,10 @@ declare const flowApi: {
     getPersonal(): Promise<PersonalDto>;
     setPersonal(patch: Partial<PersonalDto>): Promise<PersonalDto>;
     openPermission(name: string): void;
+    getUpdate(): Promise<UpdateStatusDto>;
+    checkUpdate(): Promise<void>;
+    installUpdate(): Promise<void>;
+    onUpdate(cb: (s: UpdateStatusDto) => void): void;
+    onPage(cb: (page: string) => void): void;
   };
 };

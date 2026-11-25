@@ -141,6 +141,12 @@ class UpdateReceiver : BroadcastReceiver() {
                 context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             PackageInstaller.STATUS_SUCCESS -> Unit // Android restarts Flow on the new version
+            PackageInstaller.STATUS_FAILURE_BLOCKED, PackageInstaller.STATUS_FAILURE_ABORTED ->
+                Toast.makeText(
+                    context,
+                    "The update was blocked or cancelled. If Play Protect blocked it, install the APK from your computer with adb (see the guide).",
+                    Toast.LENGTH_LONG
+                ).show()
             PackageInstaller.STATUS_FAILURE_CONFLICT, PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ->
                 Toast.makeText(
                     context,

@@ -20,6 +20,7 @@
           <button data-page="words">Words and tone</button>
           <button data-page="style">Writing style</button>
           <button data-page="usage">Usage</button>
+          <button data-page="updates">Updates</button>
           <button data-page="access">Permissions</button>
           <button data-page="backup">Backup</button>
         </nav>
@@ -89,7 +90,8 @@
               <div>
                 <div class="t">Hotkey</div>
                 <div class="d">
-                  The key you hold while speaking. A laptop Copilot key works too.
+                  The key you use to dictate. A laptop Copilot key works too: tap it to start and
+                  tap again to stop.
                 </div>
               </div>
               <div class="ctl"><select id="hotkey" aria-label="Hotkey"></select></div>
@@ -98,8 +100,8 @@
               <div>
                 <div class="t">How it listens</div>
                 <div class="d">
-                  Hold to talk records while the key is down. The other mode starts on one press and
-                  stops on the next.
+                  Hold to talk records while the key is down. A quick tap keeps recording until you
+                  tap again. The other mode always starts on one press and stops on the next.
                 </div>
               </div>
               <div class="ctl">
@@ -316,6 +318,31 @@
           </div>
         </section>
 
+        <!-- ===== Updates ===== -->
+        <section class="page" id="page-updates" hidden>
+          <header class="ph">
+            <h1>Updates</h1>
+            <p>
+              Flow looks for a new version on GitHub shortly after it starts and once a day. A new
+              version downloads quietly and installs when you quit Flow.
+            </p>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Flow <span id="upd-version"></span></div>
+                <div class="d" id="upd-detail">Checking the current version…</div>
+              </div>
+              <div class="ctl">
+                <button class="btn" id="upd-check" type="button">Check for updates</button>
+                <button class="btn primary" id="upd-install" type="button" style="display: none">
+                  Restart and update
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="msg" id="upd-msg" role="status"></div>
+        </section>
         <!-- ===== Permissions ===== -->
         <section class="page" id="page-access" hidden>
           <header class="ph">

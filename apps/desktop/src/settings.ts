@@ -563,6 +563,38 @@
       }),
   );
 
+  // ---------- updates ----------
+  const paintUpdate = (u: UpdateStatusDto): void => {
+    $('upd-version').textContent = u.version;
+    const check = $<HTMLButtonElement>('upd-check');
+    const install = $<HTMLButtonElement>('upd-install');
+    install.style.display = u.state === 'ready' ? '' : 'none';
+    check.style.display = u.state === 'ready' ? 'none' : '';
+    busy(check, u.state === 'checking' || u.state === 'downloading');
+    check.disabled = check.disabled || u.state === 'unavailable';
+    const detail: Record<UpdateStatusDto['state'], string> = {
+      idle: 'Installed version. Updates are checked at startup and once a day.',
+      checking: 'Checking GitHub for a newer version…',
+      downloading: `Downloading version ${u.latest ?? ''}${u.percent === undefined ? '' : ` (${u.percent}%)`}…`,
+      ready: `Version ${u.latest ?? ''} is ready. It installs when you quit Flow, or restart now.`,
+      uptodate: 'You have the latest version.',
+      error: 'Installed version.',
+      unavailable: 'Installed version.',
+    };
+    $('upd-detail').textContent = detail[u.state];
+    say(
+      $('upd-msg'),
+      u.state === 'error' || u.state === 'unavailable' ? (u.message ?? '') : '',
+      u.state === 'error',
+    );
+  };
+  on('upd-check', 'click', () => void api.checkUpdate());
+  on('upd-install', 'click', () => void api.installUpdate());
+  api.onUpdate(paintUpdate);
+  api.onPage((page) => go(page));
+  pageHooks['updates'] = () => void api.getUpdate().then(paintUpdate);
+  void api.getUpdate().then(paintUpdate);
+
   // ---------- boot ----------
   void api.get().then(apply);
   void api.getPersonal().then(showPersonal);

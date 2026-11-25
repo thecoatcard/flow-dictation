@@ -39,5 +39,10 @@ contextBridge.exposeInMainWorld('flowApi', {
     getPersonal: () => ipcRenderer.invoke('personal:get'),
     setPersonal: (patch: unknown) => ipcRenderer.invoke('personal:set', patch),
     openPermission: (name: string) => ipcRenderer.send('permissions:open', name),
+    getUpdate: () => ipcRenderer.invoke('update:get'),
+    checkUpdate: () => ipcRenderer.invoke('update:check'),
+    installUpdate: () => ipcRenderer.invoke('update:install'),
+    onUpdate: (cb: (s: unknown) => void) => ipcRenderer.on('update:status', (_e, s) => cb(s)),
+    onPage: (cb: (page: string) => void) => ipcRenderer.on('settings:page', (_e, p) => cb(p)),
   },
 });

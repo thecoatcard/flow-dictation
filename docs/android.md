@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.8.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.9.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.8.apk
+adb install -r .\Flow-Android-0.1.9.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -58,6 +58,14 @@ The *Allow restricted settings* item only appears after you have tried to open t
 After the first install, Flow updates itself from the [latest release](https://github.com/thecoatcard/flow-dictation/releases/latest). While the floating mic is running it checks about once a day, and when you open the app. On Wi-Fi it downloads the new APK in the background and checks its SHA-256 against the checksum published beside it; a file that does not match is deleted and never installed. When an update is ready the Flow notification says **Update x.y.z is ready. Tap to install.** You can also open **Updates** in the app and tap **Check for updates**.
 
 Android always asks you to confirm an install of an app that is not from the Play Store, so the last step is one tap on the system's **Update** button. The first time, Android also asks you to allow Flow to install apps: choose **Allow from this source**. Your settings and API key are kept.
+
+**Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
+
+```powershell
+adb install -r .\Flow-Android-0.1.9.apk
+```
+
+The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
 
 An update can only replace the app if it is signed with the same key. Releases built on the same computer share a key. If Android says the update was signed with a different key, uninstall Flow and install the new APK once with `adb install`; you will have to enter your key and settings again, so export a backup first.
 
