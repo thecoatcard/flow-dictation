@@ -150,6 +150,11 @@ Look at `finalizeMs` (should be a few hundred ms, and `"timedOut":false`), `clea
 | 9.7 | **Backup → Export**, change a snippet, **Import** the file | Your saved settings come back |
 | 9.8 | **Updates → Check for updates** | "You have the latest version", or progress and **Restart and update** |
 | 9.9 | Right-click the tray icon → **Check for updates** | Opens the Updates page and checks |
+| 9.10 | Dictate "We deploy it on Kubernetes", then in **History** press **Fix** on it and change a word Flow got wrong into a name or technical term (for example change it to `We deploy it on Kubernetes and Terraform`), then **Save fix** | The entry shows your fixed text, and **Add to your dictionary:** offers `Kubernetes` and `Terraform` (only terms that were not already in the original or your dictionary) |
+| 9.11 | Press one of the offered terms | It is added in **Words and tone → Dictionary** and disappears from the offer; ordinary words like "the" are never offered |
+| 9.12 | Press **Fix** and then **Cancel** | Nothing changes |
+
+The dictionary only learns from fixes you make in History, because Flow cannot see what you type in other apps. It offers names, product names, acronyms, camelCase and versions such as `k8s`; it never adds everyday words.
 
 ## 10. Android
 

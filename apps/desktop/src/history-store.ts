@@ -66,6 +66,15 @@ export class HistoryStore {
     return this.items.find((e) => e.id === id);
   }
 
+  /** Replaces an entry's text (a correction). Returns false when the entry no longer exists. */
+  update(id: string, text: string): boolean {
+    const entry = this.items.find((e) => e.id === id);
+    if (!entry || !text.trim()) return false;
+    entry.text = text;
+    this.save();
+    return true;
+  }
+
   remove(id: string): void {
     this.items = this.items.filter((e) => e.id !== id);
     this.save();

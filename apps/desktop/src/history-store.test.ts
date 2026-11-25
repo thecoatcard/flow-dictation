@@ -30,6 +30,17 @@ describe('HistoryStore', () => {
     expect(new HistoryStore(f).list()).toEqual([]);
   });
 
+  it('updates the text of an entry and persists it', () => {
+    const f = file();
+    const s = new HistoryStore(f);
+    s.add('cooper net is is great');
+    const id = s.list()[0]!.id;
+    expect(s.update(id, 'Kubernetes is great')).toBe(true);
+    expect(s.update(id, '   ')).toBe(false); // an empty correction is refused
+    expect(s.update('nope', 'x')).toBe(false);
+    expect(new HistoryStore(f).list()[0]!.text).toBe('Kubernetes is great');
+  });
+
   it('caps the list at the newest entries', () => {
     const s = new HistoryStore(file());
     for (let i = 0; i < MAX_HISTORY + 5; i++) s.add(`line ${i}`);

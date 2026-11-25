@@ -112,6 +112,7 @@ declare const flowApi: {
     copyHistory(id: string): Promise<boolean>;
     removeHistory(id: string): Promise<void>;
     clearHistory(): Promise<void>;
+    correctHistory(id: string, text: string): Promise<string[]>;
     getUpdate(): Promise<UpdateStatusDto>;
     checkUpdate(): Promise<void>;
     installUpdate(): Promise<void>;

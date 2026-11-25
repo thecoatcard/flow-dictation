@@ -23,6 +23,7 @@ Launch: `$env:GEMINI_API_KEY="..."; pnpm dev`. Hold right Ctrl (right Option on 
 - [ ] Mic unplugged mid-session shows an error and recovers
 - [ ] No network shows an error, inserts nothing
 - [ ] Wrong API key shows an error, inserts nothing
+- [ ] History > Fix: correcting a dictation offers the new names and terms for the dictionary; adding one puts it in Words and tone > Dictionary
 - [ ] "delete that" removes the last insertion
 - [ ] Command Mode: select a paragraph, hold Ctrl+Alt+E, say "make this shorter"; the selection is replaced. With nothing selected it says "Select some text first"
 - [ ] Record shortcut: Ctrl+Alt+D is saved as a custom hotkey; holding it records, and the same key alone or with other modifiers does nothing

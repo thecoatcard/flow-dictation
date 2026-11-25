@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('flowApi', {
     copyHistory: (id: string) => ipcRenderer.invoke('history:copy', id),
     removeHistory: (id: string) => ipcRenderer.invoke('history:remove', id),
     clearHistory: () => ipcRenderer.invoke('history:clear'),
+    correctHistory: (id: string, text: string) => ipcRenderer.invoke('history:correct', id, text),
     getUpdate: () => ipcRenderer.invoke('update:get'),
     checkUpdate: () => ipcRenderer.invoke('update:check'),
     installUpdate: () => ipcRenderer.invoke('update:install'),

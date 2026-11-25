@@ -673,12 +673,69 @@
           rm.className = 'btn quiet';
           rm.textContent = 'Delete';
           rm.addEventListener('click', () => void api.removeHistory(e.id).then(renderHistory));
-          d.append(n, copy, rm);
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'btn quiet';
+          edit.textContent = 'Fix';
+          edit.addEventListener('click', () => beginFix(li, e));
+          d.append(n, copy, edit, rm);
           li.append(d);
           return li;
         }),
       );
     });
+  }
+  /** Edit an entry in place; the words the fix adds are offered for the dictionary. */
+  function beginFix(li: HTMLLIElement, e: HistoryEntryDto): void {
+    const box = document.createElement('div');
+    box.style.cssText = 'display:block;width:100%';
+    const ta = document.createElement('textarea');
+    ta.rows = 3;
+    ta.value = e.text;
+    ta.setAttribute('aria-label', 'Corrected text');
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;margin-top:8px';
+    const ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'btn primary';
+    ok.textContent = 'Save fix';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn quiet';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', renderHistory);
+    ok.addEventListener(
+      'click',
+      () =>
+        void api.correctHistory(e.id, ta.value).then((terms) => {
+          renderHistory();
+          offerTerms(terms);
+        }),
+    );
+    row.append(ok, cancel);
+    box.append(ta, row);
+    li.replaceChildren(box);
+    ta.focus();
+  }
+
+  const histlearn = $('histlearn');
+  function offerTerms(terms: string[]): void {
+    histlearn.replaceChildren();
+    if (!terms.length) return;
+    histlearn.append(document.createTextNode('Add to your dictionary: '));
+    for (const term of terms) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn';
+      b.style.marginRight = '6px';
+      b.textContent = term;
+      b.addEventListener('click', () => {
+        savePersonal({ dictionary: [...personal.dictionary, { term }] }, '', `Added ${term}`);
+        b.remove();
+        if (histlearn.querySelectorAll('button').length === 0) histlearn.replaceChildren();
+      });
+      histlearn.append(b);
+    }
   }
   pageHooks['history'] = renderHistory;
   histq.addEventListener('input', renderHistory);

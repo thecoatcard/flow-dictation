@@ -10,6 +10,7 @@ import {
   estimateCost,
   summarizeStyle,
   editSelection,
+  learnTerms,
   GeminiCleanupClient,
   geminiLiveConnect,
   processTranscript,
@@ -260,6 +261,18 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
     if (typeof id === 'string') history.remove(id);
   });
   ipcMain.handle('history:clear', () => history.clear());
+  // The user fixed a dictation; the new names and technical terms in the fix are offered for the dictionary.
+  ipcMain.handle('history:correct', (_e, id: unknown, text: unknown) => {
+    const entry = typeof id === 'string' ? history.get(id) : undefined;
+    if (!entry || typeof text !== 'string' || !text.trim()) return [];
+    const before = entry.text;
+    history.update(entry.id, text);
+    return learnTerms(
+      before,
+      text,
+      store.get().dictionary.map((d) => d.term),
+    );
+  });
   ipcMain.handle('cue:test', () => {
     mic.cue('start');
     setTimeout(() => mic.cue('stop'), 700);
