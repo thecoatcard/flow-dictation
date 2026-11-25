@@ -85,6 +85,27 @@ describe('createHotkeyHandler', () => {
     h.up(7);
     expect(calls).toEqual(['down', 'up']);
   });
+  it('latch off: even a quick tap stops on release, so Command Mode records exactly while held', () => {
+    const calls: string[] = [];
+    let t = 0;
+    const d = {
+      state: 'idle',
+      keyDown: async () => void calls.push('down'),
+      keyUp: async () => void calls.push('up'),
+    };
+    const h = createHotkeyHandler(
+      d,
+      () => 'hold',
+      () => ({ key: 7 }),
+      () => t,
+      { latch: false },
+    );
+    h.down(7);
+    t += 40; // a tap, far shorter than TAP_MS
+    h.up(7);
+    expect(calls).toEqual(['down', 'up']);
+  });
+
   it('a combo needs its exact modifiers; the same key alone or with others does nothing', () => {
     const chord: Chord = { key: 32, mods: { ctrl: true, alt: true, shift: false, meta: false } };
     const { h, calls } = setup('toggle', chord);

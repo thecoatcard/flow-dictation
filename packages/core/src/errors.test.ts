@@ -70,6 +70,7 @@ describe('app settings migration', () => {
       recentApps: [],
       sttUsdPerHour: 0.54,
       keepHistory: true,
+      commandHotkey: 'Ctrl+Alt+E',
       soundCues: true,
       muteWhileDictating: false,
       overlay: 'always',

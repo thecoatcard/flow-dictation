@@ -101,7 +101,9 @@ export function createHotkeyHandler(
   getMode: () => Mode,
   getChord: () => Chord,
   now: () => number = Date.now,
+  opts: { latch?: boolean } = {},
 ): { down(code: number, mods?: Mods): void; up(code: number): void } {
+  const latch = opts.latch ?? true; // false: always record exactly while the key is down
   let held = false;
   let latched = false; // a tap left recording on; the next press stops it
   let downAt = 0;
@@ -133,7 +135,7 @@ export function createHotkeyHandler(
         return;
       }
       if (getMode() !== 'hold' || latched) return;
-      if (now() - downAt < TAP_MS) latched = true;
+      if (latch && now() - downAt < TAP_MS) latched = true;
       else void d.keyUp();
     },
   };

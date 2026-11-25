@@ -21,6 +21,7 @@ interface SettingsDto {
     autostart: boolean;
     sttUsdPerHour: number;
     keepHistory: boolean;
+    commandHotkey: string;
     soundCues: boolean;
     muteWhileDictating: boolean;
     overlay: 'always' | 'active';

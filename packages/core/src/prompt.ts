@@ -19,7 +19,7 @@ const LEVEL_RULES: Record<CleanupLevel, string> = {
     'Cleanup level: Medium. Apply Light first. You may rephrase for clarity and concision only where the original wording is tangled or repetitive; keep every substantive fact, time, negation, uncertainty, request, and the speaker’s voice. Leave already clear spans alone. Do not summarize or add information.',
 };
 
-const HINDI_RULES: Record<HindiOutput, string> = {
+export const HINDI_RULES: Record<HindiOutput, string> = {
   hinglish:
     '- Hindi: write spoken Hindi in Roman letters (Hinglish), the way people type it on a phone, for example "main kal office jaunga" or "kya haal hai". Never use Devanagari. Keep English words in normal English spelling. Do not translate between languages. Speech that is entirely English, or in another language, is written as usual in that language and script.',
   devanagari:

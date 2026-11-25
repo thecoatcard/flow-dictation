@@ -24,6 +24,7 @@ Launch: `$env:GEMINI_API_KEY="..."; pnpm dev`. Hold right Ctrl (right Option on 
 - [ ] No network shows an error, inserts nothing
 - [ ] Wrong API key shows an error, inserts nothing
 - [ ] "delete that" removes the last insertion
+- [ ] Command Mode: select a paragraph, hold Ctrl+Alt+E, say "make this shorter"; the selection is replaced. With nothing selected it says "Select some text first"
 - [ ] Record shortcut: Ctrl+Alt+D is saved as a custom hotkey; holding it records, and the same key alone or with other modifiers does nothing
 - [ ] Sound cues: a rising two-note chime once the mic is live (speak after it) and a falling one when recording stops; Settings > Dictation > Sound cues has a Play button and an off switch
 - [ ] Mute while dictating: music goes quiet after the start tone and comes back when you stop; if it was already muted, it stays muted

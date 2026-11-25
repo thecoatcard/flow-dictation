@@ -8,13 +8,14 @@ const RESTORE_DELAY_MS = 250;
 /** "Delete that" only undoes an insertion this recent; older ones are probably not the last edit. */
 const UNDO_WINDOW_MS = 60_000;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 interface ClipboardSnapshot {
   text: string;
   html: string;
   rtf: string;
   image: NativeImage;
 }
-
 
 function snapshot(): ClipboardSnapshot {
   return {
@@ -64,6 +65,39 @@ export class Inserter {
       if (clipboard.readText() === text) restore(saved);
     }, RESTORE_DELAY_MS);
     this.pending = { saved, timer };
+  }
+
+  /**
+   * The selected text in the focused app ('' when nothing is selected), copied with Ctrl+C. The
+   * clipboard is put back afterwards. The user is still holding the Command Mode shortcut's
+   * modifiers, so they are released virtually first; otherwise the app would see Ctrl+Alt+C.
+   */
+  async copySelection(): Promise<string> {
+    for (const key of [
+      UiohookKey.Ctrl,
+      UiohookKey.CtrlRight,
+      UiohookKey.Alt,
+      UiohookKey.AltRight,
+      UiohookKey.Shift,
+      UiohookKey.ShiftRight,
+      UiohookKey.Meta,
+      UiohookKey.MetaRight,
+    ])
+      uIOhook.keyToggle(key, 'up');
+    if (this.pending) clearTimeout(this.pending.timer);
+    const saved = this.pending?.saved ?? snapshot();
+    this.pending = null;
+    const marker = `flow-copy-${Date.now()}`;
+    clipboard.writeText(marker);
+    uIOhook.keyTap(UiohookKey.C, [MOD]);
+    let text = '';
+    for (let i = 0; i < 12 && !text; i++) {
+      await sleep(40);
+      const now = clipboard.readText();
+      if (now !== marker) text = now;
+    }
+    restore(saved);
+    return text;
   }
 
   /** Presses a key or shortcut in the focused app, for spoken commands like "press enter". */

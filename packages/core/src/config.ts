@@ -27,6 +27,8 @@ export interface AppSettings {
   sttUsdPerHour: number;
   /** Save the final text of each dictation on this PC so it can be searched and copied later. */
   keepHistory: boolean;
+  /** Hold this combination, say what to do, and the selected text is rewritten. '' turns it off. */
+  commandHotkey: string;
   /** A short tone when recording starts and stops. */
   soundCues: boolean;
   /** Mute the PC's sound output while recording, then restore it (Windows). */
@@ -68,6 +70,7 @@ export function defaultConfig(): FlowConfig {
       recentApps: [],
       sttUsdPerHour: 0.54,
       keepHistory: true,
+      commandHotkey: 'Ctrl+Alt+E',
       soundCues: true,
       muteWhileDictating: false,
       overlay: 'always',
@@ -102,6 +105,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
     if (typeof a.sttUsdPerHour === 'number' && a.sttUsdPerHour >= 0 && a.sttUsdPerHour < 1000)
       out.app.sttUsdPerHour = a.sttUsdPerHour;
     if (typeof a.keepHistory === 'boolean') out.app.keepHistory = a.keepHistory;
+    if (typeof a.commandHotkey === 'string') out.app.commandHotkey = a.commandHotkey;
     if (typeof a.soundCues === 'boolean') out.app.soundCues = a.soundCues;
     if (typeof a.muteWhileDictating === 'boolean')
       out.app.muteWhileDictating = a.muteWhileDictating;

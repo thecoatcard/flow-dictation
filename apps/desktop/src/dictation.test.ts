@@ -188,4 +188,74 @@ describe('Dictation', () => {
     await d.keyUp();
     expect(calls).toEqual(['mic.start', 'mic.stop', 'insert:hello', 'press:enter']);
   });
+  describe('Command Mode', () => {
+    const cmdSetup = (selection: string, edited: string | null) => {
+      const seen: Array<[string, string]> = [];
+      const s = setup(
+        {
+          inserter: {
+            insert: async (t) => void s.calls.push(`insert:${t}`),
+            undoLast: async () => undefined,
+            press: async () => undefined,
+            copySelection: async () => selection,
+          },
+          command: async (sel, instruction) => {
+            seen.push([sel, instruction]);
+            return edited;
+          },
+          process: async (): Promise<PipelineResult> => {
+            throw new Error('Command Mode must not run normal cleanup');
+          },
+        },
+        { text: 'make this shorter' },
+      );
+      return { ...s, seen };
+    };
+    const run = async (d: Dictation) => {
+      await d.keyDown('command');
+      await d.keyUp();
+    };
+    const lastDone = (overlays: OverlayStatus[]) =>
+      overlays.at(-1) as { state: string; message?: string };
+
+    it('rewrites the selection by the spoken instruction and pastes the result over it', async () => {
+      const { d, calls, overlays, seen } = cmdSetup('A long, rambling paragraph.', 'A short one.');
+      await run(d);
+      expect(seen).toEqual([['A long, rambling paragraph.', 'make this shorter']]);
+      expect(calls).toEqual(['mic.start', 'mic.stop', 'insert:A short one.']);
+      expect(lastDone(overlays)).toMatchObject({ state: 'done', message: 'Edited' });
+      expect(d.lastText).toBe('A short one.');
+    });
+
+    it('asks for a selection when nothing is selected and changes nothing', async () => {
+      const { d, calls, overlays, seen } = cmdSetup('  ', 'x');
+      await run(d);
+      expect(seen).toEqual([]);
+      expect(calls.some((c) => c.startsWith('insert:'))).toBe(false);
+      expect(lastDone(overlays)).toMatchObject({
+        state: 'error',
+        message: 'Select some text first',
+      });
+    });
+
+    it('leaves the text alone when the model could not do it, or changed nothing', async () => {
+      const failed = cmdSetup('some text', null);
+      await run(failed.d);
+      expect(failed.calls.some((c) => c.startsWith('insert:'))).toBe(false);
+      expect(lastDone(failed.overlays)).toMatchObject({
+        state: 'error',
+        message: 'Could not edit that text',
+      });
+      const same = cmdSetup('some text', 'some text');
+      await run(same.d);
+      expect(same.calls.some((c) => c.startsWith('insert:'))).toBe(false);
+      expect(lastDone(same.overlays)).toMatchObject({ state: 'done', message: 'No change' });
+    });
+
+    it('shows Editing while it works', async () => {
+      const { d, overlays } = cmdSetup('text', 'new');
+      await run(d);
+      expect(overlays.find((o) => o.state === 'processing')).toMatchObject({ message: 'Editing…' });
+    });
+  });
 });

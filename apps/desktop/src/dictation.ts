@@ -25,7 +25,11 @@ export interface DictationDeps {
     insert(text: string): Promise<void>;
     undoLast(): Promise<void>;
     press(key: KeyAction): Promise<void>;
+    /** The selected text in the focused app, or ''. */
+    copySelection?(): Promise<string>;
   };
+  /** Command Mode: rewrites `selection` following the spoken `instruction`; null leaves it alone. */
+  command?(selection: string, instruction: string, app?: string): Promise<string | null>;
   overlay(s: OverlayStatus): void;
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
@@ -53,13 +57,16 @@ export class Dictation {
   private stt: ReturnType<DictationDeps['newStt']> | null = null;
   private starting: Promise<void> | null = null;
   private cued = false; // the start tone played, so the stop tone should too
+  /** 'command': the speech is an instruction for the selected text, not text to insert. */
+  private kind: 'dictate' | 'command' = 'dictate';
   private app: Promise<string | undefined> = Promise.resolve(undefined);
 
   constructor(private readonly d: DictationDeps) {}
 
   /** Hotkey pressed. Ignored unless idle, which also swallows key auto-repeat and double-presses. */
-  async keyDown(): Promise<void> {
+  async keyDown(kind: 'dictate' | 'command' = 'dictate'): Promise<void> {
     if (this.state !== 'idle') return;
+    this.kind = kind;
     this.state = 'recording';
     this.d.overlay({ state: 'listening' });
     const stt = this.d.newStt();
@@ -84,7 +91,11 @@ export class Dictation {
   async keyUp(): Promise<void> {
     if (this.state !== 'recording') return;
     this.state = 'transcribing';
-    this.d.overlay({ state: 'processing' });
+    this.d.overlay(
+      this.kind === 'command'
+        ? { state: 'processing', message: 'Editing…' }
+        : { state: 'processing' },
+    );
     const t0 = this.d.now();
     const stt = this.stt;
     this.stt = null;
@@ -98,6 +109,7 @@ export class Dictation {
       this.d.recordUsage?.({ audioSeconds: r.audioSeconds, dictations: 1 });
       this.d.log('stt', { ms: this.d.now() - t0, finalizeMs: r.finalizeMs, timedOut: r.timedOut });
       if (!r.text.trim()) return this.finish({ state: 'hidden' });
+      if (this.kind === 'command') return await this.runCommand(r.text, t0);
 
       this.state = 'cleaning';
       const t1 = this.d.now();
@@ -132,6 +144,26 @@ export class Dictation {
     } catch (e) {
       await this.fail(this.state, 'Dictation failed', e);
     }
+  }
+
+  /** Rewrites the user's selection by the spoken instruction and pastes the result over it. */
+  private async runCommand(instruction: string, t0: number): Promise<void> {
+    const appId = await this.app;
+    const selection = (await this.d.inserter.copySelection?.()) ?? '';
+    if (!selection.trim())
+      return this.finish({ state: 'error', message: 'Select some text first' });
+    this.state = 'cleaning';
+    const t1 = this.d.now();
+    const edited = await this.d.command?.(selection, instruction, appId);
+    this.d.log('command', { ms: this.d.now() - t1 });
+    if (edited == null) return this.finish({ state: 'error', message: 'Could not edit that text' });
+    if (edited === selection) return this.finish({ state: 'done', message: 'No change' });
+    this.state = 'inserting';
+    this.lastText = edited;
+    await this.d.inserter.insert(edited); // the text is still selected, so the paste replaces it
+    this.lastInserted = true;
+    this.d.log('insert', { total: this.d.now() - t0 });
+    this.finish({ state: 'done', message: 'Edited' });
   }
 
   private finish(o: OverlayStatus): void {

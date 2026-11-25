@@ -9,6 +9,7 @@ import {
   importPersonalization,
   estimateCost,
   summarizeStyle,
+  editSelection,
   GeminiCleanupClient,
   geminiLiveConnect,
   processTranscript,
@@ -53,6 +54,9 @@ const HOTKEYS = [
 const DEFAULT_HOTKEY = process.platform === 'darwin' ? 'AltRight' : 'CtrlRight';
 const KEY_CODES = UiohookKey as Record<string, number>;
 const isPreset = (id: string) => HOTKEYS.some((h) => h.id === id);
+/** The Command Mode combination, or a key code that never occurs when it is turned off. */
+const commandChordFor = (label: string): Chord =>
+  parseCombo(label, KEY_CODES)?.chord ?? { key: -1 };
 /** A preset key, or a saved combination like "Ctrl+Alt+D"; anything else falls back to the default. */
 const chordFor = (id: string): Chord =>
   isPreset(id)
@@ -183,6 +187,14 @@ function createDictation(
         store.update((c) => (c.app.recentApps = rememberApp(c.app.recentApps, id)));
       return id;
     },
+    command: (selection, instruction) =>
+      editSelection(selection, instruction, {
+        config: store.get(),
+        client: new GeminiCleanupClient(vault.get(), store.get().models.cleanup, (u) =>
+          usage.add(u),
+        ),
+        onError: (e) => debugLog('command-error', { kind: classifyError(e) }),
+      }),
     process: (transcript, appId) =>
       processTranscript(transcript, {
         config: store.get(),
@@ -268,6 +280,8 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
     store.update((c) => {
       Object.assign(c.app, patch); // migrateConfig drops invalid values
       if (!isPreset(c.app.hotkey)) c.app.hotkey = parseCombo(c.app.hotkey, KEY_CODES)?.label ?? '';
+      const cmd = parseCombo(c.app.commandHotkey, KEY_CODES);
+      c.app.commandHotkey = cmd && cmd.label !== c.app.hotkey ? cmd.label : '';
     });
     if (typeof patch.autostart === 'boolean') applyAutostart(store.get().app.autostart);
     if ('overlay' in patch || 'overlayPos' in patch) overlay.refresh();
@@ -420,15 +434,35 @@ if (!app.requestSingleInstanceLock()) {
       () => svc.store.get().app.mode,
       () => chordFor(svc.store.get().app.hotkey),
     );
-    uIOhook.on('keydown', (e) =>
-      hotkey.down(e.keycode, {
-        ctrl: e.ctrlKey,
-        alt: e.altKey,
-        shift: e.shiftKey,
-        meta: e.metaKey,
-      }),
+    // Command Mode: hold the shortcut, say what to do, and the selected text is rewritten.
+    const commandKey = createHotkeyHandler(
+      {
+        get state() {
+          return dictation.state;
+        },
+        keyUp: () => dictation.keyUp(),
+        keyDown: async () => {
+          if (!svc.vault.has()) {
+            overlay.show({ state: 'error', message: 'Add your API key in Settings' });
+            return openSettings();
+          }
+          return dictation.keyDown('command');
+        },
+      },
+      () => 'hold',
+      () => commandChordFor(svc.store.get().app.commandHotkey),
+      Date.now,
+      { latch: false },
     );
-    uIOhook.on('keyup', (e) => hotkey.up(e.keycode));
+    uIOhook.on('keydown', (e) => {
+      const mods = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+      hotkey.down(e.keycode, mods);
+      commandKey.down(e.keycode, mods);
+    });
+    uIOhook.on('keyup', (e) => {
+      hotkey.up(e.keycode);
+      commandKey.up(e.keycode);
+    });
     uIOhook.start();
 
     ipcMain.handle('update:get', () => getUpdateStatus());
