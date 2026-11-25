@@ -21,7 +21,7 @@ export interface ReminderHost {
 
 /**
  * The card that grows out of the floating icon. It shows either an answer from Ask (as big as the text
- * needs, fading after 15 seconds unless the pointer is over it or it is reading aloud) or the queue of due
+ * needs, fading after eight seconds unless the pointer is over it or it is reading aloud) or the queue of due
  * reminders (shown while the pointer is on the red icon or the card, one at a time, cleared one by one).
  * It never takes focus, so the user keeps typing where they were.
  */
@@ -61,15 +61,20 @@ export class AnswerWindow {
     ipcMain.on('answer:hover', (e, on: boolean) => {
       if (!mine(e)) return;
       this.cardHover = on;
-      if (on) this.cancelHide();
-      else this.scheduleHide();
+      if (on) {
+        this.cancelHide();
+        if (this.mode === 'reminder' && !this.current) this.win?.webContents.send('answer:fade');
+      } else this.scheduleHide();
     });
-    ipcMain.on('answer:drag-start', (e, rect: { left: number; top: number; width: number; height: number }) => {
-      if (!mine(e) || !this.win) return;
-      const [x, y] = this.win.getPosition();
-      this.dragFrom = { x: x!, y: y! };
-      this.cardRect = rect;
-    });
+    ipcMain.on(
+      'answer:drag-start',
+      (e, rect: { left: number; top: number; width: number; height: number }) => {
+        if (!mine(e) || !this.win) return;
+        const [x, y] = this.win.getPosition();
+        this.dragFrom = { x: x!, y: y! };
+        this.cardRect = rect;
+      },
+    );
     ipcMain.on('answer:drag', (e, d: { dx: number; dy: number }) => {
       if (!mine(e) || !this.win || !this.dragFrom) return;
       // Offsets are from the drag start, so lag here cannot make the card drift. The card itself, not the
@@ -90,8 +95,14 @@ export class AnswerWindow {
       const [x, y] = this.win.getPosition();
       this.moved = { x: x!, y: y! };
     });
-    ipcMain.on('reminder:done', (e) => mine(e) && this.act(() => this.reminders.done(this.current)));
-    ipcMain.on('reminder:snooze', (e) => mine(e) && this.act(() => this.reminders.snooze(this.current)));
+    ipcMain.on(
+      'reminder:done',
+      (e) => mine(e) && this.act(() => this.reminders.done(this.current)),
+    );
+    ipcMain.on(
+      'reminder:snooze',
+      (e) => mine(e) && this.act(() => this.reminders.snooze(this.current)),
+    );
   }
 
   /** The pointer entered or left the floating icon. While reminders wait, resting on it opens them. */
@@ -121,13 +132,21 @@ export class AnswerWindow {
     stopSpeaking();
     this.cancelHide();
     this.mode = 'none';
+    this.current = '';
     this.moved = null;
     if (this.win && !this.win.isDestroyed()) this.win.hide();
   }
 
   private showQueue(): void {
     const queue = this.reminders.queue();
-    if (!queue.length) return this.mode === 'reminder' ? this.close() : undefined;
+    if (!queue.length) {
+      if (this.mode === 'reminder' && this.current) {
+        this.current = '';
+        this.cancelHide();
+        this.win?.webContents.send('answer:fade');
+      }
+      return;
+    }
     const first = queue[0]!;
     if (this.mode !== 'reminder') this.moved = null; // clearing one by one keeps the card where it was dropped
     this.mode = 'reminder';
@@ -142,6 +161,7 @@ export class AnswerWindow {
 
   /** Clears or snoozes the shown reminder, then shows the next one, or closes when the queue is empty. */
   private act(change: () => void): void {
+    if (this.mode !== 'reminder' || !this.current) return;
     change();
     this.showQueue();
   }
@@ -202,6 +222,8 @@ export class AnswerWindow {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         sandbox: true,
+        // Keep short renderer transitions running while another Flow window is in front.
+        backgroundThrottling: false,
       },
     });
     win.setAlwaysOnTop(true, 'screen-saver');

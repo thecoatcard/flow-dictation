@@ -8,12 +8,14 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Flow settings</title>
+    <link rel="stylesheet" href="ui.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
     <div class="shell">
       <aside class="rail">
         <div class="brand"><img src="../assets/icon.png" alt="" /><span>Flow</span></div>
+        <a class="skip" href="#settings-main">Skip to settings content</a>
         <nav id="nav" aria-label="Settings sections">
           <span class="nav-ind" aria-hidden="true"></span>
           <button data-page="dictation" aria-current="page">Dictation</button>
@@ -31,25 +33,26 @@
         </div>
       </aside>
 
-      <main>
+      <main id="settings-main" tabindex="-1">
         <!-- ===== Dictation ===== -->
         <section class="page" id="page-dictation">
           <header class="ph">
             <h1>Dictation</h1>
-            <p>Hold the hotkey, speak, let go. Cleaned-up text appears wherever your cursor is.</p>
+            <p>Speak instead of typing. Flow puts your words where your cursor is.</p>
           </header>
 
-          <div class="guide" id="guide" hidden>
+          <section class="guide" id="guide" aria-labelledby="guide-title" hidden>
             <div class="guide-h">
               <div>
-                <div class="t">Get started</div>
-                <div class="d" id="guidesub"></div>
+                <h2 id="guide-title">Welcome to Flow</h2>
+                <div class="d" id="guidesub" role="status"></div>
               </div>
               <button class="btn quiet" id="guidehide" type="button">Hide</button>
             </div>
             <ol id="guidesteps"></ol>
-          </div>
+          </section>
 
+          <h2>Google connection</h2>
           <div class="rows">
             <div class="row stack">
               <div>
@@ -57,9 +60,6 @@
                 <div class="d">Encrypted on this PC. It is never written to the settings file.</div>
               </div>
               <div class="ctl">
-                <span class="chip" id="keychip"
-                  ><span class="dot"></span><span id="keychiptext">Checking…</span></span
-                >
                 <input
                   id="key"
                   class="key"
@@ -73,6 +73,11 @@
                   Show
                 </button>
                 <button class="btn primary" id="savekey" type="button">Save key</button>
+              </div>
+              <div class="ctl">
+                <span class="chip" id="keychip"
+                  ><span class="dot"></span><span id="keychiptext">Checking…</span></span
+                >
                 <button class="btn" id="testkey" type="button">Test key</button>
                 <button class="btn quiet" id="clearkey" type="button">Remove</button>
               </div>
@@ -101,17 +106,15 @@
           <div class="rows">
             <div class="row">
               <div>
-                <div class="t">Hotkey</div>
+                <div class="t">Dictation shortcut</div>
                 <div class="d">
-                  The key you use to dictate, or press Record shortcut for a combination such as
-                  Ctrl+Alt+D. A laptop Copilot key works too, but it cannot be held, so it always
-                  means tap to start and tap again to stop. Not sure whether your key can be held?
-                  Press Test my key.
+                  Choose a key or record a shortcut. A Copilot key always uses tap to start and
+                  stop.
                 </div>
                 <div class="d" id="keytestmsg" role="status"></div>
               </div>
               <div class="ctl">
-                <select id="hotkey" aria-label="Hotkey"></select>
+                <select id="hotkey" aria-label="Dictation shortcut"></select>
                 <button class="btn" id="rechotkey" type="button">Record shortcut</button>
                 <button class="btn quiet" id="keytestbtn" type="button">Test my key</button>
               </div>
@@ -135,9 +138,10 @@
                 <div class="t">Ask shortcut</div>
                 <div class="d">
                   Hold this shortcut and ask a question, such as “what is the capital of Australia”
-                  or “explain a REST API in two lines”. The answer appears in a small popup, and
-                  nothing is typed into your app. You can copy it or have it read aloud. Say “read
-                  that back” after any dictation to hear it.
+                  or “explain a REST API in two lines”. Or select some text and just tap it: the
+                  selected text is the question. The answer appears in a small popup, and nothing is
+                  typed into your app. You can copy it or have it read aloud. Say “read that back”
+                  after any dictation to hear it.
                 </div>
               </div>
               <div class="ctl">
@@ -378,7 +382,8 @@
           <h2>Write in</h2>
           <p class="hint">
             Speak in any language and Flow writes it in the one you pick. Leave it on “As I speak”
-            to keep the language you spoke. This uses the cleanup model, so it takes a moment longer.
+            to keep the language you spoke. This uses the cleanup model, so it takes a moment
+            longer.
           </p>
           <select id="outputLanguage" aria-label="Language to write in">
             <option value="">As I speak</option>
@@ -424,14 +429,21 @@
         <section class="page" id="page-usage" hidden>
           <header class="ph">
             <h1>Usage</h1>
-            <p id="usagesub">This month.</p>
+            <p id="usagesub">This month</p>
           </header>
-          <div class="stats">
-            <div class="stat"><b id="u-dict">0</b><span>dictations</span></div>
-            <div class="stat"><b id="u-min">0</b><span>minutes of speech</span></div>
-            <div class="stat"><b id="u-cost">$0</b><span>estimated cost</span></div>
+          <p class="msg" id="usage-status" role="status"></p>
+          <div id="usage-summary" hidden>
+            <div class="stats">
+              <div class="stat"><b id="u-dict">0</b><span>dictations</span></div>
+              <div class="stat"><b id="u-min">0</b><span>minutes of speech</span></div>
+              <div class="stat"><b id="u-cost">$0</b><span>estimated cost</span></div>
+            </div>
+            <h2>Cost breakdown</h2>
+            <div class="cost-chart" id="u-chart" aria-hidden="true"></div>
+            <p class="cost-key hint"><span id="u-stt"></span><span id="u-cleanup"></span></p>
+            <p class="hint" id="u-detail"></p>
           </div>
-          <p class="hint" id="u-detail"></p>
+          <h2>Price settings</h2>
           <div class="rows">
             <div class="row">
               <div>
@@ -459,18 +471,14 @@
         <section class="page" id="page-history" hidden>
           <header class="ph">
             <h1>History</h1>
-            <p>
-              Your recent dictations, saved only on this PC. Search them, copy one, or delete it.
-            </p>
+            <p>Search, copy or correct dictations saved on this PC.</p>
           </header>
           <div class="rows">
             <div class="row">
               <div>
                 <div class="t">Keep dictation history</div>
                 <div class="d">
-                  Saves the final text of each dictation here, newest first, up to 300. Edit one to
-                  fix a word and Flow offers the new names and terms for your dictionary. Turn it
-                  off to stop saving.
+                  Keep up to 300 dictations. Corrections can suggest terms for your dictionary.
                 </div>
               </div>
               <div class="ctl">
@@ -491,9 +499,10 @@
               placeholder="Search your dictations"
               aria-label="Search history"
             />
-            <button class="btn quiet" id="histclear" type="button">Clear all</button>
+            <button class="btn quiet" id="histclear" type="button">Clear history</button>
           </div>
           <div class="msg" id="histlearn" role="status"></div>
+          <p class="msg" id="history-status" role="status"></p>
           <ul class="list" id="histlist"></ul>
         </section>
         <!-- ===== Notes and reminders ===== -->
@@ -501,9 +510,8 @@
           <header class="ph">
             <h1>Notes and reminders</h1>
             <p>
-              What you ask Flow to remember or remind you of. Hold the Ask shortcut and say
-              “remember my locker code is 4821”, “what is my locker code” or “remind me to call
-              Dhriti tomorrow at 5 pm”. Everything here is saved only on this PC.
+              Hold the Ask shortcut and say “remember that I parked on level two” or “remind me to
+              call Sam tomorrow at five”. Notes and reminders are stored on this PC.
             </p>
           </header>
           <div class="rows">
@@ -528,6 +536,7 @@
               </div>
             </div>
           </div>
+          <p class="msg" id="memory-status" role="status"></p>
           <h2>Reminders</h2>
           <p class="hint">
             When one is due, the floating icon turns red. Rest the pointer on it to see them, then
@@ -568,6 +577,7 @@
             <h1>Permissions</h1>
             <p>What Flow needs from your system to hear you and type for you.</p>
           </header>
+          <p class="msg" id="permissions-status" role="status"></p>
           <div class="rows" id="perms"></div>
           <div class="adder">
             <button class="btn" id="recheck" type="button">Check again</button>
@@ -603,6 +613,7 @@
           </div>
         </section>
       </main>
+      <div class="page-exit" id="page-exit" inert aria-hidden="true" hidden></div>
     </div>
     <div class="scrim" id="dialog" hidden>
       <div

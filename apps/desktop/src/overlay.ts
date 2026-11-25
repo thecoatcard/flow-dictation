@@ -2,6 +2,8 @@
 (() => {
   const icon = document.getElementById('icon') as HTMLDivElement;
   const label = document.getElementById('label') as HTMLSpanElement;
+  const status = document.getElementById('status')!;
+  const pill = icon.querySelector<HTMLElement>('.pill')!;
   const bars = Array.from(icon.querySelectorAll<SVGRectElement>('.g-bars rect'));
   const LABEL: Record<string, string> = {
     listening: 'Listening',
@@ -29,26 +31,74 @@
   const paint = () =>
     bars.forEach((b, i) => (b.style.transform = `scaleY(${(0.2 + 0.8 * recent[i]).toFixed(2)})`));
 
+  const resetWaveform = () => {
+    recent.fill(0);
+    bars.forEach((bar) => bar.style.removeProperty('transform'));
+  };
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const motion = getComputedStyle(document.documentElement);
+  const dotWidth = 40;
+  // The label starts 37px in, after the glyph and gap, with 13px of space at the end.
+  const labelClearance = 50;
+  let pillWidth = dotWidth;
+  let resize: Animation | undefined;
+
+  function fitLabel(text: string): void {
+    if (label.textContent === text) return;
+    const value = document.createElement('span');
+    value.className = 'label-in';
+    value.textContent = text;
+    label.replaceChildren(value);
+    icon.classList.toggle('open', text !== '');
+
+    // Measure only when the message changes. Animate the rendered shell from its current size.
+    const nextWidth = text ? label.offsetWidth + labelClearance : dotWidth;
+    if (nextWidth === pillWidth) return;
+    const transform = getComputedStyle(pill).transform;
+    const previousWidth =
+      pillWidth * (transform === 'none' ? 1 : new DOMMatrixReadOnly(transform).a);
+    resize?.cancel();
+    pillWidth = nextWidth;
+    icon.style.setProperty('--pill-width', `${nextWidth}px`);
+    icon.style.setProperty('--glyph-x', `${(dotWidth - nextWidth) / 2}px`);
+    if (!reduced.matches) {
+      resize = pill.animate(
+        [{ transform: `scaleX(${previousWidth / nextWidth})` }, { transform: 'none' }],
+        {
+          duration: parseFloat(motion.getPropertyValue('--motion-slow')),
+          easing: motion.getPropertyValue('--ease-enter').trim(),
+        },
+      );
+    }
+  }
+
   flowApi.overlay.onStatus((s) => {
+    const previous = state;
     state = s.state === 'hidden' ? 'idle' : s.state;
     clearTimeout(fadeTimer);
     icon.classList.remove('faded');
-    icon.classList.remove(...STATES);
-    icon.classList.add(state);
-    // A reminder shows only the number waiting (when more than one); hovering the icon shows the reminders.
-    const text = state === 'idle' ? '' : (s.message ?? LABEL[state] ?? '');
-    label.textContent = text;
-    icon.classList.toggle('open', text !== '');
-    if (state !== 'listening') {
-      recent.fill(0);
-      paint();
+    if (state !== previous) {
+      icon.classList.remove(...STATES);
+      icon.classList.add(state);
     }
+    const text = state === 'idle' ? '' : (s.message ?? LABEL[state] ?? '');
+    fitLabel(text);
+    const announcement =
+      state === 'reminder' ? (text ? `${text} reminders due` : 'One reminder due') : text;
+    if (status.textContent !== announcement) status.textContent = announcement;
+    if (previous === 'listening' && state !== 'listening') resetWaveform();
+    if (icon.matches(':hover')) flowApi.overlay.interactive(true);
     scheduleFade();
   });
   flowApi.overlay.onLevel((v) => {
+    if (state !== 'listening' || reduced.matches) return;
     recent.shift();
     recent.push(v);
     paint();
+  });
+  reduced.addEventListener('change', () => {
+    resize?.cancel();
+    resetWaveform();
   });
 
   // --- drag to move (the window is click-through everywhere except over the icon) ---

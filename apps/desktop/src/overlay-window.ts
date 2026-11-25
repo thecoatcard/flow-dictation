@@ -87,6 +87,8 @@ export class Overlay {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         sandbox: true,
+        // Keep short renderer transitions running while another Flow window is in front.
+        backgroundThrottling: false,
       },
     });
     win.setAlwaysOnTop(true, 'screen-saver');

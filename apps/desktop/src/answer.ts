@@ -9,47 +9,72 @@
 
   const SHOW_MS = 8_000; // an answer fades by itself after this long if the pointer is not on it
   const AFTER_HOVER_MS = 5_000; // and this long after the pointer leaves
-  const FADE_MS = 440;
+  const content = document.getElementById('body')!;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const tokens = getComputedStyle(document.documentElement);
+  const duration = (speed: 'base' | 'slow') =>
+    parseFloat(tokens.getPropertyValue(reduced.matches ? '--motion-fast' : `--motion-${speed}`));
+  let entrance: Animation | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let hovering = false;
   let speaking = false;
   let reminder = false; // a reminder card stays while the pointer is on the icon or card; the app closes it
 
   const fade = () => {
+    if (card.classList.contains('out')) return;
+    clearTimeout(timer);
+    entrance?.cancel();
     card.classList.add('out');
     flowApi.answer.interactive(false);
-    timer = setTimeout(() => flowApi.answer.close(), FADE_MS);
+    timer = setTimeout(() => flowApi.answer.close(), duration('base'));
   };
   /** Starts the countdown for an answer; it waits while the pointer is on the card or the answer is being read. */
   const arm = (ms: number) => {
+    if (reminder || card.classList.contains('out')) return;
     clearTimeout(timer);
-    if (reminder) return;
     timer = setTimeout(() => (hovering || speaking ? arm(AFTER_HOVER_MS) : fade()), ms);
   };
   const setSpeaking = (on: boolean) => {
     speaking = on;
     speak.classList.toggle('on', on);
-    speak.title = on ? 'Stop' : 'Read aloud';
+    speak.title = on ? 'Stop reading' : 'Read aloud';
+    speak.setAttribute('aria-label', on ? 'Stop reading the answer' : 'Read the answer aloud');
     if (!on && !hovering) arm(AFTER_HOVER_MS);
   };
 
   flowApi.answer.onShow((d) => {
     clearTimeout(timer);
-    const wasShown = card.classList.contains('in') && !card.classList.contains('out');
+    const swapping =
+      reminder &&
+      d.kind === 'reminder' &&
+      card.classList.contains('in') &&
+      !card.classList.contains('out');
+    const changed = a.textContent !== d.answer || meta.textContent !== (d.meta ?? '');
     reminder = d.kind === 'reminder';
     document.body.classList.toggle('down', !d.up);
-    // A reminder card that is already open just swaps its text, so clearing one by one does not flicker.
-    card.className = reminder ? 'reminder' : '';
-    a.textContent = d.answer;
-    a.scrollTop = 0;
-    meta.textContent = d.meta ?? '';
-    card.title = d.question;
+    card.classList.toggle('reminder', reminder);
+    card.classList.remove('out', 'returning');
+    if (changed) {
+      a.textContent = d.answer;
+      a.scrollTop = 0;
+      meta.textContent = d.meta ?? '';
+    }
     copy.classList.remove('done');
     setSpeaking(false);
-    // Grow out of the icon: the card's origin is the icon's centre, on the edge facing it.
     card.style.transformOrigin = `${d.originX - card.offsetLeft}px ${d.up ? '100%' : '0%'}`;
-    if (!(reminder && wasShown)) void card.offsetWidth; // start from the small state, then open
     card.classList.add('in');
+    if (!swapping || changed) {
+      entrance?.cancel();
+      const first = reduced.matches
+        ? { opacity: 0 }
+        : swapping
+          ? { opacity: 0, transform: 'translateY(3px)' }
+          : { opacity: 0, transform: 'scale(.76)' };
+      entrance = (swapping ? content : card).animate([first, { opacity: 1, transform: 'none' }], {
+        duration: duration(swapping ? 'base' : 'slow'),
+        easing: tokens.getPropertyValue('--ease-enter').trim(),
+      });
+    }
     if (hovering) flowApi.answer.interactive(true);
     arm(SHOW_MS);
   });
@@ -59,6 +84,7 @@
   card.addEventListener('pointerenter', () => {
     hovering = true;
     clearTimeout(timer);
+    if (card.classList.contains('out')) card.classList.add('returning');
     card.classList.remove('out');
     card.classList.add('in');
     flowApi.answer.interactive(true);
@@ -79,6 +105,7 @@
     card.setPointerCapture(e.pointerId);
     drag = { x: e.screenX, y: e.screenY };
     dragged = false;
+    if (entrance?.pending || entrance?.playState === 'running') entrance.finish();
     const r = card.getBoundingClientRect();
     flowApi.answer.dragStart({ left: r.left, top: r.top, width: r.width, height: r.height });
   });
@@ -111,5 +138,7 @@
     setSpeaking(!speaking);
   });
   document.getElementById('done')?.addEventListener('click', () => flowApi.answer.reminderDone());
-  document.getElementById('snooze')?.addEventListener('click', () => flowApi.answer.reminderSnooze());
+  document
+    .getElementById('snooze')
+    ?.addEventListener('click', () => flowApi.answer.reminderSnooze());
 })();

@@ -1,6 +1,9 @@
 import { SpeechMeter } from './speech-gate';
 import { detectAsk, type Command, type PipelineResult, type SttResult, type UsageTotals } from '@flow/core';
 
+/** The longest selection sent as a question; the rest is cut. */
+const MAX_ASK_SELECTION = 4000;
+
 /** Keys and shortcuts the inserter can press for spoken commands. */
 export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo' | 'delete';
 
@@ -187,6 +190,32 @@ export class Dictation {
       this.finish({ state: 'done' });
     } catch (e) {
       await this.fail(this.state, 'Dictation failed', e);
+    }
+  }
+
+  /**
+   * The Ask shortcut was tapped, not held: the selected text is the question. The recording that the press started
+   * is dropped, the selection is copied, and the answer is shown like any other. With nothing selected it says so.
+   */
+  async askSelection(): Promise<void> {
+    if (this.state !== 'recording' || this.kind !== 'ask') return;
+    this.state = 'transcribing';
+    this.d.overlay({ state: 'processing', message: 'Thinking…' });
+    const stt = this.stt;
+    this.stt = null;
+    try {
+      await this.starting?.catch(() => undefined);
+      await this.d.mic.stop();
+      this.d.media?.end();
+      if (this.cued) this.d.cue?.('stop');
+      this.cued = false;
+      stt?.finish().catch(() => undefined); // closes the socket; nothing was said
+      const selection = ((await this.d.inserter.copySelection?.()) ?? '').trim();
+      if (!selection)
+        return this.finish({ state: 'error', message: 'Select text to ask about, or hold the shortcut and speak' });
+      await this.runAsk(selection.slice(0, MAX_ASK_SELECTION));
+    } catch (e) {
+      await this.fail(this.state, 'Ask failed', e);
     }
   }
 

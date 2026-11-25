@@ -42,7 +42,7 @@ import { MicCapture } from './capture';
 import { ConfigStore } from './config-store';
 import { debugLog } from './debug-log';
 import { Dictation } from './dictation';
-import { createHotkeyHandler, parseCombo, type Chord } from './hotkey';
+import { createHotkeyHandler, parseCombo, TAP_MS, type Chord } from './hotkey';
 import { Inserter } from './inserter';
 import { AnswerWindow } from './answer-window';
 import { Overlay } from './overlay-window';
