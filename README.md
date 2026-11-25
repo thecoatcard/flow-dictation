@@ -4,7 +4,7 @@ A personal push-to-talk dictation app. Hold a key, speak, release: cleaned-up te
 
 **Android:** there is an early phone build too. Keep your normal keyboard; tap or hold Flow's floating mic in any text field to dictate. See the [Android guide](docs/android.md) for install, permissions, settings and troubleshooting.
 
-Status: built and unit-tested; dictation confirmed working against the live API on the author's machine. Not yet tested on a clean machine. See [docs/manual-test.md](docs/manual-test.md) for the checklist to run first.
+Status: built and unit-tested; dictation confirmed working against the live API on the author's machine. Not yet tested on a clean machine. See [docs/manual-test.md](docs/manual-test.md) for the checklist to run first, and the [testing guide](docs/testing-guide.md) for the exact sentences to say for every feature.
 
 ## How it works
 

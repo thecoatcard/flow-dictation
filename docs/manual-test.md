@@ -1,5 +1,7 @@
 # Manual test checklist
 
+For the exact words to say and what to expect for every feature, see the [testing guide](testing-guide.md).
+
 ## Floating icon and Windows setup
 
 - [ ] Idle icon fades after five seconds and stops intercepting clicks
