@@ -42,7 +42,7 @@ import { MicCapture } from './capture';
 import { ConfigStore } from './config-store';
 import { debugLog } from './debug-log';
 import { Dictation } from './dictation';
-import { createHotkeyHandler, parseCombo, TAP_MS, type Chord } from './hotkey';
+import { createHotkeyHandler, parseCombo, type Chord } from './hotkey';
 import { Inserter } from './inserter';
 import { AnswerWindow } from './answer-window';
 import { Overlay } from './overlay-window';
@@ -574,7 +574,8 @@ if (!app.requestSingleInstanceLock()) {
       Date.now,
       { latch: false },
     );
-    // Ask: hold the shortcut, ask a question, and the answer appears in a popup.
+    // Ask: press the shortcut with text selected and that text is the question; with nothing selected, hold it and
+    // ask by voice. The answer appears in a popup.
     const askKey = createHotkeyHandler(
       {
         get state() {

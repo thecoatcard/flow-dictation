@@ -72,7 +72,7 @@ export class Inserter {
    * clipboard is put back afterwards. The user is still holding the Command Mode shortcut's
    * modifiers, so they are released virtually first; otherwise the app would see Ctrl+Alt+C.
    */
-  async copySelection(): Promise<string> {
+  async copySelection(maxWaitMs = 480): Promise<string> {
     for (const key of [
       UiohookKey.Ctrl,
       UiohookKey.CtrlRight,
@@ -91,7 +91,7 @@ export class Inserter {
     clipboard.writeText(marker);
     uIOhook.keyTap(UiohookKey.C, [MOD]);
     let text = '';
-    for (let i = 0; i < 12 && !text; i++) {
+    for (let i = 0; i < Math.ceil(maxWaitMs / 40) && !text; i++) {
       await sleep(40);
       const now = clipboard.readText();
       if (now !== marker) text = now;

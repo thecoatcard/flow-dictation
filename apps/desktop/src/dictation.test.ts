@@ -229,71 +229,84 @@ describe('Dictation', () => {
       expect(calls).toEqual(['mic.start', 'mic.stop']);
     });
 
-    describe('tapping the Ask shortcut asks about the selection', () => {
-      const withSelection = (selection: string) => {
+    describe('selected text is the question', () => {
+      /** An Ask where the focused app hands over `selection` when Flow looks (after `delayMs`), in app `app`. */
+      const withSelection = (selection: string, app?: string, delayMs = 0) => {
         const asked: string[] = [];
         const shown: Array<[string, string]> = [];
-        const s = setup({
-          inserter: {
-            insert: async () => undefined,
-            undoLast: async () => undefined,
-            press: async () => undefined,
-            copySelection: async () => selection,
+        let copies = 0;
+        const s = setup(
+          {
+            activeApp: async () => app,
+            inserter: {
+              insert: async () => undefined,
+              undoLast: async () => undefined,
+              press: async () => undefined,
+              copySelection: async () => {
+                copies++;
+                if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+                return selection;
+              },
+            },
+            ask: async (q) => (asked.push(q), 'Canberra.'),
+            showAnswer: (q, a) => void shown.push([q, a]),
           },
-          ask: async (q) => (asked.push(q), 'Canberra.'),
-          showAnswer: (q, a) => void shown.push([q, a]),
-          process: async (): Promise<PipelineResult> => {
-            throw new Error('Ask must not run normal cleanup');
-          },
-        });
-        return { ...s, asked, shown };
+          { text: 'what is a REST API' },
+        );
+        return { ...s, asked, shown, copies: () => copies };
       };
 
-      it('answers the selected text as the question and drops the recording', async () => {
+      it('answers the selected text the moment the key goes down, without listening', async () => {
         const { d, calls, asked, shown, overlays } = withSelection('  What is the capital of Australia?  ');
         await d.keyDown('ask');
-        await d.askSelection();
         expect(asked).toEqual(['What is the capital of Australia?']);
         expect(shown).toEqual([['What is the capital of Australia?', 'Canberra.']]);
         expect(calls).toEqual(['mic.start', 'mic.stop']);
-        expect(overlays.at(-1)).toEqual({ state: 'hidden' });
+        expect(overlays.some((o) => o.state === 'processing')).toBe(true);
+        expect(overlays.some((o) => o.state === 'listening')).toBe(false);
+        expect(d.state).toBe('idle');
+        await d.keyUp(); // releasing the key afterwards does nothing
+        expect(asked).toHaveLength(1);
+      });
+
+      it('still answers the selection when the key is released before the app has handed it over', async () => {
+        const { d, asked } = withSelection('What is a REST API?', undefined, 40);
+        const down = d.keyDown('ask');
+        await d.keyUp(); // a very quick press
+        await down;
+        expect(asked).toEqual(['What is a REST API?']);
         expect(d.state).toBe('idle');
       });
 
-      it('says what to do when nothing is selected, and asks nothing', async () => {
-        const { d, asked, shown, overlays } = withSelection('   ');
+      it('with nothing selected it listens, and a hold asks by voice as before', async () => {
+        const { d, asked, overlays } = withSelection('   ');
         await d.keyDown('ask');
-        await d.askSelection();
-        expect(asked).toEqual([]);
-        expect(shown).toEqual([]);
-        expect(overlays.at(-1)).toMatchObject({ state: 'error' });
-        expect((overlays.at(-1) as { message: string }).message).toContain('hold the shortcut');
-        expect(d.state).toBe('idle');
-      });
-
-      it('cuts a very long selection, and only acts while an Ask is recording', async () => {
-        const long = withSelection('x'.repeat(9000));
-        await long.d.keyDown('ask');
-        await long.d.askSelection();
-        expect(long.asked[0]).toHaveLength(4000);
-        const dictating = withSelection('some text');
-        await dictating.d.keyDown(); // normal dictation, not an Ask
-        await dictating.d.askSelection();
-        expect(dictating.asked).toEqual([]);
-        expect(dictating.d.state).toBe('recording');
-      });
-
-      it('a hold still asks by voice', async () => {
-        const asked: string[] = [];
-        const { d } = setup(
-          { ask: async (q) => (asked.push(q), 'ok'), showAnswer: () => undefined },
-          { text: 'what is a REST API' },
-        );
-        await d.keyDown('ask');
+        expect(overlays.at(-1)).toEqual({ state: 'listening' });
+        expect(d.state).toBe('recording');
         await d.keyUp();
         expect(asked).toEqual(['what is a REST API']);
       });
+
+      it('never presses Ctrl+C in a terminal, and just listens', async () => {
+        const { d, copies, asked } = withSelection('echo hi', 'windowsterminal');
+        await d.keyDown('ask');
+        expect(copies()).toBe(0);
+        expect(d.state).toBe('recording');
+        await d.keyUp();
+        expect(asked).toEqual(['what is a REST API']);
+      });
+
+      it('cuts a very long selection, and only an Ask looks for a selection', async () => {
+        const long = withSelection('x'.repeat(9000));
+        await long.d.keyDown('ask');
+        expect(long.asked[0]).toHaveLength(4000);
+        const dictating = withSelection('some text');
+        await dictating.d.keyDown(); // normal dictation does not look for a selection
+        expect(dictating.copies()).toBe(0);
+        expect(dictating.d.state).toBe('recording');
+      });
     });
+
 
     it('shows an error when there is no answer', async () => {
       const shown: string[] = [];

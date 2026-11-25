@@ -3,6 +3,13 @@ import { detectAsk, type Command, type PipelineResult, type SttResult, type Usag
 
 /** The longest selection sent as a question; the rest is cut. */
 const MAX_ASK_SELECTION = 4000;
+/** How long the press waits for the app to hand over its selection before assuming there is none. */
+const SELECTION_PROBE_MS = 200;
+/** Terminals read Ctrl+C as "interrupt", so Flow never presses it there to look for a selection. */
+const TERMINALS = new Set([
+  'windowsterminal', 'cmd', 'powershell', 'pwsh', 'conhost', 'openconsole', 'wezterm-gui', 'alacritty',
+  'mintty', 'wsl', 'bash', 'putty', 'kitty', 'hyper', 'tabby',
+]);
 
 /** Keys and shortcuts the inserter can press for spoken commands. */
 export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo' | 'delete';
@@ -35,7 +42,7 @@ export interface DictationDeps {
     undoLast(): Promise<void>;
     press(key: KeyAction): Promise<void>;
     /** The selected text in the focused app, or ''. */
-    copySelection?(): Promise<string>;
+    copySelection?(maxWaitMs?: number): Promise<string>;
   };
   /** Command Mode: rewrites `selection` following the spoken `instruction`; null leaves it alone. */
   command?(selection: string, instruction: string, app?: string): Promise<string | null>;
@@ -81,6 +88,9 @@ export class Dictation {
   private kind: 'dictate' | 'command' | 'ask' = 'dictate';
   private app: Promise<string | undefined> = Promise.resolve(undefined);
   private title: Promise<string | undefined> = Promise.resolve(undefined);
+  /** Ask: the selected text found when the key went down (empty when there is none), and whether it was taken. */
+  private probe: Promise<string> | null = null;
+  private handled = false;
 
   constructor(private readonly d: DictationDeps) {}
 
@@ -89,7 +99,10 @@ export class Dictation {
     if (this.state !== 'idle') return;
     this.kind = kind;
     this.state = 'recording';
-    this.d.overlay({ state: 'listening' });
+    this.handled = false;
+    this.probe = null;
+    // An Ask checks for selected text first, so it does not show "listening" for a question that is already written.
+    if (kind !== 'ask') this.d.overlay({ state: 'listening' });
     const stt = this.d.newStt();
     this.stt = stt;
     const meter = (this.meter = new SpeechMeter());
@@ -99,6 +112,13 @@ export class Dictation {
       meter.push(c);
       stt.pushAudio(c);
     });
+    if (kind === 'ask') {
+      // Selected text is the question: look for it the moment the key goes down, then answer it without listening.
+      const probe = (this.probe = this.lookForSelection());
+      const selection = await probe;
+      if (selection && this.state === 'recording' && !this.handled) return this.askAbout(selection);
+      if (this.state === 'recording') this.d.overlay({ state: 'listening' }); // nothing selected: ask by voice
+    }
     try {
       await this.starting;
       if (this.state === 'recording') {
@@ -116,6 +136,12 @@ export class Dictation {
   /** Hotkey released: run the rest of the pipeline. */
   async keyUp(): Promise<void> {
     if (this.state !== 'recording') return;
+    if (this.kind === 'ask' && this.probe) {
+      // Released while still looking for a selection: wait for the answer, since a selection is the question.
+      const selection = await this.probe;
+      if (this.handled || this.state !== 'recording') return;
+      if (selection) return this.askAbout(selection);
+    }
     this.state = 'transcribing';
     this.d.overlay(
       this.kind === 'command'
@@ -193,12 +219,24 @@ export class Dictation {
     }
   }
 
+  /** The text selected in the focused app, or '' (also in terminals, where Ctrl+C would interrupt the program). */
+  private async lookForSelection(): Promise<string> {
+    const app = (await this.app)?.toLowerCase();
+    if (app && TERMINALS.has(app)) return '';
+    try {
+      return ((await this.d.inserter.copySelection?.(SELECTION_PROBE_MS)) ?? '').trim();
+    } catch {
+      return '';
+    }
+  }
+
   /**
-   * The Ask shortcut was tapped, not held: the selected text is the question. The recording that the press started
-   * is dropped, the selection is copied, and the answer is shown like any other. With nothing selected it says so.
+   * The Ask key went down with text selected: that text is the question. The recording the press started is dropped,
+   * and the answer is shown like any other, without ever listening.
    */
-  async askSelection(): Promise<void> {
-    if (this.state !== 'recording' || this.kind !== 'ask') return;
+  private async askAbout(selection: string): Promise<void> {
+    if (this.handled || this.state !== 'recording') return;
+    this.handled = true;
     this.state = 'transcribing';
     this.d.overlay({ state: 'processing', message: 'Thinking…' });
     const stt = this.stt;
@@ -210,9 +248,6 @@ export class Dictation {
       if (this.cued) this.d.cue?.('stop');
       this.cued = false;
       stt?.finish().catch(() => undefined); // closes the socket; nothing was said
-      const selection = ((await this.d.inserter.copySelection?.()) ?? '').trim();
-      if (!selection)
-        return this.finish({ state: 'error', message: 'Select text to ask about, or hold the shortcut and speak' });
       await this.runAsk(selection.slice(0, MAX_ASK_SELECTION));
     } catch (e) {
       await this.fail(this.state, 'Ask failed', e);
