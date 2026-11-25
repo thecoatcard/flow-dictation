@@ -223,6 +223,9 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.29 | Dictate a sentence, then tap the mic and say "read that back" (or "read that again", "read it out loud") | The sentence is read aloud in the phone's voice. If the phone has no voice engine it says **No text-to-speech voice on this phone** |
 | 10.30 | Tap the mic and say "I will ask flow tomorrow" | Inserted as normal text; no card |
 
+| 10.31 | In WhatsApp, type a sentence, select it, tap the mic and say "make this formal" | The selection is replaced with the formal version (the clipboard you had is restored afterwards). If it fails, `adb logcat -s FlowCommand FlowInsert` shows why |
+| 10.32 | Tap the mic, stay silent for 3 seconds, tap to finish | **No speech heard**; nothing is inserted |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully

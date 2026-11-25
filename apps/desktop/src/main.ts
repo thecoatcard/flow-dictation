@@ -201,6 +201,7 @@ function createDictation(
           usage.add(u),
         ),
         onError: (e) => debugLog('command-error', { kind: classifyError(e) }),
+        onReject: (reason) => debugLog('command-reject', { reason }),
       }),
     ask: (question) =>
       answerQuestion(question, {

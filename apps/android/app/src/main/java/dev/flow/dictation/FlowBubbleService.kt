@@ -100,6 +100,7 @@ class FlowBubbleService : Service() {
             handler.postDelayed(this, 24 * 60 * 60 * 1000L) // once a day, no wake locks
         }
     }
+    @Volatile private var meter = SpeechMeter()
     private var speaker: Speaker? = null
     private var answerCard: AnswerCard? = null
     private fun speaker() = speaker ?: Speaker(this).also { speaker = it }
@@ -387,6 +388,7 @@ class FlowBubbleService : Service() {
         promote(micActive = true)
         wave?.level = 0f
         audioBytes.set(0)
+        meter = SpeechMeter()
         cued = false
         buzz()
         showStatus("Starting mic…")
@@ -404,6 +406,7 @@ class FlowBubbleService : Service() {
         try {
             mic.start(scope, { bytes, count ->
                 wave?.level = levelOf(bytes, count)
+                meter.push(bytes, count)
                 audioBytes.addAndGet(count.toLong())
                 synchronized(audioLock) {
                     if (readyForAudio) live.sendAudio(bytes, count)
@@ -471,20 +474,34 @@ class FlowBubbleService : Service() {
                 val transcript = live?.finish().orEmpty()
                 if (transcript.isBlank()) { showStatus("No speech heard"); return@launch }
                 settings.recordUsage(audioBytes.get() / 32_000.0) // 16 kHz, 16-bit mono
+                // The mic never heard anything speech-like, so whatever the model wrote is made up from noise.
+                if (meter.rejects(transcript)) { showStatus("No speech heard"); return@launch }
                 val key = settings.apiKey() ?: return@launch
                 // "Ask Flow ..." and "read that back" are never instructions for a selection.
                 val special = AskMode.detect(transcript) != null ||
                     DictationPipeline.detectCommand(transcript) == DictationResult.ReadBack
-                val selected = if (special) null else selectionToEdit(destination)
-                if (destination != null && selected != null) {
+                var selected = if (special) null else selectionToEdit(destination)
+                var editTarget = destination
+                if (selected == null && !special && settings.voiceEditing && destination != null) {
+                    // Apps like WhatsApp hide the selection; asking the field to copy it still works.
+                    FlowAccessibilityService.active?.selectedTextViaCopy(destination)?.let {
+                        selected = it.text
+                        editTarget = it.target
+                    }
+                }
+                val toEdit = selected
+                val editIn = editTarget
+                if (editIn != null && toEdit != null) {
                     // Command Mode: what was said is an instruction for the highlighted text.
                     showStatus("Rewriting…")
-                    val rewritten = CommandMode.edit(selected, transcript, settings.hindiOutput, key)
+                    val rewritten = CommandMode.edit(toEdit, transcript, settings.hindiOutput, key) {
+                        android.util.Log.w("FlowCommand", "edit refused: $it")
+                    }
                     when {
                         rewritten == null -> showStatus("Couldn't rewrite · text left as is")
-                        rewritten == selected -> showStatus("Nothing to change")
-                        FlowAccessibilityService.active?.insert(destination, rewritten) == true -> {
-                            lastTarget = destination
+                        rewritten == toEdit -> showStatus("Nothing to change")
+                        FlowAccessibilityService.active?.insert(editIn, rewritten) == true -> {
+                            lastTarget = editIn
                             lastInserted = rewritten
                             lastInsertedAt = System.currentTimeMillis()
                             if (rewritten.isNotEmpty()) lastText = rewritten

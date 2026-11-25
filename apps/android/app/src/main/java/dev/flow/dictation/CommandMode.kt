@@ -40,29 +40,33 @@ object CommandMode {
         deleteRequest.matches(instruction.lowercase().replace(Regex("[^\\p{L}\\p{N}' ]+"), " ").replace(Regex("\\s+"), " ").trim())
 
     /** The text to put back ("" removes the selection), or null when it could not be done safely (leave the user's text alone). */
-    suspend fun edit(selection: String, instruction: String, hindi: HindiOutput, key: String): String? {
-        if (selection.isBlank() || instruction.isBlank()) return null
+    suspend fun edit(selection: String, instruction: String, hindi: HindiOutput, key: String, onReject: (String) -> Unit = {}): String? {
+        if (selection.isBlank() || instruction.isBlank()) { onReject("blank"); return null }
         if (isDeleteRequest(instruction)) return ""
-        if (selection.length > MAX_SELECTION_CHARS) return null
+        if (selection.length > MAX_SELECTION_CHARS) { onReject("too-long"); return null }
         val editor = GeminiEditor(key)
         var attempt = 0
         while (true) {
             try {
                 val out = editor.edit(prompt(hindi), message(selection, instruction), TIMEOUT_MS).trim()
-                return acceptable(selection, out)
+                val reason = rejection(selection, out)
+                if (reason != null) onReject(reason)
+                return if (reason == null) out else null
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                if (attempt++ == 1 || (error as? CleanupFailure)?.permanent == true) return null
+                if (attempt++ == 1 || (error as? CleanupFailure)?.permanent == true) { onReject("model-error"); return null }
             }
         }
     }
 
-    /** Rejects empty, chatty or runaway output. Same checks as the desktop. */
-    internal fun acceptable(selection: String, out: String): String? {
-        if (out.isEmpty()) return null
-        if (DictationPipeline.startsWithPreface(out) && !DictationPipeline.startsWithPreface(selection)) return null
-        if (out.length > selection.length * 8 + 400) return null
-        return out
+    /** Why empty, chatty or runaway output is refused, or null when it is fine. Same checks as the desktop. */
+    internal fun rejection(selection: String, out: String): String? = when {
+        out.isEmpty() -> "empty-reply"
+        DictationPipeline.startsWithPreface(out) && !DictationPipeline.startsWithPreface(selection) -> "chatty-reply"
+        out.length > selection.length * 8 + 400 -> "runaway-reply"
+        else -> null
     }
+
+    internal fun acceptable(selection: String, out: String): String? = if (rejection(selection, out) == null) out else null
 }

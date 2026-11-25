@@ -55,12 +55,17 @@ export function buildCommandMessage(selection: string, instruction: string): str
   ].join('\n');
 }
 
+/** Why an edit was refused without the model failing: what the log (never the text) records. */
+export type RejectReason = 'blank' | 'too-long' | 'empty-reply' | 'chatty-reply' | 'runaway-reply';
+
 export interface CommandOptions {
   config: FlowConfig;
   client: CleanupClient;
   /** Budget for the whole edit, retry included. Rewrites take longer than cleanup. */
   timeoutMs?: number;
   onError?: (e: unknown) => void;
+  /** Called when the edit was refused (not an error): the reason only, so "could not edit" can be explained. */
+  onReject?: (reason: RejectReason) => void;
 }
 
 /**
@@ -73,9 +78,10 @@ export async function editSelection(
   instruction: string,
   o: CommandOptions,
 ): Promise<string | null> {
-  if (!selection.trim() || !instruction.trim()) return null;
+  const reject = (reason: RejectReason): null => (o.onReject?.(reason), null);
+  if (!selection.trim() || !instruction.trim()) return reject('blank');
   if (isDeleteRequest(instruction)) return ''; // '' means "remove the selection"
-  if (selection.length > MAX_SELECTION_CHARS) return null;
+  if (selection.length > MAX_SELECTION_CHARS) return reject('too-long');
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? 8000);
   try {
@@ -88,9 +94,9 @@ export async function editSelection(
           ctl.signal,
         );
         const out = raw.trim();
-        if (!out) return null;
-        if (startsWithPreface(out) && !startsWithPreface(selection)) return null;
-        if (out.length > selection.length * 8 + 400) return null;
+        if (!out) return reject('empty-reply');
+        if (startsWithPreface(out) && !startsWithPreface(selection)) return reject('chatty-reply');
+        if (out.length > selection.length * 8 + 400) return reject('runaway-reply');
         return out;
       } catch (e) {
         const kind = classifyError(e);

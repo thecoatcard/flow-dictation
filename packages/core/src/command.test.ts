@@ -9,6 +9,35 @@ import {
 } from './command';
 import { defaultConfig } from './config';
 
+describe('refused edits explain themselves', () => {
+  const run = async (selection: string, instruction: string, text: string) => {
+    const reasons: string[] = [];
+    const c: CleanupClient = { generate: async () => text };
+    const out = await editSelection(selection, instruction, {
+      config: defaultConfig(),
+      client: c,
+      onReject: (r) => reasons.push(r),
+    });
+    return { out, reasons };
+  };
+  it('reports an empty reply', async () => {
+    expect(await run('Some text.', 'make it shorter', '  ')).toEqual({ out: null, reasons: ['empty-reply'] });
+  });
+  it('reports a chatty reply', async () => {
+    expect((await run('Some text.', 'make it formal', "Sure, here is the text: Hi.")).reasons).toEqual(['chatty-reply']);
+  });
+  it('reports a runaway reply', async () => {
+    expect((await run('hi', 'expand it', 'x'.repeat(500))).reasons).toEqual(['runaway-reply']);
+  });
+  it('reports a blank selection and a too-long one', async () => {
+    expect((await run('  ', 'make it shorter', 'x')).reasons).toEqual(['blank']);
+    expect((await run('x'.repeat(MAX_SELECTION_CHARS + 1), 'shorten', 'x')).reasons).toEqual(['too-long']);
+  });
+  it('reports nothing for a good edit', async () => {
+    expect(await run('Some text.', 'shorten', 'Text.')).toEqual({ out: 'Text.', reasons: [] });
+  });
+});
+
 describe('delete requests', () => {
   it.each([
     'delete this',

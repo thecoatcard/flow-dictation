@@ -12,6 +12,7 @@ import android.text.InputType
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import kotlinx.coroutines.delay
 
 /** Used only to read the currently focused editable field and insert a completed dictation. */
 class FlowAccessibilityService : AccessibilityService() {
@@ -21,7 +22,12 @@ class FlowAccessibilityService : AccessibilityService() {
         val start: Int,
         val end: Int,
         val packageName: String,
+        /** The selection was worked out by copying it, because the app does not report it. */
+        val inferred: Boolean = false,
     )
+
+    /** Highlighted text, and the field with that selection filled in. */
+    data class Selected(val text: String, val target: Target)
 
     companion object {
         @Volatile var active: FlowAccessibilityService? = null
@@ -117,12 +123,42 @@ class FlowAccessibilityService : AccessibilityService() {
         if (target.start >= 0 && target.end > target.start && target.end - target.start <= CommandMode.MAX_SELECTION_CHARS)
             target.text.substring(target.start, target.end) else null
 
+    /**
+     * WhatsApp and some other apps never say where the selection is. Asking the field to copy its selection
+     * still works, so the text is read that way and the clipboard is put back afterwards. The selection is
+     * only located in the field when that text appears once there; otherwise the paste path replaces it.
+     */
+    suspend fun selectedTextViaCopy(target: Target): Selected? {
+        if (target.start >= 0 || target.text.isBlank()) return null
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val before = clipboard.primaryClip
+        val marker = "flow-copy-${System.nanoTime()}"
+        clipboard.setPrimaryClip(ClipData.newPlainText("Flow", marker))
+        var copied: String? = null
+        if (target.node.performAction(AccessibilityNodeInfo.ACTION_COPY)) {
+            repeat(4) {
+                if (copied == null) {
+                    delay(40)
+                    val now = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
+                    if (now != null && now != marker) copied = now
+                }
+            }
+        }
+        if (before != null) clipboard.setPrimaryClip(before)
+        else if (android.os.Build.VERSION.SDK_INT >= 28) clipboard.clearPrimaryClip()
+        val text = copied?.takeIf { it.isNotBlank() && it.length <= CommandMode.MAX_SELECTION_CHARS && target.text.contains(it) }
+            ?: return null
+        val at = target.text.indexOf(text)
+        val unique = at >= 0 && at == target.text.lastIndexOf(text)
+        return Selected(text, if (unique) target.copy(start = at, end = at + text.length, inferred = true) else target)
+    }
+
     /** Exact set-text insertion when the cursor is known; otherwise a paste into the focused field. */
     fun insert(target: Target, dictated: String): Boolean {
         val current = runCatching { capture() }.getOrNull()
         if (current == null) return fail("no_field")
         if (current.node != target.node || current.text != target.text) return fail("field_changed")
-        if (target.start >= 0 && current.start == target.start && current.end == target.end) {
+        if (target.start >= 0 && (target.inferred || (current.start == target.start && current.end == target.end))) {
             val newText = target.text.substring(0, target.start) + dictated + target.text.substring(target.end)
             val args = Bundle().apply {
                 putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newText)
