@@ -57,7 +57,7 @@ object DictationPipeline {
                 async {
                     // Snippets, and text Auto would leave unchanged, skip the model round trip.
                     if (part is Segment.Text && !FastPath.isClearAlready(part.value, preferences))
-                        Segment.Text(clean(part.value, prompt, editor))
+                        Segment.Text(clean(part.value, prompt, editor, preferences.outputLanguage.isNotEmpty()))
                     else part
                 }
             }.awaitAll()
@@ -88,10 +88,15 @@ object DictationPipeline {
         if (level == CleanupLevel.NONE) raw else
             correctedTime.replace(raw) { it.groupValues[2] }.replace(Regex("([.!?])(?=I(?:\\s|['’]m\\b))"), "$1 ")
 
-    private suspend fun clean(raw: String, system: String, editor: GeminiEditor): String {
+    /** Same budget as the desktop: the model's speed varies, and a timeout inserts the raw transcript, so this only stops a hung request. */
+    internal fun cleanupTimeoutMs(text: String, translating: Boolean = false): Long =
+        (if (translating) 6_000L else 4_000L) + minOf(6_000L, text.length * 4L)
+
+    private suspend fun clean(raw: String, system: String, editor: GeminiEditor, translating: Boolean = false): String {
         val message = "<transcript>\n${raw.replace("</transcript>", "")}\n</transcript>"
+        val budget = cleanupTimeoutMs(raw, translating)
         return try {
-            val result = withTimeoutOrNull(2_500) { generateWithRetry(editor, system, message) }
+            val result = withTimeoutOrNull(budget) { generateWithRetry(editor, system, message, budget) }
                 ?: return raw.trim()
             guardOutput(raw, result)
         } catch (error: CancellationException) {
@@ -102,11 +107,11 @@ object DictationPipeline {
     }
 
     /** One quick retry for transient failures; key and quota errors would only repeat. */
-    private suspend fun generateWithRetry(editor: GeminiEditor, system: String, message: String): String {
+    private suspend fun generateWithRetry(editor: GeminiEditor, system: String, message: String, timeoutMs: Long): String {
         var attempt = 0
         while (true) {
             try {
-                return editor.edit(system, message)
+                return editor.edit(system, message, timeoutMs)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

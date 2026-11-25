@@ -42,7 +42,8 @@ describe('noise tags', () => {
 describe('cleanup timeout', () => {
   it('grows with length but is capped', () => {
     expect(cleanupTimeoutMs('hi')).toBeLessThan(cleanupTimeoutMs('x'.repeat(500)));
-    expect(cleanupTimeoutMs('x'.repeat(100000))).toBe(8500);
+    expect(cleanupTimeoutMs('x'.repeat(100000))).toBe(10000);
+    expect(cleanupTimeoutMs('hi', true)).toBeGreaterThan(cleanupTimeoutMs('hi'));
   });
 });
 

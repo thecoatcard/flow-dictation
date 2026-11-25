@@ -35,14 +35,18 @@ export interface PipelineOptions {
 
 const DEVANAGARI = /[ऀ-ॿ]/;
 
-/** Output is about as long as the input, so a long dictation needs longer than a short one: 2.5 s plus 4 ms per character, capped. */
-export function cleanupTimeoutMs(text: string): number {
-  return 2500 + Math.min(6000, text.length * 4);
+/**
+ * Output is about as long as the input, so a long dictation needs longer than a short one: 4 s plus 4 ms per
+ * character, capped. The model's speed varies a lot (1 to 4 s seen for a short sentence), and a timeout means
+ * the raw transcript is inserted, so the limit only guards against a hung request. Translating gets 2 s more.
+ */
+export function cleanupTimeoutMs(text: string, translating = false): number {
+  return (translating ? 6000 : 4000) + Math.min(6000, text.length * 4);
 }
 
 async function cleanOne(text: string, system: string, o: PipelineOptions): Promise<string> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? cleanupTimeoutMs(text));
+  const timer = setTimeout(() => ctl.abort(), o.timeoutMs ?? cleanupTimeoutMs(text, !!o.config.outputLanguage));
   try {
     // One quick retry for transient failures; key and quota errors would only repeat.
     for (let attempt = 0; ; attempt++) {
