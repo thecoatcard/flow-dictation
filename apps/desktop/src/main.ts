@@ -18,7 +18,7 @@ import {
   SttSession,
   type AppSettings,
 } from '@flow/core';
-import { activeAppId } from './active-window';
+import { activeAppId, activeWindowTitle } from './active-window';
 import { MicCapture } from './capture';
 import { ConfigStore } from './config-store';
 import { debugLog } from './debug-log';
@@ -196,10 +196,12 @@ function createDictation(
         ),
         onError: (e) => debugLog('command-error', { kind: classifyError(e) }),
       }),
-    process: (transcript, appId) =>
+    activeTitle: async () => (store.get().app.useWindowContext ? activeWindowTitle() : undefined),
+    process: (transcript, appId, title) =>
       processTranscript(transcript, {
         config: store.get(),
         appId,
+        context: { app: appId, title },
         client: new GeminiCleanupClient(vault.get(), store.get().models.cleanup, (u) =>
           usage.add(u),
         ),

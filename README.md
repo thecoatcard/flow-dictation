@@ -12,6 +12,7 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 
 - Auto cleanup offers **None** (raw transcript), **Auto** (chooses the smallest needed edit for each dictation), **Light** (fillers, false starts, grammar) and **Medium** (also rephrases tangled speech for clarity). Light remains the default for existing and new settings. Auto makes its choice in the same cleanup request, without an extra API call. The cleanup step treats what you said as text to edit, never as instructions.
 - **Hindi** is typed as Hinglish (Hindi in English letters, like "main kal office jaunga") by default. English stays English and other languages are written as spoken. Settings can switch Hindi to Devanagari.
+- **Knows where you are typing:** the focused window's title (an email subject, a chat name) is passed to the cleanup model, only to help it spell names. Settings can turn this off; the title is sent to Google with your words and used for nothing else.
 - **Learns from your fixes:** correct a dictation in Settings > History and Flow offers the new names and technical terms from your fix for the dictionary.
 - **Command Mode:** select text in any app, hold a second shortcut (default Ctrl+Alt+E) and say what to do ("make this shorter", "translate to Hindi", "fix the grammar"); the selection is rewritten in place. If anything fails your text is left as it was.
 - If cleanup fails or is slow, the raw transcript is inserted instead.
@@ -103,6 +104,7 @@ Settings > Usage shows this month's audio minutes, tokens and an estimated cost.
 - Audio goes only to Google's API. It is never saved.
 - The API key is encrypted with the OS keychain (Electron `safeStorage`) in its own file, never in the config JSON, never logged.
 - The debug log (`flow-debug.log` in the app data folder) holds timings and redacted error details, never audio or transcripts.
+- With "Use the window title to spell names" on, the title of the window you dictate into is sent to Google with your words, as a spelling hint only. It is never stored by Flow.
 - "Learn style" sends your pasted samples to Google once; the samples are not stored.
 - Settings > History keeps the final text of your last 300 dictations in `history.json` in the app data folder, on this PC only and not encrypted. Turn it off or press Clear all there; the debug log still never holds transcripts.
 

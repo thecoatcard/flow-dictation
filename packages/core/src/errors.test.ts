@@ -71,6 +71,7 @@ describe('app settings migration', () => {
       sttUsdPerHour: 0.54,
       keepHistory: true,
       commandHotkey: 'Ctrl+Alt+E',
+      useWindowContext: true,
       soundCues: true,
       muteWhileDictating: false,
       overlay: 'always',

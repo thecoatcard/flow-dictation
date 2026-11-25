@@ -43,6 +43,31 @@ function load(): () => string | undefined {
   };
 }
 
+let titleLookup: (() => string | undefined) | null = null;
+
+function loadTitle(): () => string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const koffi = require('koffi');
+  const user32 = koffi.load('user32.dll');
+  const GetForegroundWindow = user32.func('void* __stdcall GetForegroundWindow()');
+  const GetWindowTextW = user32.func(
+    'int __stdcall GetWindowTextW(void* hwnd, _Out_ uint16_t* buf, int max)',
+  );
+  return () => {
+    const hwnd = GetForegroundWindow();
+    if (!hwnd) return undefined;
+    const buf = new Uint16Array(512);
+    const n = GetWindowTextW(hwnd, buf, buf.length);
+    return n > 0 ? Buffer.from(buf.buffer, 0, n * 2).toString('utf16le') : undefined;
+  };
+}
+
+/** Title of the foreground window on Windows, if it has one. */
+export function foregroundWindowTitle(): string | undefined {
+  titleLookup ??= loadTitle();
+  return titleLookup();
+}
+
 export function foregroundProcessName(): string | undefined {
   lookup ??= load();
   return lookup();

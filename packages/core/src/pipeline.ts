@@ -3,7 +3,12 @@ import { repairSentenceBoundary, resolveTimeBacktrack } from './backtrack';
 import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
 import { guardOutput } from './guard';
-import { buildSystemPrompt, buildUserMessage, TRANSLITERATE_PROMPT } from './prompt';
+import {
+  buildSystemPrompt,
+  buildUserMessage,
+  TRANSLITERATE_PROMPT,
+  type PromptContext,
+} from './prompt';
 import {
   detectCommand,
   joinSegments,
@@ -19,6 +24,8 @@ export interface PipelineOptions {
   config: FlowConfig;
   client: CleanupClient;
   appId?: string;
+  /** The focused app and its window title, used only to spell names. */
+  context?: PromptContext;
   /** Per-request cleanup budget; on expiry the raw text is used. */
   timeoutMs?: number;
   /** Called when cleanup failed and the raw text was used instead. */
@@ -78,7 +85,7 @@ export async function processTranscript(
     );
     return inserted(joinSegments(romanized).trim());
   }
-  const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));
+  const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId), o.context);
   const cleaned = await Promise.all(
     segments.map(async (s) =>
       s.kind === 'text' ? { ...s, text: await cleanOne(s.text, system, o) } : s,

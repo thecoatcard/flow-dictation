@@ -121,6 +121,7 @@
     setOverlay(s.app.overlay);
     autostart.setAttribute('aria-checked', String(s.app.autostart));
     $('keephistory').setAttribute('aria-checked', String(s.app.keepHistory));
+    $('usecontext').setAttribute('aria-checked', String(s.app.useWindowContext));
     $('cmdkey').textContent = s.app.commandHotkey || 'Off';
     $('cmdoff').style.display = s.app.commandHotkey ? '' : 'none';
     $('soundcues').setAttribute('aria-checked', String(s.app.soundCues));
@@ -630,6 +631,9 @@
   );
 
   on('playcue', 'click', () => void api.testCue());
+  on('usecontext', 'click', () =>
+    save({ useWindowContext: $('usecontext').getAttribute('aria-checked') !== 'true' }),
+  );
   on('soundcues', 'click', () =>
     save({ soundCues: $('soundcues').getAttribute('aria-checked') !== 'true' }),
   );

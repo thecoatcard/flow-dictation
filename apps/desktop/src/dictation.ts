@@ -18,9 +18,11 @@ export interface DictationDeps {
   mic: { start(onChunk: (c: Uint8Array) => void): Promise<void>; stop(): Promise<void> };
   newStt(): { pushAudio(c: Uint8Array): void; finish(): Promise<SttResult> };
   /** Cleanup + snippets/commands. Must not throw; falls back to raw text itself. */
-  process(transcript: string, appId?: string): Promise<PipelineResult>;
+  process(transcript: string, appId?: string, windowTitle?: string): Promise<PipelineResult>;
   /** Id of the focused app, for tone selection. Called at key-down, while the user's app still has focus. */
   activeApp?(): Promise<string | undefined>;
+  /** Title of the focused window, read at key-down like activeApp. */
+  activeTitle?(): Promise<string | undefined>;
   inserter: {
     insert(text: string): Promise<void>;
     undoLast(): Promise<void>;
@@ -60,6 +62,7 @@ export class Dictation {
   /** 'command': the speech is an instruction for the selected text, not text to insert. */
   private kind: 'dictate' | 'command' = 'dictate';
   private app: Promise<string | undefined> = Promise.resolve(undefined);
+  private title: Promise<string | undefined> = Promise.resolve(undefined);
 
   constructor(private readonly d: DictationDeps) {}
 
@@ -72,6 +75,7 @@ export class Dictation {
     const stt = this.d.newStt();
     this.stt = stt;
     this.app = (this.d.activeApp?.() ?? Promise.resolve(undefined)).catch(() => undefined);
+    this.title = (this.d.activeTitle?.() ?? Promise.resolve(undefined)).catch(() => undefined);
     this.starting = this.d.mic.start((c) => stt.pushAudio(c));
     try {
       await this.starting;
@@ -114,7 +118,7 @@ export class Dictation {
       this.state = 'cleaning';
       const t1 = this.d.now();
       const appId = await this.app;
-      const result = await this.d.process(r.text, appId);
+      const result = await this.d.process(r.text, appId, await this.title);
       this.d.log('cleanup', { ms: this.d.now() - t1 });
 
       if (result.kind === 'command') {

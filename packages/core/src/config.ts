@@ -29,6 +29,8 @@ export interface AppSettings {
   keepHistory: boolean;
   /** Hold this combination, say what to do, and the selected text is rewritten. '' turns it off. */
   commandHotkey: string;
+  /** Tell the cleanup model the focused window's title, only to help it spell names. */
+  useWindowContext: boolean;
   /** A short tone when recording starts and stops. */
   soundCues: boolean;
   /** Mute the PC's sound output while recording, then restore it (Windows). */
@@ -71,6 +73,7 @@ export function defaultConfig(): FlowConfig {
       sttUsdPerHour: 0.54,
       keepHistory: true,
       commandHotkey: 'Ctrl+Alt+E',
+      useWindowContext: true,
       soundCues: true,
       muteWhileDictating: false,
       overlay: 'always',
@@ -106,6 +109,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
       out.app.sttUsdPerHour = a.sttUsdPerHour;
     if (typeof a.keepHistory === 'boolean') out.app.keepHistory = a.keepHistory;
     if (typeof a.commandHotkey === 'string') out.app.commandHotkey = a.commandHotkey;
+    if (typeof a.useWindowContext === 'boolean') out.app.useWindowContext = a.useWindowContext;
     if (typeof a.soundCues === 'boolean') out.app.soundCues = a.soundCues;
     if (typeof a.muteWhileDictating === 'boolean')
       out.app.muteWhileDictating = a.muteWhileDictating;
