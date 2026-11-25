@@ -21,6 +21,7 @@
           <button data-page="style">Writing style</button>
           <button data-page="usage">Usage</button>
           <button data-page="history">History</button>
+          <button data-page="memory">Notes and reminders</button>
           <button data-page="updates">Updates</button>
           <button data-page="access">Permissions</button>
           <button data-page="backup">Backup</button>
@@ -494,6 +495,47 @@
           </div>
           <div class="msg" id="histlearn" role="status"></div>
           <ul class="list" id="histlist"></ul>
+        </section>
+        <!-- ===== Notes and reminders ===== -->
+        <section class="page" id="page-memory" hidden>
+          <header class="ph">
+            <h1>Notes and reminders</h1>
+            <p>
+              What you ask Flow to remember or remind you of. Hold the Ask shortcut and say
+              “remember my locker code is 4821”, “what is my locker code” or “remind me to call
+              Dhriti tomorrow at 5 pm”. Everything here is saved only on this PC.
+            </p>
+          </header>
+          <div class="rows">
+            <div class="row">
+              <div>
+                <div class="t">Let Ask read my notes and reminders</div>
+                <div class="d">
+                  So it can answer “what is my locker code” or “what reminders do I have”. When this
+                  is on, your saved notes and reminders are sent to Google with each Ask question.
+                  When it is off, only the question is sent, but saving notes and reminders still
+                  works.
+                </div>
+              </div>
+              <div class="ctl">
+                <button
+                  class="switch"
+                  id="askusesnotes"
+                  role="switch"
+                  aria-checked="true"
+                  aria-label="Let Ask read my notes and reminders"
+                ></button>
+              </div>
+            </div>
+          </div>
+          <h2>Reminders</h2>
+          <p class="hint">
+            When one is due, the floating icon turns red. Rest the pointer on it to see them, then
+            press Done or Snooze, one after another.
+          </p>
+          <ul class="list" id="remlist"></ul>
+          <h2>Notes</h2>
+          <ul class="list" id="notelist"></ul>
         </section>
         <!-- ===== Updates ===== -->
         <section class="page" id="page-updates" hidden>

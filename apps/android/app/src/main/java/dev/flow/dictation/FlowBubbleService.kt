@@ -71,6 +71,7 @@ class FlowBubbleService : Service() {
         private val SURFACE = Color.rgb(24, 24, 27)
         private val ACCENT = Color.rgb(140, 155, 255)
         private val EDGE = Color.argb(190, 140, 155, 255)
+        private val RED = Color.rgb(255, 107, 90)
     }
 
     private enum class State { IDLE, CONNECTING, LISTENING, PROCESSING }
@@ -79,15 +80,7 @@ class FlowBubbleService : Service() {
     private val settings by lazy { FlowSettings(this) }
     private val windows by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val handler = Handler(Looper.getMainLooper())
-    private val fade = Runnable {
-        if (state == State.IDLE) {
-            label?.visibility = View.GONE
-            bubble?.animate()?.alpha(0.82f)?.setDuration(240)?.start()
-            icon?.setImageResource(R.drawable.ic_mic)
-            icon?.setColorFilter(ACCENT)
-            (bubble?.background as? GradientDrawable)?.setStroke(2.dp, EDGE)
-        }
-    }
+    private val fade = Runnable { if (state == State.IDLE) restingLook() }
     private var bubble: LinearLayout? = null
     private var icon: ImageView? = null
     private var label: TextView? = null
@@ -101,6 +94,62 @@ class FlowBubbleService : Service() {
         }
     }
     @Volatile private var meter = SpeechMeter()
+    private var reminderCardOpen = false
+    private fun memory() = MemoryStore.get(this)
+    private fun pendingReminders() = Memory.dueReminders(memory().get(), System.currentTimeMillis())
+
+    /** The mic at rest: red with the count while reminders are waiting, otherwise the normal quiet mic. */
+    private fun restingLook() {
+        val waiting = pendingReminders().size
+        if (waiting > 0) {
+            label?.text = if (waiting > 1) waiting.toString() else ""
+            label?.visibility = if (waiting > 1) View.VISIBLE else View.GONE
+            icon?.setImageResource(R.drawable.ic_bell)
+            icon?.setColorFilter(RED)
+            (bubble?.background as? GradientDrawable)?.setStroke(2.dp, RED)
+            bubble?.animate()?.alpha(1f)?.setDuration(240)?.start()
+        } else {
+            label?.visibility = View.GONE
+            bubble?.animate()?.alpha(0.82f)?.setDuration(240)?.start()
+            icon?.setImageResource(R.drawable.ic_mic)
+            icon?.setColorFilter(ACCENT)
+            (bubble?.background as? GradientDrawable)?.setStroke(2.dp, EDGE)
+        }
+    }
+
+    /** Reminders came due, or were cleared, snoozed or deleted: update the mic, the card and the notification. */
+    fun onRemindersChanged(openCard: Boolean = false) {
+        handler.post {
+            if (state == State.IDLE) restingLook()
+            if (pendingReminders().isEmpty()) {
+                ReminderScheduler.clearNotification(this)
+                if (reminderCardOpen) answerCard?.dismiss(animated = true)
+                reminderCardOpen = false
+            } else if (openCard || reminderCardOpen) {
+                showReminderQueue()
+            }
+        }
+    }
+
+    /** Shows the reminder at the front of the queue; clearing it shows the next, and the mic goes back to normal at the end. */
+    private fun showReminderQueue() {
+        val due = pendingReminders()
+        if (due.isEmpty()) { reminderCardOpen = false; return }
+        val first = due[0]
+        reminderCardOpen = true
+        answerCard().showReminder(
+            first.text, Memory.formatWhen(first.fireAt, System.currentTimeMillis()), due.size,
+            onDone = { change { Memory.clearReminder(it, first.id, System.currentTimeMillis()) } },
+            onSnooze = { change { Memory.snoozeReminder(it, first.id, System.currentTimeMillis(), 10) } },
+        )
+    }
+
+    private fun change(edit: (MemoryData) -> MemoryData) {
+        memory().set(edit(memory().get()))
+        ReminderScheduler.schedule(this)
+        onRemindersChanged(openCard = true)
+    }
+
     private var speaker: Speaker? = null
     private var answerCard: AnswerCard? = null
     private fun speaker() = speaker ?: Speaker(this).also { speaker = it }
@@ -141,6 +190,8 @@ class FlowBubbleService : Service() {
             if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
             createBubble()
             refreshVisibility()
+            handler.post { restingLook() }
+            ReminderScheduler.schedule(this)
             handler.postDelayed(updateCheck, 60_000)
         } catch (_: SecurityException) { stopSelf() }
     }
@@ -364,7 +415,7 @@ class FlowBubbleService : Service() {
 
     private fun onBubbleTap() {
         when (state) {
-            State.IDLE -> startDictation()
+            State.IDLE -> if (pendingReminders().isNotEmpty()) showReminderQueue() else startDictation()
             State.CONNECTING -> finishDictation()
             State.LISTENING -> finishDictation()
             State.PROCESSING -> { cancelActive(); showStatus("Cancelled") }
@@ -553,9 +604,27 @@ class FlowBubbleService : Service() {
                     }
                     is DictationResult.Ask -> {
                         showStatus("Thinking…")
-                        val answer = AskMode.answer(result.question, settings.hindiOutput, key)
-                        if (answer == null) showStatus("Could not answer that")
-                        else { answerCard().show(answer); showStatus("Answer ready") }
+                        val now = System.currentTimeMillis()
+                        val saved = memory().get()
+                        val decided = AskMode.ask(
+                            result.question,
+                            AskContext(now, saved.notes, saved.reminders, settings.askUsesNotes),
+                            settings.hindiOutput, key,
+                        )
+                        if (decided == null) {
+                            showStatus("Could not answer that")
+                        } else {
+                            val (updated, message) = AskMode.apply(saved, decided, now, { java.util.UUID.randomUUID().toString() })
+                            if (updated != saved) {
+                                memory().set(updated)
+                                ReminderScheduler.schedule(this@FlowBubbleService)
+                                onRemindersChanged()
+                            }
+                            // A reminder only rings on time if Android lets Flow set exact alarms; say so when it does not.
+                            val late = decided is AskResult.Remind && !ReminderScheduler.canScheduleExact(this@FlowBubbleService)
+                            answerCard().show(if (late) "$message\n\nAllow Alarms & reminders for Flow (Notes and reminders page) so it rings on time." else message)
+                            showStatus("Answer ready")
+                        }
                     }
                     DictationResult.DeleteLast -> {
                         val removed = System.currentTimeMillis() - lastInsertedAt < 60_000 &&

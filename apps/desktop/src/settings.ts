@@ -121,6 +121,7 @@
     setOverlay(s.app.overlay);
     autostart.setAttribute('aria-checked', String(s.app.autostart));
     $('keephistory').setAttribute('aria-checked', String(s.app.keepHistory));
+    $('askusesnotes').setAttribute('aria-checked', String(s.app.askUsesNotes));
     latest = s;
     renderGuide();
     $('usecontext').setAttribute('aria-checked', String(s.app.useWindowContext));
@@ -897,6 +898,59 @@
       window.addEventListener('keydown', onKey, true);
     });
   }
+
+  // ---------- notes and reminders ----------
+  const whenText = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  function memoryRow(text: string, note: string, onRemove: () => void): HTMLLIElement {
+    const li = document.createElement('li');
+    const d = document.createElement('div');
+    const n = document.createElement('span');
+    n.className = 'name';
+    n.textContent = text;
+    const small = document.createElement('small');
+    small.textContent = note;
+    n.append(small);
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'btn quiet';
+    rm.textContent = 'Delete';
+    rm.setAttribute('aria-label', `Delete ${text}`);
+    rm.addEventListener('click', onRemove);
+    d.append(n, rm);
+    li.append(d);
+    return li;
+  }
+  function showMemory(m: MemoryDto): void {
+    const now = Date.now();
+    const rems = [...m.reminders].sort(
+      (a, b) => Date.parse(a.snoozedUntil ?? a.due) - Date.parse(b.snoozedUntil ?? b.due),
+    );
+    $('remlist').replaceChildren(
+      ...(rems.length
+        ? rems.map((r) => {
+            const at = r.snoozedUntil ?? r.due;
+            const repeat = r.repeat === 'none' ? '' : r.repeat === 'daily' ? ' · every day' : ' · every week';
+            const state = Date.parse(at) <= now ? 'Due now' : whenText(at);
+            return memoryRow(r.text, `${state}${repeat}`, () =>
+              void api.removeReminder(r.id).then(showMemory),
+            );
+          })
+        : [emptyRow('No reminders. Ask Flow to remind you of something.')]),
+    );
+    $('notelist').replaceChildren(
+      ...(m.notes.length
+        ? m.notes.map((n) =>
+            memoryRow(n.text, whenText(n.at), () => void api.removeNote(n.id).then(showMemory)),
+          )
+        : [emptyRow('No notes. Ask Flow to remember something.')]),
+    );
+  }
+  const renderMemory = () => void api.getMemory().then(showMemory);
+  pageHooks['memory'] = renderMemory;
+  on('askusesnotes', 'click', () =>
+    save({ askUsesNotes: $('askusesnotes').getAttribute('aria-checked') !== 'true' }),
+  );
 
   // ---------- history ----------
   const histq = $<HTMLInputElement>('histq');

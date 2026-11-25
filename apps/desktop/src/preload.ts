@@ -1,5 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+/** What the card window is told to show: an answer from Ask, or the reminder at the front of the queue. */
+interface AnswerCardData {
+  kind: 'answer' | 'reminder';
+  question: string;
+  answer: string;
+  /** Reminder only: when it is due, and its place in the queue. */
+  meta?: string;
+  up: boolean;
+  originX: number;
+}
+
 contextBridge.exposeInMainWorld('flowApi', {
   audio: {
     onStart: (cb: (deviceId?: string) => void) =>
@@ -23,11 +34,15 @@ contextBridge.exposeInMainWorld('flowApi', {
     drag: (dx: number, dy: number) => ipcRenderer.send('overlay:drag', { dx, dy }),
     dragEnd: () => ipcRenderer.send('overlay:drag-end'),
     click: () => ipcRenderer.send('overlay:click'),
+    hover: (on: boolean) => ipcRenderer.send('overlay:hover', on),
   },
   answer: {
-    onShow: (cb: (d: { question: string; answer: string; up: boolean; originX: number }) => void) =>
-      ipcRenderer.on('answer:show', (_e, d) => cb(d)),
+    onShow: (cb: (d: AnswerCardData) => void) => ipcRenderer.on('answer:show', (_e, d) => cb(d)),
+    onFade: (cb: () => void) => ipcRenderer.on('answer:fade', () => cb()),
     interactive: (on: boolean) => ipcRenderer.send('answer:interactive', on),
+    hover: (on: boolean) => ipcRenderer.send('answer:hover', on),
+    reminderDone: () => ipcRenderer.send('reminder:done'),
+    reminderSnooze: () => ipcRenderer.send('reminder:snooze'),
     onSpeechEnd: (cb: () => void) => ipcRenderer.on('answer:speech-end', () => cb()),
     copy: () => ipcRenderer.send('answer:copy'),
     speak: () => ipcRenderer.send('answer:speak'),
@@ -55,6 +70,9 @@ contextBridge.exposeInMainWorld('flowApi', {
     startKeyTest: () => ipcRenderer.invoke('keytest:start'),
     onKeyTest: (cb: (e: { type: string; at: number }) => void) =>
       ipcRenderer.on('keytest:event', (_e, p) => cb(p)),
+    getMemory: () => ipcRenderer.invoke('memory:get'),
+    removeNote: (id: string) => ipcRenderer.invoke('memory:remove-note', id),
+    removeReminder: (id: string) => ipcRenderer.invoke('memory:remove-reminder', id),
     listHistory: (query: string) => ipcRenderer.invoke('history:list', query),
     copyHistory: (id: string) => ipcRenderer.invoke('history:copy', id),
     removeHistory: (id: string) => ipcRenderer.invoke('history:remove', id),

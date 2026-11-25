@@ -1,4 +1,15 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, Tray } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  powerMonitor,
+  Tray,
+} from 'electron';
+import { randomUUID } from 'node:crypto';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { uIOhook, UiohookKey } from 'uiohook-napi';
@@ -11,7 +22,13 @@ import {
   estimateCost,
   summarizeStyle,
   editSelection,
-  answerQuestion,
+  applyAskResult,
+  askFlow,
+  clearReminder,
+  formatWhen,
+  removeNote,
+  removeReminder,
+  snoozeReminder,
   learnTerms,
   GeminiCleanupClient,
   geminiLiveConnect,
@@ -40,6 +57,8 @@ import {
   startAutoUpdate,
 } from './updater';
 import { HistoryStore } from './history-store';
+import { MemoryStore } from './memory-store';
+import { ReminderWatcher } from './reminder-watcher';
 import { UsageStore } from './usage-store';
 import { isOutputMuted, setOutputMuted } from './win-audio';
 
@@ -80,6 +99,7 @@ interface Services {
   mic: MicCapture;
   usage: UsageStore;
   history: HistoryStore;
+  memory: MemoryStore;
 }
 
 function openSettings(): void {
@@ -176,7 +196,7 @@ function restoreOnQuit(media: { begin(): void; end(): void }): { begin(): void; 
 }
 
 function createDictation(
-  { store, vault, mic, usage, history }: Services,
+  { store, vault, mic, usage, history, memory }: Services,
   overlay: Overlay,
   answers: AnswerWindow,
 ): Dictation {
@@ -203,14 +223,27 @@ function createDictation(
         onError: (e) => debugLog('command-error', { kind: classifyError(e) }),
         onReject: (reason) => debugLog('command-reject', { reason }),
       }),
-    ask: (question) =>
-      answerQuestion(question, {
-        config: store.get(),
-        client: new GeminiCleanupClient(vault.get(), store.get().models.cleanup, (u) =>
-          usage.add(u),
-        ),
-        onError: (e) => debugLog('ask-error', { kind: classifyError(e) }),
-      }),
+    // Ask answers a question, or saves a note, sets or cancels a reminder; what it did is shown in the card.
+    ask: async (question) => {
+      const now = new Date();
+      const m = memory.get();
+      const result = await askFlow(
+        question,
+        { now, notes: m.notes, reminders: m.reminders, useNotes: store.get().app.askUsesNotes },
+        {
+          config: store.get(),
+          client: new GeminiCleanupClient(vault.get(), store.get().models.cleanup, (u) =>
+            usage.add(u),
+          ),
+          onError: (e) => debugLog('ask-error', { kind: classifyError(e) }),
+        },
+      );
+      if (!result) return null;
+      const done = applyAskResult(m, result, now, randomUUID);
+      memory.set(done.memory);
+      debugLog('ask-action', { action: result.kind });
+      return done.message;
+    },
     showAnswer: (question, answer) => answers.show(question, answer),
     speak: (text) => speak(text),
     lastSaved: () => history.list()[0]?.text,
@@ -268,7 +301,19 @@ function applyAutostart(enabled: boolean): void {
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
 }
 
-function registerSettings({ store, vault, mic, usage, history }: Services, overlay: Overlay): void {
+function registerSettings(
+  { store, vault, mic, usage, history, memory }: Services,
+  overlay: Overlay,
+): void {
+  ipcMain.handle('memory:get', () => memory.get());
+  ipcMain.handle('memory:remove-note', (_e, id: unknown) => {
+    if (typeof id === 'string') memory.set(removeNote(memory.get(), id));
+    return memory.get();
+  });
+  ipcMain.handle('memory:remove-reminder', (_e, id: unknown) => {
+    if (typeof id === 'string') memory.set(removeReminder(memory.get(), id));
+    return memory.get();
+  });
   ipcMain.handle('history:list', (_e, query: unknown) =>
     history.list(typeof query === 'string' ? query : ''),
   );
@@ -438,12 +483,25 @@ if (!app.requestSingleInstanceLock()) {
       mic: new MicCapture(),
       usage: new UsageStore(path.join(dir, 'usage.json')),
       history: new HistoryStore(path.join(dir, 'history.json')),
+      memory: new MemoryStore(path.join(dir, 'memory.json')),
     };
+    // Reminders that are due form a queue: the floating icon turns red, and hovering it shows them one by one.
+    const watcher: ReminderWatcher = new ReminderWatcher(
+      () => svc.memory.get(),
+      () => new Date(),
+      (fresh) => {
+        debugLog('reminder-due', { count: fresh.length });
+        if (svc.store.get().app.soundCues) svc.mic.cue('start');
+        overlay.refreshPending();
+      },
+    );
     const overlay = new Overlay({
       mode: () => svc.store.get().app.overlay,
       savedPos: () => svc.store.get().app.overlayPos,
       savePos: (p) => svc.store.update((c) => (c.app.overlayPos = p)),
       onClick: openSettings,
+      pending: () => watcher.due().length,
+      onHover: (on) => answers.peek(on),
     });
     svc.mic.onLevel = (v) => {
       overlay.level(v);
@@ -456,8 +514,24 @@ if (!app.requestSingleInstanceLock()) {
     )
       svc.store.update((c) => (c.app.guideDismissed = true));
     svc.mic.warm();
-    const answers = new AnswerWindow(() => overlay.anchor());
+    const answers = new AnswerWindow(() => overlay.anchor(), {
+      queue: () =>
+        watcher.due().map((r) => ({
+          id: r.id,
+          text: r.text,
+          when: formatWhen(new Date(r.snoozedUntil ?? r.due), new Date()),
+        })),
+      done: (id) => svc.memory.set(clearReminder(svc.memory.get(), id, new Date())),
+      snooze: (id) => svc.memory.set(snoozeReminder(svc.memory.get(), id, new Date(), 10)),
+    });
     const dictation = createDictation(svc, overlay, answers);
+    svc.memory.onChange(() => {
+      watcher.check();
+      overlay.refreshPending();
+      answers.refreshQueue();
+    });
+    powerMonitor.on('resume', () => watcher.check());
+    watcher.start();
     registerDebugRecord(svc, dictation);
     registerSettings(svc, overlay);
     ipcMain.handle('permissions:check', () => checkPermissions());

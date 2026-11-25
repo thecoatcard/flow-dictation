@@ -13,6 +13,10 @@ export interface OverlayHost {
   savePos(p: Point | null): void;
   /** The icon was clicked (not dragged). */
   onClick(): void;
+  /** How many reminders are due and waiting. While there are any, the icon is red and stays on screen. */
+  pending(): number;
+  /** The pointer entered or left the icon. */
+  onHover(on: boolean): void;
 }
 
 /**
@@ -53,6 +57,14 @@ export class Overlay {
       this.host.savePos({ x, y });
     });
     ipcMain.on('overlay:click', (e) => mine(e) && this.host.onClick());
+    ipcMain.on('overlay:hover', (e, on: boolean) => mine(e) && this.host.onHover(on));
+  }
+
+  private lastState: OverlayStatus['state'] = 'hidden';
+
+  /** Re-reads the waiting reminders: turns the icon red, or back to normal. Leaves a running dictation alone. */
+  refreshPending(): void {
+    if (this.lastState === 'hidden') this.show({ state: 'hidden' });
   }
 
   private areas() {
@@ -122,15 +134,24 @@ export class Overlay {
 
   show(s: OverlayStatus): void {
     if (this.hideTimer) clearTimeout(this.hideTimer);
+    this.lastState = s.state;
     const resting = s.state === 'hidden';
     const always = this.host.mode() === 'always';
-    if (resting && !always && !this.win) return;
+    const pending = resting ? this.host.pending() : 0;
+    if (resting && !always && pending === 0 && !this.win) return;
     const win = this.win && !this.win.isDestroyed() ? this.win : this.create();
 
     void this.ready?.then(() => {
       if (win.isDestroyed()) return;
-      win.webContents.send('overlay:status', resting && always ? { state: 'idle' } : s);
-      if (resting && !always) return win.hide();
+      // Waiting reminders win over the resting icon: red, with the count when there is more than one.
+      const shown =
+        pending > 0
+          ? { state: 'reminder', message: pending > 1 ? String(pending) : '' }
+          : resting && always
+            ? { state: 'idle' }
+            : s;
+      win.webContents.send('overlay:status', shown);
+      if (resting && !always && pending === 0) return win.hide();
       if (!win.isVisible()) win.showInactive();
       if (s.state === 'done' || s.state === 'error') {
         this.hideTimer = setTimeout(

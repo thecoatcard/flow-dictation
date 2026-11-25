@@ -96,8 +96,40 @@
       .listening .g-bars,
       .processing .g-spin,
       .done .g-check,
-      .error .g-warn {
+      .error .g-warn,
+      .reminder .g-bell {
         display: block;
+      }
+
+      /* reminder: the icon turns red and stays until every due reminder is cleared; hover shows them */
+      #icon.reminder {
+        box-shadow:
+          0 0 0 1.5px var(--rec) inset,
+          0 6px 18px rgba(0, 0, 0, 0.35);
+        animation: nudge 2.4s ease-in-out infinite;
+      }
+      @keyframes nudge {
+        0%,
+        100% {
+          box-shadow:
+            0 0 0 1.5px var(--rec) inset,
+            0 6px 18px rgba(0, 0, 0, 0.35),
+            0 0 0 0 rgba(255, 107, 90, 0.45);
+        }
+        50% {
+          box-shadow:
+            0 0 0 1.5px var(--rec) inset,
+            0 6px 18px rgba(0, 0, 0, 0.35),
+            0 0 0 7px rgba(255, 107, 90, 0);
+        }
+      }
+      .g-bell {
+        color: var(--rec);
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
       .g-mic {
         color: var(--ink);
@@ -156,6 +188,9 @@
         #label {
           transition: none;
         }
+        #icon.reminder {
+          animation: none;
+        }
         .g-spin circle {
           animation-duration: 2.4s;
         }
@@ -188,6 +223,9 @@
       <svg class="glyph g-spin" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" /></svg>
       <svg class="glyph g-check" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9" /></svg>
       <svg class="glyph g-warn" viewBox="0 0 20 20"><path d="M10 4v7M10 15.5v.5" /></svg>
+      <svg class="glyph g-bell" viewBox="0 0 20 20">
+        <path d="M5 14V9.5a5 5 0 0 1 10 0V14l1.5 1.5h-13zM8.5 17.5a1.6 1.6 0 0 0 3 0" />
+      </svg>
       <span id="label" role="status" aria-live="polite"></span>
     </div>
     <script src="overlay.js"></script>

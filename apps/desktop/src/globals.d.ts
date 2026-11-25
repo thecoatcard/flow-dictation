@@ -23,6 +23,7 @@ interface SettingsDto {
     keepHistory: boolean;
     commandHotkey: string;
     askHotkey: string;
+    askUsesNotes: boolean;
     guideDismissed: boolean;
     keyTested: boolean;
     micChecked: boolean;
@@ -53,6 +54,17 @@ interface PersonalDto {
   snippets: Array<{ trigger: string; expansion: string }>;
   style: string;
   recentApps: string[];
+}
+
+interface MemoryDto {
+  notes: Array<{ id: string; text: string; at: string }>;
+  reminders: Array<{
+    id: string;
+    text: string;
+    due: string;
+    repeat: 'none' | 'daily' | 'weekly';
+    snoozedUntil?: string;
+  }>;
 }
 
 interface HistoryEntryDto {
@@ -96,10 +108,24 @@ declare const flowApi: {
     drag(dx: number, dy: number): void;
     dragEnd(): void;
     click(): void;
+    hover(on: boolean): void;
   };
   answer: {
-    onShow(cb: (d: { question: string; answer: string; up: boolean; originX: number }) => void): void;
+    onShow(
+      cb: (d: {
+        kind: 'answer' | 'reminder';
+        question: string;
+        answer: string;
+        meta?: string;
+        up: boolean;
+        originX: number;
+      }) => void,
+    ): void;
+    onFade(cb: () => void): void;
     interactive(on: boolean): void;
+    hover(on: boolean): void;
+    reminderDone(): void;
+    reminderSnooze(): void;
     onSpeechEnd(cb: () => void): void;
     copy(): void;
     speak(): void;
@@ -126,6 +152,9 @@ declare const flowApi: {
     testCue(): Promise<void>;
     startKeyTest(): Promise<void>;
     onKeyTest(cb: (e: { type: 'down' | 'up'; at: number }) => void): void;
+    getMemory(): Promise<MemoryDto>;
+    removeNote(id: string): Promise<MemoryDto>;
+    removeReminder(id: string): Promise<MemoryDto>;
     listHistory(query: string): Promise<HistoryEntryDto[]>;
     copyHistory(id: string): Promise<boolean>;
     removeHistory(id: string): Promise<void>;

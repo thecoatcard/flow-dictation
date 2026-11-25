@@ -62,6 +62,8 @@ class MainActivity : Activity() {
     private lateinit var updateText: TextView
     private lateinit var updateButton: Button
     private lateinit var permissionsSub: TextView
+    private lateinit var memoryList: LinearLayout
+    private lateinit var alarmStatus: TextView
     private lateinit var updatesSub: TextView
     private lateinit var titleView: TextView
     private lateinit var menuButton: TextView
@@ -172,6 +174,7 @@ class MainActivity : Activity() {
         content.removeAllViews()
         content.addView(view)
         if (id == "history") renderHistory()
+        if (id == "memory") renderMemory()
         if (drawerOpen) setDrawer(false)
     }
 
@@ -231,6 +234,7 @@ class MainActivity : Activity() {
         list.menuRow("home", "Home", "Floating mic and status")
         list.menuRow("dictation", "Dictation", "Google API key and floating mic tools")
         list.menuRow("history", "History", "Search, copy and fix past dictations")
+        list.menuRow("memory", "Notes and reminders", "What Ask remembers and reminds you of")
         list.menuRow("words", "Words and tone", "App tone, dictionary and snippets")
         list.menuRow("style", "Writing style", "Auto cleanup, Hindi output and your style")
         list.menuRow("usage", "Usage", "Dictations, minutes and estimated cost")
@@ -275,6 +279,7 @@ class MainActivity : Activity() {
     private fun buildPages() {
         pages["dictation"] = "Dictation" to dictationPage()
         pages["history"] = "History" to historyPage()
+        pages["memory"] = "Notes and reminders" to memoryPage()
         pages["words"] = "Words and tone" to wordsPage()
         pages["style"] = "Writing style" to stylePage()
         pages["usage"] = "Usage" to usagePage()
@@ -472,6 +477,68 @@ class MainActivity : Activity() {
                 }
             }
             .show()
+    }
+
+    private fun memoryPage() = page {
+        label("What you ask Flow to remember or remind you of. Tap the mic and say \"Ask Flow, remember my locker code is 4821\", \"Ask Flow, what is my locker code\" or \"Ask Flow, remind me to call Dhriti tomorrow at 5 pm\". Everything here stays on this phone.")
+        val options = section("ASK")
+        options.switchRow("Let Ask read my notes and reminders", settings.askUsesNotes) { settings.askUsesNotes = it }
+        options.label("When this is on, your saved notes and reminders are sent to Google with each Ask question so it can answer from them. When it is off, only the question is sent, but saving notes and reminders still works.")
+        val alarms = section("REMINDERS RING ON TIME")
+        alarmStatus = alarms.label("")
+        alarms.button("Allow Alarms & reminders") {
+            if (Build.VERSION.SDK_INT >= 31)
+                runCatching { startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))) }
+        }
+        alarms.button("Allow notifications") {
+            if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
+        }
+        memoryList = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL }
+        addView(memoryList, LinearLayout.LayoutParams(-1, -2))
+    }
+
+    private fun renderMemory() {
+        if (!::memoryList.isInitialized) return
+        val exact = ReminderScheduler.canScheduleExact(this)
+        val notify = ReminderScheduler.canNotify(this)
+        alarmStatus.text = when {
+            exact && notify -> "Allowed. Reminders ring on time and show a notification."
+            !exact && !notify -> "Reminders may be late, and no notification will show. Allow both below."
+            !exact -> "Reminders may be a few minutes late. Allow Alarms & reminders below."
+            else -> "No notification will show when a reminder is due. Allow notifications below."
+        }
+        alarmStatus.setTextColor(if (exact && notify) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84))
+        memoryList.removeAllViews()
+        val now = System.currentTimeMillis()
+        val memory = MemoryStore.get(this).get()
+        val reminders = memory.reminders.sortedBy { it.fireAt }
+        if (reminders.isEmpty()) memoryList.label("No reminders. Ask Flow to remind you of something.")
+        reminders.forEach { reminder ->
+            val repeat = when (reminder.repeat) { Repeat.DAILY -> " · every day"; Repeat.WEEKLY -> " · every week"; Repeat.NONE -> "" }
+            val state = if (reminder.fireAt <= now) "Due now" else Memory.formatWhen(reminder.fireAt, now)
+            val card = memoryList.section("$state$repeat")
+            card.label(reminder.text)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.smallButton("Delete") {
+                MemoryStore.get(this).let { it.set(Memory.removeReminder(it.get(), reminder.id)) }
+                ReminderScheduler.schedule(this)
+                FlowBubbleService.active?.onRemindersChanged()
+                renderMemory()
+            }
+            card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 6.dp })
+        }
+        memoryList.label("NOTES", 13f)
+        if (memory.notes.isEmpty()) memoryList.label("No notes. Ask Flow to remember something.")
+        memory.notes.forEach { note ->
+            val card = memoryList.section(DateUtils.getRelativeTimeSpanString(note.at).toString())
+            card.label(note.text)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.smallButton("Delete") {
+                MemoryStore.get(this).let { it.set(Memory.removeNote(it.get(), note.id)) }
+                renderMemory()
+            }
+            card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 6.dp })
+        }
     }
 
     private fun wordsPage() = page {
@@ -693,6 +760,8 @@ class MainActivity : Activity() {
         super.onResume()
         FlowBubbleService.ensureRunning(this) // on by default once the permissions are granted
         refreshStatus()
+        if (openPage == "memory") renderMemory()
+        ReminderScheduler.schedule(this)
         val fromNotification = intent.getBooleanExtra("install-update", false)
         intent.removeExtra("install-update")
         if (fromNotification) showPage("updates")

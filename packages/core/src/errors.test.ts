@@ -76,6 +76,7 @@ describe('app settings migration', () => {
       tipsSeen: false,
       commandHotkey: 'Ctrl+Alt+E',
       askHotkey: 'Ctrl+Alt+Q',
+      askUsesNotes: true,
       useWindowContext: true,
       soundCues: true,
       muteWhileDictating: false,

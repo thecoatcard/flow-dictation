@@ -226,6 +226,16 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.31 | In WhatsApp, type a sentence, select it, tap the mic and say "make this formal" | The selection is replaced with the formal version (the clipboard you had is restored afterwards). If it fails, `adb logcat -s FlowCommand FlowInsert` shows why |
 | 10.32 | Tap the mic, stay silent for 3 seconds, tap to finish | **No speech heard**; nothing is inserted |
 
+| 10.33 | ☰ → **Notes and reminders**, allow **Alarms & reminders** and notifications | The status turns green: "Reminders ring on time and show a notification" |
+| 10.34 | Tap the mic and say "Ask Flow, remember my locker code is 4821" | The card says "Saved to your notes: my locker code is 4821"; the note is on the Notes and reminders page |
+| 10.35 | Say "Ask Flow, what is my locker code" | The card answers 4821 |
+| 10.36 | Say "Ask Flow, remind me to test this in two minutes" | The card shows "Reminder set" with the time, e.g. "Today 4:12 pm" |
+| 10.37 | Wait for it, with the phone locked, then unlock | A notification rang; the floating mic is red and a card with Snooze / Done / Later is open |
+| 10.38 | Set two reminders a minute apart, wait for both | The mic shows **2**; the card says "1 of 2"; **Done** shows the next one; after the last the mic turns normal and the notification goes |
+| 10.39 | **Snooze** one | It disappears and returns 10 minutes later; **Later** closes the card but the mic stays red, and tapping the red mic reopens it |
+| 10.40 | Say "Ask Flow, cancel the test reminder" with two similar reminders | Nothing is deleted; it asks which one |
+| 10.41 | Restart the phone with a reminder set for later | It still rings on time |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
@@ -261,6 +271,14 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.14 | Hold the **Ask shortcut** (default Ctrl+Alt+Q) and say "what is the capital of Australia" | The overlay says **Thinking…**, then a small card grows out of the floating icon with the answer, sized to fit it. Nothing is typed in your app. It fades after 15 seconds; hovering keeps it open |
 | 12.15 | On the card: the copy icon, then paste in Notepad; the speaker icon, then again to stop | The answer pastes; the PC reads it and stops; the card stays while it speaks, then fades |
 | 12.16 | Dictate a sentence, then say "read that back" (or "read that again", "read it out loud") with the dictation key | The PC reads the sentence aloud. Right after Flow starts it reads your newest saved dictation; with no history the overlay says **Nothing to read back** |
+| 12.17 | Hold the Ask shortcut and say "remember my locker code is 4821", then "what is my locker code" | The card says it saved the note, then answers 4821. **Notes and reminders** in Settings lists it |
+| 12.18 | Say "remind me to test this in two minutes" | The card shows "Reminder set" with the exact time |
+| 12.19 | Wait for it | A soft tone plays and the floating icon turns **red** with a bell. It stays on screen even if it was set to show only while dictating |
+| 12.20 | Rest the pointer on the red icon | A card grows out of it: the reminder, when it was due, **Snooze** and **Done**. Moving the pointer onto the card keeps it open; moving away closes it |
+| 12.21 | With two or more due, press **Done** | The next one appears ("1 of 2"); after the last, the icon turns normal |
+| 12.22 | **Snooze** one | It leaves the queue and returns 10 minutes later |
+| 12.23 | Settings → **Notes and reminders**: turn off "Let Ask read my notes", ask "what is my locker code" | It says it has no note about that (only the question was sent), but "remember ..." and "remind me ..." still work |
+| 12.24 | Close Flow with a reminder due, then open it | The icon is red straight away: reminders that came due while Flow was closed are not lost |
 | 12.13 | Select some text and say "delete this" (or "remove the last text that it has entered") | The selection disappears and the overlay says **Deleted**. "Undo" brings it back. No model call |
 
 The overlay shows **Editing…** while it works and **Edited** when it is done. If the model is slow or fails, your text stays as it was and the overlay says **Could not edit that text**.

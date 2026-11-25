@@ -98,6 +98,53 @@
         gap: 2px;
         align-self: flex-start;
       }
+      #body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #meta {
+        display: none;
+        padding: 0 0 3px;
+        color: rgba(238, 240, 243, 0.55);
+        font-size: 12px;
+      }
+      /* reminder mode: the text, when it is due, and Snooze / Done; no copy or read aloud */
+      .reminder-tools {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        align-self: center;
+      }
+      #card.reminder .tools.answer-tools {
+        display: none;
+      }
+      #card.reminder .reminder-tools {
+        display: flex;
+      }
+      #card.reminder #meta {
+        display: block;
+      }
+      #card.reminder #a {
+        font-weight: 500;
+      }
+      .pill {
+        width: auto;
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 14px;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        opacity: 0.9;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .pill.primary {
+        color: #14161a;
+        background: var(--ok);
+        opacity: 1;
+      }
       button {
         display: grid;
         place-items: center;
@@ -160,8 +207,15 @@
   </head>
   <body>
     <div id="card">
-      <p id="a" role="status" aria-live="polite" style="margin: 0"></p>
-      <div class="tools">
+      <div id="body">
+        <small id="meta"></small>
+        <p id="a" role="status" aria-live="polite" style="margin: 0"></p>
+      </div>
+      <div class="reminder-tools">
+        <button id="snooze" class="pill" type="button" title="Remind me again in 10 minutes">Snooze</button>
+        <button id="done" class="pill primary" type="button" title="Clear this reminder">Done</button>
+      </div>
+      <div class="tools answer-tools">
         <button id="copy" type="button" title="Copy" aria-label="Copy the answer">
           <svg class="base" viewBox="0 0 20 20">
             <rect x="7" y="7" width="9" height="9" rx="2" />

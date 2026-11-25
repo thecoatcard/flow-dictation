@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.19.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.20.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.19.apk
+adb install -r .\Flow-Android-0.1.20.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -77,7 +77,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.19.apk
+adb install -r .\Flow-Android-0.1.20.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
@@ -136,6 +136,19 @@ Select text in any field, tap the mic, and say what to do: "make this shorter", 
 ### Ask Flow
 
 Start a dictation with **"Ask Flow"** (or **"Hey Flow"**) and then your question: "Ask Flow, what is the capital of Australia" or "Hey Flow, explain a REST API in two lines". Nothing is typed into your app. A small card grows out of the floating mic, as big as the answer needs, with a copy icon and a speaker icon. It fades away by itself after 15 seconds unless you are touching it or it is reading aloud. The answer is short by design, and Flow says so when it is not sure. It cannot see your screen or the internet, so questions that need them are answered with that limit. The same wording typed anywhere else, such as "I will ask flow tomorrow", is just dictation, because only an utterance that starts with the phrase counts.
+
+### Remember, remind, and recall
+
+Ask Flow can keep notes and set reminders, all saved only on this phone:
+
+- **"Ask Flow, remember my locker code is 4821"** saves a note. **"Ask Flow, what is my locker code"** answers from it. Ask reads your notes by default; turn that off on **Notes and reminders** if you would rather it did not.
+- **"Ask Flow, remind me to call Dhriti tomorrow at 5 pm"** sets a reminder. The card shows the exact time it understood, so a wrong guess is visible. "Every day" or "every week" makes it repeat.
+- **"Ask Flow, cancel the Dhriti reminder"** or **"forget my locker code"** removes one. If your words match more than one, nothing is removed and Flow lists the candidates.
+- **"Ask Flow, what reminders do I have"** reads them out.
+
+When a reminder is due, the floating mic turns **red** (with the number waiting if there is more than one) and a card opens from it with **Snooze** (10 minutes), **Done** and **Later**. Clear them one after another; a repeating reminder moves to its next time. **Later** closes the card but the mic stays red, and tapping a red mic reopens the queue (hold the mic to dictate as usual). A notification is posted too, so a reminder is never missed even if the mic was off. After a reboot or an update the alarms are set again.
+
+For reminders to ring on time, open **Notes and reminders** and allow **Alarms & reminders** and notifications. Without the first, Android may delay them by a few minutes. The same page lists and deletes your reminders and notes.
 
 ### Read that back
 

@@ -9,7 +9,7 @@
     done: 'Inserted',
     error: 'Something went wrong',
   };
-  const STATES = ['idle', 'listening', 'processing', 'done', 'error'];
+  const STATES = ['idle', 'listening', 'processing', 'done', 'error', 'reminder'];
   const IDLE_FADE_MS = 5000;
   let state = 'idle';
   let fadeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -35,6 +35,7 @@
     icon.classList.remove('faded');
     icon.classList.remove(...STATES);
     icon.classList.add(state);
+    // A reminder shows only the number waiting (when more than one); hovering the icon shows the reminders.
     const text = state === 'idle' ? '' : (s.message ?? LABEL[state] ?? '');
     label.textContent = text;
     icon.classList.toggle('open', text !== '');
@@ -57,9 +58,11 @@
   icon.addEventListener('pointerenter', () => {
     clearTimeout(fadeTimer);
     if (!icon.classList.contains('faded')) flowApi.overlay.interactive(true);
+    flowApi.overlay.hover(true);
   });
   icon.addEventListener('pointerleave', () => {
     if (!start) flowApi.overlay.interactive(false);
+    flowApi.overlay.hover(false);
     scheduleFade();
   });
 

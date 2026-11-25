@@ -55,6 +55,11 @@ class FlowSettings(context: Context) {
         get() = prefs.getBoolean("voice-editing", true)
         set(value) { prefs.edit().putBoolean("voice-editing", value).apply() }
 
+    /** Ask may read the saved notes and reminders to answer ("what is my locker code"). On by default. */
+    var askUsesNotes: Boolean
+        get() = prefs.getBoolean("ask-uses-notes", true)
+        set(value) { prefs.edit().putBoolean("ask-uses-notes", value).apply() }
+
     /** Language the text is written in whatever was spoken, or '' to keep the spoken language. */
     var outputLanguage: String
         get() = Languages.cleanWriteIn(prefs.getString("output-language", ""))
