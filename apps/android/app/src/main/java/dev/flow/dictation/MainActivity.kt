@@ -60,7 +60,10 @@ class MainActivity : Activity() {
     private lateinit var permissionsSub: TextView
     private lateinit var updatesSub: TextView
     private lateinit var titleView: TextView
-    private lateinit var backButton: TextView
+    private lateinit var menuButton: TextView
+    private lateinit var drawer: LinearLayout
+    private lateinit var scrim: View
+    private var drawerOpen = false
     private lateinit var content: FrameLayout
     private lateinit var menu: ScrollView
     private val pages = LinkedHashMap<String, Pair<String, ScrollView>>() // id -> title, view
@@ -71,6 +74,7 @@ class MainActivity : Activity() {
         const val EXPORT_REQUEST = 41
         const val IMPORT_REQUEST = 42
         val BACKGROUND = Color.rgb(18, 20, 23)
+        const val DRAWER_DP = 290
         val TEXT = Color.rgb(233, 236, 240)
         val MUTED = Color.rgb(152, 162, 173)
     }
@@ -81,39 +85,54 @@ class MainActivity : Activity() {
         window.navigationBarColor = BACKGROUND
         settings = FlowSettings(this)
 
-        backButton = TextView(this).apply {
-            text = "‹"
-            textSize = 34f
+        menuButton = TextView(this).apply {
+            text = "☰"
+            textSize = 26f
             setTextColor(TEXT)
-            setPadding(14.dp, 0, 10.dp, 6.dp)
-            contentDescription = "Back"
-            visibility = View.GONE
-            setOnClickListener { showMenu() }
+            setPadding(14.dp, 4.dp, 14.dp, 8.dp)
+            contentDescription = "Menu"
+            setOnClickListener { setDrawer(!drawerOpen) }
         }
         titleView = TextView(this).apply {
             textSize = 24f
             setTextColor(TEXT)
-            setPadding(8.dp, 0, 0, 0)
+            setPadding(6.dp, 0, 0, 0)
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(12.dp, 28.dp, 20.dp, 10.dp)
-            addView(backButton)
+            setPadding(6.dp, 28.dp, 20.dp, 10.dp)
+            addView(menuButton)
             addView(titleView)
         }
         content = FrameLayout(this)
-        setContentView(LinearLayout(this).apply {
+        val main = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(BACKGROUND)
             addView(header, LinearLayout.LayoutParams(-1, -2))
             addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
-        })
+        }
 
         buildPages()
         buildMenu()
+        pages["home"] = "Flow" to menu
+        scrim = View(this).apply {
+            setBackgroundColor(Color.argb(150, 0, 0, 0))
+            visibility = View.GONE
+            alpha = 0f
+            setOnClickListener { setDrawer(false) }
+        }
+        drawer = buildDrawer().apply {
+            visibility = View.GONE
+            translationX = -DRAWER_DP.dp.toFloat()
+        }
+        setContentView(FrameLayout(this).apply {
+            addView(main, FrameLayout.LayoutParams(-1, -1))
+            addView(scrim, FrameLayout.LayoutParams(-1, -1))
+            addView(drawer, FrameLayout.LayoutParams(DRAWER_DP.dp, -1))
+        })
         val restored = savedInstanceState?.getString("page")
-        if (restored != null && pages.containsKey(restored)) showPage(restored) else showMenu()
+        showPage(if (restored != null && pages.containsKey(restored)) restored else "home")
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -123,24 +142,29 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (openPage != null) showMenu() else super.onBackPressed()
+        when {
+            drawerOpen -> setDrawer(false)
+            openPage != null && openPage != "home" -> showPage("home")
+            else -> super.onBackPressed()
+        }
     }
 
-    private fun showMenu() {
-        openPage = null
-        titleView.text = "Flow"
-        backButton.visibility = View.GONE
-        content.removeAllViews()
-        content.addView(menu)
+    private fun setDrawer(open: Boolean) {
+        drawerOpen = open
+        if (open) { scrim.visibility = View.VISIBLE; drawer.visibility = View.VISIBLE }
+        scrim.animate().alpha(if (open) 1f else 0f).setDuration(180)
+            .withEndAction { if (!drawerOpen) scrim.visibility = View.GONE }.start()
+        drawer.animate().translationX(if (open) 0f else -DRAWER_DP.dp.toFloat()).setDuration(220)
+            .withEndAction { if (!drawerOpen) drawer.visibility = View.GONE }.start()
     }
 
     private fun showPage(id: String) {
         val (title, view) = pages.getValue(id)
         openPage = id
         titleView.text = title
-        backButton.visibility = View.VISIBLE
         content.removeAllViews()
         content.addView(view)
+        if (drawerOpen) setDrawer(false)
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
@@ -181,7 +205,22 @@ class MainActivity : Activity() {
         }
         setupStatus = mic.label("It stays on until you stop it, and comes back after a restart.")
 
-        val list = column.section("SETTINGS")
+        menu = ScrollView(this).apply { addView(column) }
+    }
+
+    private fun buildDrawer(): LinearLayout {
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16.dp, 40.dp, 16.dp, 24.dp)
+        }
+        list.addView(TextView(this).apply { text = "Flow"; textSize = 28f; setTextColor(TEXT) })
+        list.addView(TextView(this).apply {
+            text = "Version ${Updater.installedVersion(this@MainActivity)}"
+            textSize = 13f
+            setTextColor(MUTED)
+            setPadding(0, 2.dp, 0, 18.dp)
+        })
+        list.menuRow("home", "Home", "Floating mic and status")
         list.menuRow("dictation", "Dictation", "Google API key and floating mic tools")
         list.menuRow("words", "Words and tone", "App tone, dictionary and snippets")
         list.menuRow("style", "Writing style", "Auto cleanup, Hindi output and your style")
@@ -189,7 +228,12 @@ class MainActivity : Activity() {
         updatesSub = list.menuRow("updates", "Updates", "Flow ${Updater.installedVersion(this)}")
         permissionsSub = list.menuRow("access", "Permissions", "Microphone, floating bubble, text insertion")
         list.menuRow("backup", "Backup", "Move your settings between phone and PC")
-        menu = ScrollView(this).apply { addView(column) }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(27, 30, 35))
+            elevation = 24.dp.toFloat()
+            addView(ScrollView(this@MainActivity).apply { addView(list) }, LinearLayout.LayoutParams(-1, -1))
+        }
     }
 
     private fun LinearLayout.menuRow(id: String, title: String, subtitle: String): TextView {
@@ -212,7 +256,6 @@ class MainActivity : Activity() {
             background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 255, 255, 255)), null, ColorDrawable(Color.WHITE))
             setOnClickListener { showPage(id) }
             addView(texts, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(TextView(this@MainActivity).apply { text = "›"; textSize = 26f; setTextColor(MUTED) })
         }
         addView(row, LinearLayout.LayoutParams(-1, -2))
         return subtitleView

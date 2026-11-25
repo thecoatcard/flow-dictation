@@ -17,14 +17,14 @@ Download `Flow-Android-<version>.apk` (and its `.sha256` file) from the [latest 
 Check the download if you like. The SHA-256 in the `.sha256` file should match:
 
 ```powershell
-Get-FileHash .\Flow-Android-0.1.10.apk -Algorithm SHA256
+Get-FileHash .\Flow-Android-0.1.11.apk -Algorithm SHA256
 ```
 
 **Recommended: install from your computer with adb.** Turn on *Developer options → USB debugging* on the phone, plug it in, accept the prompt, then:
 
 ```powershell
 adb devices
-adb install -r .\Flow-Android-0.1.10.apk
+adb install -r .\Flow-Android-0.1.11.apk
 ```
 
 `adb devices` must list your phone as `device`. If the install fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, an older Flow signed with a different key is installed; uninstall it first (this removes its saved settings and key).
@@ -35,7 +35,7 @@ adb install -r .\Flow-Android-0.1.10.apk
 
 ## How the app is laid out
 
-The home screen has the **Floating mic** button (Show or Stop) and a **Settings** list, like the Windows app's settings menu. Tap a row to open its page, and use the arrow at the top left or Android's Back to return.
+The home screen has the **Floating mic** button (Show or Stop). Tap the **☰** menu button at the top left to open a side menu with the settings pages, like the Windows app's sidebar. Pick a page to open it; the menu closes by itself. Android's Back closes the menu, then returns to Home.
 
 | Page | What is on it |
 | --- | --- |
@@ -47,7 +47,7 @@ The home screen has the **Floating mic** button (Show or Stop) and a **Settings*
 | **Permissions** | Microphone, floating bubble and text insertion |
 | **Backup** | Export and import your settings |
 
-Open **Flow**, then **Permissions** from the Settings list, and allow:
+Open **Flow**, then **Permissions** from the ☰ menu, and allow:
 
 | Permission | Why |
 | --- | --- |
@@ -76,7 +76,7 @@ Android always asks you to confirm an install of an app that is not from the Pla
 **Google Play Protect can block the final step.** Flow asks for Accessibility access, so Play Protect may scan the update and show **Harmful app blocked**, the same as for the first sideload. Flow cannot and should not bypass that. When it happens, install the new APK from your computer, which skips the scan:
 
 ```powershell
-adb install -r .\Flow-Android-0.1.10.apk
+adb install -r .\Flow-Android-0.1.11.apk
 ```
 
 The Play Store route (an internal test track, which needs a Play Console account) is the way to make updates fully automatic for everyone.
