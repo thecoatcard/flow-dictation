@@ -11,6 +11,7 @@ import {
   estimateCost,
   summarizeStyle,
   editSelection,
+  answerQuestion,
   learnTerms,
   GeminiCleanupClient,
   geminiLiveConnect,
@@ -26,7 +27,9 @@ import { debugLog } from './debug-log';
 import { Dictation } from './dictation';
 import { createHotkeyHandler, parseCombo, type Chord } from './hotkey';
 import { Inserter } from './inserter';
+import { AnswerWindow } from './answer-window';
 import { Overlay } from './overlay-window';
+import { speak, stopSpeaking } from './speech';
 import { checkPermissions, openPermissionSettings } from './permissions';
 import { KeyVault } from './secret';
 import {
@@ -175,6 +178,7 @@ function restoreOnQuit(media: { begin(): void; end(): void }): { begin(): void; 
 function createDictation(
   { store, vault, mic, usage, history }: Services,
   overlay: Overlay,
+  answers: AnswerWindow,
 ): Dictation {
   const inserter = new Inserter();
   return new Dictation({
@@ -198,6 +202,16 @@ function createDictation(
         ),
         onError: (e) => debugLog('command-error', { kind: classifyError(e) }),
       }),
+    ask: (question) =>
+      answerQuestion(question, {
+        config: store.get(),
+        client: new GeminiCleanupClient(vault.get(), store.get().models.cleanup, (u) =>
+          usage.add(u),
+        ),
+        onError: (e) => debugLog('ask-error', { kind: classifyError(e) }),
+      }),
+    showAnswer: (question, answer) => answers.show(question, answer),
+    speak: (text) => void speak(text),
     activeTitle: async () => (store.get().app.useWindowContext ? activeWindowTitle() : undefined),
     process: (transcript, appId, title) =>
       processTranscript(transcript, {
@@ -299,6 +313,9 @@ function registerSettings({ store, vault, mic, usage, history }: Services, overl
       if (!isPreset(c.app.hotkey)) c.app.hotkey = parseCombo(c.app.hotkey, KEY_CODES)?.label ?? '';
       const cmd = parseCombo(c.app.commandHotkey, KEY_CODES);
       c.app.commandHotkey = cmd && cmd.label !== c.app.hotkey ? cmd.label : '';
+      const ask = parseCombo(c.app.askHotkey, KEY_CODES);
+      c.app.askHotkey =
+        ask && ask.label !== c.app.hotkey && ask.label !== c.app.commandHotkey ? ask.label : '';
     });
     if (typeof patch.autostart === 'boolean') applyAutostart(store.get().app.autostart);
     if ('overlay' in patch || 'overlayPos' in patch) overlay.refresh();
@@ -408,6 +425,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => undefined);
   app.on('will-quit', () => {
     endMedia?.();
+    stopSpeaking();
     uIOhook.stop();
   });
   void app.whenReady().then(() => {
@@ -436,7 +454,8 @@ if (!app.requestSingleInstanceLock()) {
     )
       svc.store.update((c) => (c.app.guideDismissed = true));
     svc.mic.warm();
-    const dictation = createDictation(svc, overlay);
+    const answers = new AnswerWindow();
+    const dictation = createDictation(svc, overlay, answers);
     registerDebugRecord(svc, dictation);
     registerSettings(svc, overlay);
     ipcMain.handle('permissions:check', () => checkPermissions());
@@ -479,6 +498,26 @@ if (!app.requestSingleInstanceLock()) {
       Date.now,
       { latch: false },
     );
+    // Ask: hold the shortcut, ask a question, and the answer appears in a popup.
+    const askKey = createHotkeyHandler(
+      {
+        get state() {
+          return dictation.state;
+        },
+        keyUp: () => dictation.keyUp(),
+        keyDown: async () => {
+          if (!svc.vault.has()) {
+            overlay.show({ state: 'error', message: 'Add your API key in Settings' });
+            return openSettings();
+          }
+          return dictation.keyDown('ask');
+        },
+      },
+      () => 'hold',
+      () => commandChordFor(svc.store.get().app.askHotkey),
+      Date.now,
+      { latch: false },
+    );
     // "Test my key": for a few seconds after the user asks, report only the dictation hotkey's own
     // press and release timing to the Settings window, so it can tell whether the key can be held.
     const reportKey = (code: number, type: 'down' | 'up') => {
@@ -494,11 +533,13 @@ if (!app.requestSingleInstanceLock()) {
       const mods = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
       hotkey.down(e.keycode, mods);
       commandKey.down(e.keycode, mods);
+      askKey.down(e.keycode, mods);
     });
     uIOhook.on('keyup', (e) => {
       reportKey(e.keycode, 'up');
       hotkey.up(e.keycode);
       commandKey.up(e.keycode);
+      askKey.up(e.keycode);
     });
     uIOhook.start();
 

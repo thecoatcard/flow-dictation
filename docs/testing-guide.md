@@ -218,6 +218,11 @@ Install the APK with `adb install -r Flow-Android-<version>.apk`, then open **Fl
 | 10.25 | Right after 10.24, tap the mic and say "delete that" | The original text comes back |
 | 10.26 | ☰ → **Dictation → Edit by voice**, turn **Rewrite selected text** off, repeat 10.24 | What you say replaces the selection as plain dictation |
 
+| 10.27 | Tap the mic and say "Ask Flow, what is the capital of Australia" | Nothing is typed. A card appears with a short answer (Canberra) and **Copy**, **Read aloud**, **Close** |
+| 10.28 | On the card, tap **Read aloud**, then **Stop**, then **Close** | The answer is spoken; **Stop** silences it; the card goes away |
+| 10.29 | Dictate a sentence, then tap the mic and say "read that back" | The sentence is read aloud in the phone's voice |
+| 10.30 | Tap the mic and say "I will ask flow tomorrow" | Inserted as normal text; no card |
+
 Tap the mic once to start and again to finish (hands-free), or hold it and release. Both work on every field.
 
 ## 11. Things that should fail gracefully
@@ -250,6 +255,9 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.10 | After any edit, say "undo" | The original text comes back |
 | 12.11 | Tap the shortcut quickly instead of holding | Does not latch like dictation; too little audio, so nothing happens |
 | 12.12 | Settings → **Command Mode shortcut → Turn off**, then try 12.1 | Nothing happens; **Record shortcut** turns it back on |
+| 12.14 | Hold the **Ask shortcut** (default Ctrl+Alt+Q) and say "what is the capital of Australia" | The overlay says **Thinking…**, then a card appears at the bottom right with a short answer. Nothing is typed in your app |
+| 12.15 | On the card: **Copy**, then paste in Notepad; **Read aloud**, then **Stop**; **Esc** or **Close** | The answer pastes; the PC reads it and stops; the card closes |
+| 12.16 | Dictate a sentence, then say "read that back" (dictation key) | The PC reads the sentence aloud. With nothing dictated yet, the overlay says **Nothing to read back** |
 | 12.13 | Select some text and say "delete this" (or "remove the last text that it has entered") | The selection disappears and the overlay says **Deleted**. "Undo" brings it back. No model call |
 
 The overlay shows **Editing…** while it works and **Edited** when it is done. If the model is slow or fails, your text stays as it was and the overlay says **Could not edit that text**.

@@ -6,9 +6,15 @@ export type Segment =
   | { kind: 'literal'; text: string }
   | { kind: 'break'; text: string };
 
-/** Spoken actions. `delete-last` removes the last dictation; the rest press a key or shortcut. */
+/** Spoken actions. `delete-last` removes the last dictation, `read-back` speaks it; the rest press a key or shortcut. */
 export type Command =
-  'delete-last' | 'select-all' | 'undo' | 'press-enter' | 'press-tab' | 'press-escape';
+  | 'delete-last'
+  | 'select-all'
+  | 'undo'
+  | 'press-enter'
+  | 'press-tab'
+  | 'press-escape'
+  | 'read-back';
 
 const BREAKS: Array<[string, string]> = [
   ['new paragraph', '\n\n'],
@@ -23,6 +29,9 @@ const COMMANDS: Array<[string, Command]> = [
   ['press enter', 'press-enter'],
   ['press tab', 'press-tab'],
   ['press escape', 'press-escape'],
+  ['read that back', 'read-back'],
+  ['read it back', 'read-back'],
+  ['read back', 'read-back'],
 ];
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -9,5 +9,6 @@ export * from './errors';
 export * from './style';
 export * from './portability';
 export * from './command';
+export * from './ask';
 export * from './usage';
 export * from './learn';

@@ -34,6 +34,8 @@ export interface AppSettings {
   tipsSeen: boolean;
   /** Hold this combination, say what to do, and the selected text is rewritten. '' turns it off. */
   commandHotkey: string;
+  /** Hold this combination and ask a question; the answer appears in a popup. '' turns it off. */
+  askHotkey: string;
   /** Tell the cleanup model the focused window's title, only to help it spell names. */
   useWindowContext: boolean;
   /** A short tone when recording starts and stops. */
@@ -84,6 +86,7 @@ export function defaultConfig(): FlowConfig {
       micChecked: false,
       tipsSeen: false,
       commandHotkey: 'Ctrl+Alt+E',
+      askHotkey: 'Ctrl+Alt+Q',
       useWindowContext: true,
       soundCues: true,
       muteWhileDictating: false,
@@ -123,6 +126,7 @@ export function migrateConfig(raw: unknown): FlowConfig {
     for (const flag of ['guideDismissed', 'keyTested', 'micChecked', 'tipsSeen'] as const)
       if (typeof a[flag] === 'boolean') out.app[flag] = a[flag];
     if (typeof a.commandHotkey === 'string') out.app.commandHotkey = a.commandHotkey;
+    if (typeof a.askHotkey === 'string') out.app.askHotkey = a.askHotkey;
     if (typeof a.useWindowContext === 'boolean') out.app.useWindowContext = a.useWindowContext;
     if (typeof a.soundCues === 'boolean') out.app.soundCues = a.soundCues;
     if (typeof a.muteWhileDictating === 'boolean')

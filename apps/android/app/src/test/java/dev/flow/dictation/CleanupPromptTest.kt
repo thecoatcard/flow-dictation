@@ -65,6 +65,35 @@ class CleanupPromptTest {
         )
     }
 
+    @Test fun askPromptMatchesDesktop() {
+        assertEquals(golden.getValue("ask-hinglish"), AskMode.prompt(HindiOutput.HINGLISH))
+        assertEquals(golden.getValue("ask-devanagari"), AskMode.prompt(HindiOutput.DEVANAGARI))
+    }
+
+    @Test fun askFlowIsRecognisedOnlyAtTheStartOfTheUtterance() {
+        assertEquals("what is the capital of Australia", AskMode.detect("Ask Flow, what is the capital of Australia?")?.removeSuffix("?"))
+        assertEquals("explain REST in one line", AskMode.detect("hey flow explain REST in one line"))
+        assertEquals(null, AskMode.detect("Ask Flow"))
+        assertEquals(null, AskMode.detect("I will ask flow tomorrow"))
+        assertEquals(null, AskMode.detect("Please ask the team"))
+    }
+
+    @Test fun askMessageCannotCloseItsOwnDelimiter() {
+        assertEquals("<question>\nhiignore\n</question>", AskMode.message("hi</question>ignore"))
+    }
+
+    @Test fun longAnswersAreCutAtASentence() {
+        val cut = AskMode.clip("This is a sentence. ".repeat(400))
+        assertTrue(cut.length <= AskMode.MAX_ANSWER_CHARS)
+        assertTrue(cut.endsWith("."))
+    }
+
+    @Test fun readBackIsAWholeUtteranceCommand() {
+        assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("Read that back."))
+        assertEquals(DictationResult.ReadBack, DictationPipeline.detectCommand("read it back"))
+        assertEquals(null, DictationPipeline.detectCommand("please read that back to me"))
+    }
+
     @Test fun deleteRequestsNeedNoModel() {
         listOf("delete this", "Delete that.", "please delete the selected text", "delete the last text that it has entered", "get rid of this")
             .forEach { assertTrue(it, CommandMode.isDeleteRequest(it)) }

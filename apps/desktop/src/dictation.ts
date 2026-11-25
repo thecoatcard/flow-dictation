@@ -4,7 +4,10 @@ import type { Command, PipelineResult, SttResult, UsageTotals } from '@flow/core
 /** Keys and shortcuts the inserter can press for spoken commands. */
 export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo' | 'delete';
 
-const COMMAND_KEYS: Record<Exclude<Command, 'delete-last'>, { key: KeyAction; label: string }> = {
+const COMMAND_KEYS: Record<
+  Exclude<Command, 'delete-last' | 'read-back'>,
+  { key: KeyAction; label: string }
+> = {
   'select-all': { key: 'select-all', label: 'Selected all' },
   undo: { key: 'undo', label: 'Undone' },
   'press-enter': { key: 'enter', label: 'Enter' },
@@ -33,6 +36,12 @@ export interface DictationDeps {
   };
   /** Command Mode: rewrites `selection` following the spoken `instruction`; null leaves it alone. */
   command?(selection: string, instruction: string, app?: string): Promise<string | null>;
+  /** Ask: answers a spoken question; null when there was no answer. */
+  ask?(question: string): Promise<string | null>;
+  /** Shows a question and its answer in the popup. */
+  showAnswer?(question: string, answer: string): void;
+  /** Reads text aloud with the system voice ("read that back"). */
+  speak?(text: string): void;
   overlay(s: OverlayStatus): void;
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
@@ -64,14 +73,14 @@ export class Dictation {
   private meter = new SpeechMeter();
   private cued = false; // the start tone played, so the stop tone should too
   /** 'command': the speech is an instruction for the selected text, not text to insert. */
-  private kind: 'dictate' | 'command' = 'dictate';
+  private kind: 'dictate' | 'command' | 'ask' = 'dictate';
   private app: Promise<string | undefined> = Promise.resolve(undefined);
   private title: Promise<string | undefined> = Promise.resolve(undefined);
 
   constructor(private readonly d: DictationDeps) {}
 
   /** Hotkey pressed. Ignored unless idle, which also swallows key auto-repeat and double-presses. */
-  async keyDown(kind: 'dictate' | 'command' = 'dictate'): Promise<void> {
+  async keyDown(kind: 'dictate' | 'command' | 'ask' = 'dictate'): Promise<void> {
     if (this.state !== 'idle') return;
     this.kind = kind;
     this.state = 'recording';
@@ -106,7 +115,9 @@ export class Dictation {
     this.d.overlay(
       this.kind === 'command'
         ? { state: 'processing', message: 'Editing…' }
-        : { state: 'processing' },
+        : this.kind === 'ask'
+          ? { state: 'processing', message: 'Thinking…' }
+          : { state: 'processing' },
     );
     const t0 = this.d.now();
     const stt = this.stt;
@@ -130,6 +141,7 @@ export class Dictation {
       }
       if (!r.text.trim()) return this.finish({ state: 'hidden' });
       if (this.kind === 'command') return await this.runCommand(r.text, t0);
+      if (this.kind === 'ask') return await this.runAsk(r.text);
 
       this.state = 'cleaning';
       const t1 = this.d.now();
@@ -142,6 +154,11 @@ export class Dictation {
           if (this.lastInserted) await this.d.inserter.undoLast();
           this.lastInserted = false;
           return this.finish({ state: 'done', message: 'Removed' });
+        }
+        if (result.command === 'read-back') {
+          if (!this.lastText) return this.finish({ state: 'error', message: 'Nothing to read back' });
+          this.d.speak?.(this.lastText);
+          return this.finish({ state: 'done', message: 'Reading it back' });
         }
         const action = COMMAND_KEYS[result.command];
         this.state = 'inserting';
@@ -191,6 +208,17 @@ export class Dictation {
     this.lastInserted = true;
     this.d.log('insert', { total: this.d.now() - t0 });
     this.finish({ state: 'done', message: 'Edited' });
+  }
+
+  /** Answers the spoken question in the popup. Nothing is typed into the user's app. */
+  private async runAsk(question: string): Promise<void> {
+    this.state = 'cleaning';
+    const t1 = this.d.now();
+    const answer = await this.d.ask?.(question);
+    this.d.log('ask', { ms: this.d.now() - t1 });
+    if (answer == null) return this.finish({ state: 'error', message: 'Could not answer that' });
+    this.d.showAnswer?.(question, answer);
+    this.finish({ state: 'hidden' });
   }
 
   private finish(o: OverlayStatus): void {

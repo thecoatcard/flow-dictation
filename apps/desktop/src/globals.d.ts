@@ -22,6 +22,7 @@ interface SettingsDto {
     sttUsdPerHour: number;
     keepHistory: boolean;
     commandHotkey: string;
+    askHotkey: string;
     guideDismissed: boolean;
     keyTested: boolean;
     micChecked: boolean;
@@ -95,6 +96,14 @@ declare const flowApi: {
     drag(dx: number, dy: number): void;
     dragEnd(): void;
     click(): void;
+  };
+  answer: {
+    onShow(cb: (d: { question: string; answer: string }) => void): void;
+    onSpeechEnd(cb: () => void): void;
+    copy(): void;
+    speak(): void;
+    stop(): void;
+    close(): void;
   };
   settings: {
     recordDebug(seconds: number): Promise<DebugRecordResult>;

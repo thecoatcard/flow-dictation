@@ -14,6 +14,10 @@ sealed interface DictationResult {
     data object DeleteLast : DictationResult
     /** A spoken key command ("select all", "press enter") that is the whole utterance. */
     data class Key(val action: KeyAction) : DictationResult
+    /** "Read that back": the last dictation is spoken aloud. */
+    data object ReadBack : DictationResult
+    /** "Ask Flow, ...": the question is answered in a popup and nothing is inserted. */
+    data class Ask(val question: String) : DictationResult
 }
 
 private sealed interface Segment {
@@ -29,6 +33,7 @@ object DictationPipeline {
 
     suspend fun process(raw: String, chosen: DictationPreferences, key: String): DictationResult {
         detectCommand(raw)?.let { return it }
+        AskMode.detect(raw)?.let { return DictationResult.Ask(it) }
         // A trailing "press enter" is not dictated text; Enter is pressed after the text is inserted.
         val (spoken, enter) = splitTrailingEnter(raw)
         // Translating needs the model even when cleanup is None, so that case runs at Light.
@@ -74,6 +79,7 @@ object DictationPipeline {
             "delete that", "scratch that" -> DictationResult.DeleteLast
             "select all" -> DictationResult.Key(KeyAction.SELECT_ALL)
             "press enter" -> DictationResult.Key(KeyAction.ENTER)
+            "read that back", "read it back", "read back" -> DictationResult.ReadBack
             else -> null
         }
 

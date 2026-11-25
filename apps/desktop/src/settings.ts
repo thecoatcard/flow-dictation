@@ -126,6 +126,8 @@
     $('usecontext').setAttribute('aria-checked', String(s.app.useWindowContext));
     $('cmdkey').textContent = s.app.commandHotkey || 'Off';
     $('cmdoff').style.display = s.app.commandHotkey ? '' : 'none';
+    $('askkey').textContent = s.app.askHotkey || 'Off';
+    $('askoff').style.display = s.app.askHotkey ? '' : 'none';
     $('soundcues').setAttribute('aria-checked', String(s.app.soundCues));
     $('mutewhile').setAttribute('aria-checked', String(s.app.muteWhileDictating));
     $('autonote').textContent = s.packaged
@@ -230,7 +232,10 @@
     return named.has(code) ? code : undefined;
   };
   /** Wires a "Record shortcut" button to a setting that holds a combination like Ctrl+Alt+D. */
-  function shortcutRecorder(button: HTMLButtonElement, field: 'hotkey' | 'commandHotkey'): void {
+  function shortcutRecorder(
+    button: HTMLButtonElement,
+    field: 'hotkey' | 'commandHotkey' | 'askHotkey',
+  ): void {
     const idle = 'Record shortcut';
     const stop = () => {
       button.textContent = idle;
@@ -252,7 +257,7 @@
       if (!mods.some(Boolean)) return toast('Hold Ctrl, Alt or Shift with the key', 'err');
       stop();
       const combo = [...mods.filter(Boolean), name].join('+');
-      save(field === 'hotkey' ? { hotkey: combo } : { commandHotkey: combo }, 'Shortcut saved');
+      save({ [field]: combo }, 'Shortcut saved');
     }
     button.addEventListener('click', () => {
       if (button.textContent !== idle) return stop();
@@ -263,6 +268,8 @@
   shortcutRecorder($<HTMLButtonElement>('rechotkey'), 'hotkey');
   shortcutRecorder($<HTMLButtonElement>('reccmd'), 'commandHotkey');
   on('cmdoff', 'click', () => save({ commandHotkey: '' }, 'Command Mode is off'));
+  shortcutRecorder($<HTMLButtonElement>('recask'), 'askHotkey');
+  on('askoff', 'click', () => save({ askHotkey: '' }, 'Ask is off'));
   mic.addEventListener('change', () => save({ micDeviceId: mic.value }, 'Microphone saved'));
   autostart.addEventListener('click', () =>
     save({ autostart: autostart.getAttribute('aria-checked') !== 'true' }),

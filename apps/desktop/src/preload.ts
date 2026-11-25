@@ -24,6 +24,15 @@ contextBridge.exposeInMainWorld('flowApi', {
     dragEnd: () => ipcRenderer.send('overlay:drag-end'),
     click: () => ipcRenderer.send('overlay:click'),
   },
+  answer: {
+    onShow: (cb: (d: { question: string; answer: string }) => void) =>
+      ipcRenderer.on('answer:show', (_e, d) => cb(d)),
+    onSpeechEnd: (cb: () => void) => ipcRenderer.on('answer:speech-end', () => cb()),
+    copy: () => ipcRenderer.send('answer:copy'),
+    speak: () => ipcRenderer.send('answer:speak'),
+    stop: () => ipcRenderer.send('answer:stop'),
+    close: () => ipcRenderer.send('answer:close'),
+  },
   settings: {
     recordDebug: (seconds: number) => ipcRenderer.invoke('debug:record', seconds),
     permissions: () => ipcRenderer.invoke('permissions:check'),

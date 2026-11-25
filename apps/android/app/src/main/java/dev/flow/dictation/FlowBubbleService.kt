@@ -100,6 +100,10 @@ class FlowBubbleService : Service() {
             handler.postDelayed(this, 24 * 60 * 60 * 1000L) // once a day, no wake locks
         }
     }
+    private var speaker: Speaker? = null
+    private var answerCard: AnswerCard? = null
+    private fun speaker() = speaker ?: Speaker(this).also { speaker = it }
+    private fun answerCard() = answerCard ?: AnswerCard(this, windows, speaker()).also { answerCard = it }
     private val audioBytes = java.util.concurrent.atomic.AtomicLong()
     private var params: WindowManager.LayoutParams? = null
     private var state = State.IDLE
@@ -185,6 +189,8 @@ class FlowBubbleService : Service() {
         handler.removeCallbacks(updateCheck)
         handler.removeCallbacks(fade)
         cancelActive()
+        answerCard?.dismiss()
+        speaker?.shutdown()
         bubble?.let { runCatching { windows.removeView(it) } }
         bubble = null
         scope.cancel()
@@ -460,7 +466,10 @@ class FlowBubbleService : Service() {
                 if (transcript.isBlank()) { showStatus("No speech heard"); return@launch }
                 settings.recordUsage(audioBytes.get() / 32_000.0) // 16 kHz, 16-bit mono
                 val key = settings.apiKey() ?: return@launch
-                val selected = selectionToEdit(destination)
+                // "Ask Flow ..." and "read that back" are never instructions for a selection.
+                val special = AskMode.detect(transcript) != null ||
+                    DictationPipeline.detectCommand(transcript) == DictationResult.ReadBack
+                val selected = if (special) null else selectionToEdit(destination)
                 if (destination != null && selected != null) {
                     // Command Mode: what was said is an instruction for the highlighted text.
                     showStatus("Rewriting…")
@@ -472,6 +481,7 @@ class FlowBubbleService : Service() {
                             lastTarget = destination
                             lastInserted = rewritten
                             lastInsertedAt = System.currentTimeMillis()
+                            if (rewritten.isNotEmpty()) lastText = rewritten
                             showStatus(if (rewritten.isEmpty()) "Deleted · say delete that to undo" else "Rewritten · say delete that to undo")
                         }
                         else -> {
@@ -508,6 +518,15 @@ class FlowBubbleService : Service() {
                         KeyAction.SELECT_ALL ->
                             showStatus(if (FlowAccessibilityService.active?.selectAll() == true) "Selected all" else "Could not select")
                         KeyAction.ENTER -> pressEnterNow()
+                    }
+                    DictationResult.ReadBack ->
+                        if (lastText.isEmpty()) showStatus("Nothing to read back")
+                        else { speaker().speak(lastText); showStatus("Reading it back") }
+                    is DictationResult.Ask -> {
+                        showStatus("Thinking…")
+                        val answer = AskMode.answer(result.question, settings.hindiOutput, key)
+                        if (answer == null) showStatus("Could not answer that")
+                        else { answerCard().show(result.question, answer); showStatus("Answer ready") }
                     }
                     DictationResult.DeleteLast -> {
                         val removed = System.currentTimeMillis() - lastInsertedAt < 60_000 &&
@@ -604,7 +623,7 @@ class FlowBubbleService : Service() {
             bubble?.animate()?.alpha(1f)?.setDuration(160)?.start()
             return
         }
-        val ok = message == "Inserted" || message == "Removed"
+        val ok = message in setOf("Inserted", "Removed", "Reading it back", "Answer ready")
         icon?.setImageResource(if (ok) R.drawable.ic_done else R.drawable.ic_warn)
         val color = if (ok) Color.rgb(95, 208, 162) else Color.rgb(255, 180, 84)
         icon?.setColorFilter(color)

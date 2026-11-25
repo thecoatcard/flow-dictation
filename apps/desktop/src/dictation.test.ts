@@ -189,6 +189,72 @@ describe('Dictation', () => {
     await d.keyUp();
     expect(calls).toEqual(['mic.start', 'mic.stop', 'insert:hello', 'press:enter']);
   });
+  describe('Ask and read back', () => {
+    it('answers a spoken question in the popup and types nothing', async () => {
+      const shown: Array<[string, string]> = [];
+      const { d, calls, overlays } = setup(
+        {
+          ask: async (q) => `Answer to ${q}`,
+          showAnswer: (q, a) => void shown.push([q, a]),
+          process: async (): Promise<PipelineResult> => {
+            throw new Error('Ask must not run normal cleanup');
+          },
+        },
+        { text: 'what is a REST API' },
+      );
+      await d.keyDown('ask');
+      await d.keyUp();
+      expect(shown).toEqual([['what is a REST API', 'Answer to what is a REST API']]);
+      expect(calls).toEqual(['mic.start', 'mic.stop']);
+      expect(overlays.find((o) => o.state === 'processing')).toMatchObject({ message: 'Thinking…' });
+      expect(overlays.at(-1)).toEqual({ state: 'hidden' });
+      expect(d.state).toBe('idle');
+    });
+
+    it('shows an error when there is no answer', async () => {
+      const shown: string[] = [];
+      const { d, overlays } = setup({ ask: async () => null, showAnswer: (_q, a) => void shown.push(a) });
+      await d.keyDown('ask');
+      await d.keyUp();
+      expect(shown).toEqual([]);
+      expect(overlays.at(-1)).toMatchObject({ state: 'error', message: 'Could not answer that' });
+    });
+
+    it('"read that back" speaks the last dictation', async () => {
+      const spoken: string[] = [];
+      const first = setup({ speak: (t) => void spoken.push(t) });
+      await first.d.keyDown();
+      await first.d.keyUp(); // dictates "Clean: hello"
+      const second = setup(
+        {
+          speak: (t) => void spoken.push(t),
+          process: async (): Promise<PipelineResult> => ({ kind: 'command', command: 'read-back' }),
+        },
+        { text: 'read that back' },
+      );
+      second.d.lastText = 'Clean: hello';
+      await second.d.keyDown();
+      await second.d.keyUp();
+      expect(spoken).toEqual(['Clean: hello']);
+      expect(second.calls.some((c) => c.startsWith('insert'))).toBe(false);
+    });
+
+    it('says so when there is nothing to read back', async () => {
+      const spoken: string[] = [];
+      const { d, overlays } = setup(
+        {
+          speak: (t) => void spoken.push(t),
+          process: async (): Promise<PipelineResult> => ({ kind: 'command', command: 'read-back' }),
+        },
+        { text: 'read that back' },
+      );
+      await d.keyDown();
+      await d.keyUp();
+      expect(spoken).toEqual([]);
+      expect(overlays.at(-1)).toMatchObject({ state: 'error', message: 'Nothing to read back' });
+    });
+  });
+
   describe('Command Mode', () => {
     const cmdSetup = (selection: string, edited: string | null) => {
       const seen: Array<[string, string]> = [];
