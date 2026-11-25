@@ -127,6 +127,9 @@ Settings → Dictation → **How it listens**: **Hold to talk**.
 | 7.5 | **Record shortcut**, press `Ctrl+Alt+D` | The list shows `Custom: Ctrl+Alt+D`; holding that combo dictates |
 | 7.6 | With that combo set, press only `D` or `Ctrl+D` | Nothing happens |
 | 7.7 | **Record shortcut**, press a plain letter | Refused with a message |
+| 7.8 | **Test my key** (next to Record shortcut), then press and hold your hotkey for two seconds | It says "Held for 2.0 seconds. This key works for hold-to-talk." For a key that reports press and release together (many laptop Copilot keys), it says so and explains that it only works as tap to start, tap to stop |
+
+If **Hold to talk** does not seem to work with your key, run 7.8 first: a key that cannot be held cannot do hold-to-talk, whatever the software does. Use **Right Ctrl** (the default) or another normal key for hold-to-talk.
 
 ## 8. Sound, muting and speed (Windows)
 

@@ -163,6 +163,7 @@ function ducking(enabled: () => boolean): { begin(): void; end(): void } {
   };
 }
 
+let keyTestUntil = 0;
 let endMedia: (() => void) | null = null;
 /** Remembers how to end the muting, so quitting Flow mid-dictation never leaves the PC silent. */
 function restoreOnQuit(media: { begin(): void; end(): void }): { begin(): void; end(): void } {
@@ -469,12 +470,24 @@ if (!app.requestSingleInstanceLock()) {
       Date.now,
       { latch: false },
     );
+    // "Test my key": for a few seconds after the user asks, report only the dictation hotkey's own
+    // press and release timing to the Settings window, so it can tell whether the key can be held.
+    const reportKey = (code: number, type: 'down' | 'up') => {
+      if (Date.now() > keyTestUntil || code !== chordFor(svc.store.get().app.hotkey).key) return;
+      if (settings && !settings.isDestroyed())
+        settings.webContents.send('keytest:event', { type, at: Date.now() });
+    };
+    ipcMain.handle('keytest:start', () => {
+      keyTestUntil = Date.now() + 20_000;
+    });
     uIOhook.on('keydown', (e) => {
+      reportKey(e.keycode, 'down');
       const mods = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
       hotkey.down(e.keycode, mods);
       commandKey.down(e.keycode, mods);
     });
     uIOhook.on('keyup', (e) => {
+      reportKey(e.keycode, 'up');
       hotkey.up(e.keycode);
       commandKey.up(e.keycode);
     });

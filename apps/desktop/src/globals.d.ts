@@ -109,6 +109,8 @@ declare const flowApi: {
     setPersonal(patch: Partial<PersonalDto>): Promise<PersonalDto>;
     openPermission(name: string): void;
     testCue(): Promise<void>;
+    startKeyTest(): Promise<void>;
+    onKeyTest(cb: (e: { type: 'down' | 'up'; at: number }) => void): void;
     listHistory(query: string): Promise<HistoryEntryDto[]>;
     copyHistory(id: string): Promise<boolean>;
     removeHistory(id: string): Promise<void>;

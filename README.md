@@ -20,12 +20,12 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 
 ## Download and install (Windows)
 
-1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.12/Flow.Setup.0.0.8.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
-2. Run `Flow.Setup.0.0.8.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
+1. Download the [Windows installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.13/Flow.Setup.0.0.9.exe) from [Releases](https://github.com/thecoatcard/flow-dictation/releases/latest). You do not need Git or Node.js to use the installer.
+2. Run `Flow.Setup.0.0.9.exe` and follow the setup wizard. It installs per user and can create desktop and Start menu shortcuts. The installer is unsigned, so Windows may show a SmartScreen warning.
 3. Get a [Google AI API key](https://aistudio.google.com/apikey). On first launch, paste it into Flow Settings, press **Test**, then use **Record 5 seconds** to check your microphone.
 4. Hold **Right Ctrl** (default), speak, and release to insert text.
 
-Change the hotkey (a single key from the list, or press Record shortcut for a combination such as Ctrl+Alt+D), mode (hold or press-to-toggle), microphone, autostart, start/stop sound cues, and whether Flow mutes your PC's sound while you dictate (Windows) in Settings. A laptop Copilot key can be used: choose "Copilot key (F23)". That key reports press and release together, so with it tap once to start and tap again to stop. In hold mode any key also works that way: hold to record while it is down, or tap quickly to keep recording until you tap again. Windows may still run its own Copilot action; if so, remap the key to a plain key with PowerToys Keyboard Manager.
+Change the hotkey (a single key from the list, or press Record shortcut for a combination such as Ctrl+Alt+D), mode (hold or press-to-toggle), microphone, autostart, start/stop sound cues, and whether Flow mutes your PC's sound while you dictate (Windows) in Settings. A laptop Copilot key can be used: choose "Copilot key (F23)". That key reports press and release together, so with it tap once to start and tap again to stop; Settings > Dictation > Test my key tells you whether any key can be held. In hold mode any key also works that way: hold to record while it is down, or tap quickly to keep recording until you tap again. Windows may still run its own Copilot action; if so, remap the key to a plain key with PowerToys Keyboard Manager.
 
 The floating icon can be dragged to another position. In the default mode it fades away after five seconds of inactivity and returns when you press the dictation shortcut. Settings also offers an option to show it only while dictating.
 
@@ -36,14 +36,14 @@ Both apps update themselves from the latest release on this page. The Windows ap
 ## Releases
 
 - [Latest release](https://github.com/thecoatcard/flow-dictation/releases/latest): one page with the Windows installer, the Android APK and the source code. For the phone build, follow the [Android guide](docs/android.md).
-- [Android 0.1.11 APK](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.12/Flow-Android-0.1.11.apk) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.12/Flow-Android-0.1.11.apk.sha256)
-- [Windows setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.12/Flow.Setup.0.0.8.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.12/Flow.Setup.0.0.8.exe.sha256)
+- [Android 0.1.11 APK](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.13/Flow-Android-0.1.11.apk) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.13/Flow-Android-0.1.11.apk.sha256)
+- [Windows setup installer](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.13/Flow.Setup.0.0.9.exe) · [SHA-256 checksum](https://github.com/thecoatcard/flow-dictation/releases/download/v0.1.13/Flow.Setup.0.0.9.exe.sha256)
 
 To download the installer from PowerShell with the [GitHub CLI](https://cli.github.com/) instead of a browser:
 
 ```powershell
-gh release download v0.1.12 --repo thecoatcard/flow-dictation --pattern '*.exe'
-Start-Process -FilePath '.\Flow.Setup.0.0.8.exe'
+gh release download v0.1.13 --repo thecoatcard/flow-dictation --pattern '*.exe'
+Start-Process -FilePath '.\Flow.Setup.0.0.9.exe'
 ```
 
 `git clone` downloads the source code; use the installer link above if you only want to run Flow.
@@ -65,7 +65,7 @@ To build the Windows setup installer from the cloned repository:
 ```powershell
 pnpm test
 pnpm --filter @flow/desktop dist
-Start-Process -FilePath '.\apps\desktop\release\Flow.Setup.0.0.8.exe'
+Start-Process -FilePath '.\apps\desktop\release\Flow.Setup.0.0.9.exe'
 ```
 
 The installer is written to `apps/desktop/release/`. To update an existing clone, run `git pull --ff-only` and `pnpm install` before rebuilding.

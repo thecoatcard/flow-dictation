@@ -154,6 +154,56 @@
 
   hotkey.addEventListener('change', () => save({ hotkey: hotkey.value }, 'Hotkey saved'));
 
+  // Test my key: some keys (a laptop Copilot key) report press and release together and cannot be held.
+  const keyTestBtn = $<HTMLButtonElement>('keytestbtn');
+  const keyTestMsg = $('keytestmsg');
+  let keyTestActive = false;
+  let keyDownAt = 0;
+  let keyRepeats = 0;
+  let keyTestTimer: ReturnType<typeof setTimeout> | undefined;
+  const endKeyTest = () => {
+    keyTestActive = false;
+    clearTimeout(keyTestTimer);
+    keyTestBtn.textContent = 'Test my key';
+  };
+  api.onKeyTest((e) => {
+    if (!keyTestActive) return;
+    if (e.type === 'down') {
+      if (keyDownAt)
+        keyRepeats++; // the system repeats a key that is really being held
+      else keyDownAt = e.at;
+      say(keyTestMsg, 'Holding…');
+      return;
+    }
+    if (!keyDownAt) return;
+    const ms = e.at - keyDownAt;
+    endKeyTest();
+    if (ms < 150 && keyRepeats === 0)
+      say(
+        keyTestMsg,
+        `This key sent press and release together (${ms} ms), so it cannot be held. It works as tap to start and tap again to stop. For hold-to-talk, choose another key such as Right Ctrl.`,
+        true,
+      );
+    else
+      say(
+        keyTestMsg,
+        `Held for ${(ms / 1000).toFixed(1)} seconds. This key works for hold-to-talk.`,
+      );
+  });
+  keyTestBtn.addEventListener('click', () => {
+    if (keyTestActive) return endKeyTest();
+    keyTestActive = true;
+    keyDownAt = 0;
+    keyRepeats = 0;
+    keyTestBtn.textContent = 'Cancel test';
+    say(keyTestMsg, 'Press and hold your hotkey for two seconds, then let go.');
+    void api.startKeyTest();
+    keyTestTimer = setTimeout(() => {
+      endKeyTest();
+      say(keyTestMsg, 'No key press was seen. Check that the right hotkey is selected.', true);
+    }, 20_000);
+  });
+
   // Record a combination: hold modifiers, press a key. Esc cancels.
   const keyName = (code: string): string | undefined => {
     const m = /^Key([A-Z])$/.exec(code) ?? /^Digit(\d)$/.exec(code);
