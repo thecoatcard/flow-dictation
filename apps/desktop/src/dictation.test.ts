@@ -31,6 +31,7 @@ function setup(
     inserter: {
       insert: async (t) => void calls.push(`insert:${t}`),
       undoLast: async () => void calls.push('undo'),
+      press: async (k) => void calls.push(`press:${k}`),
     },
     overlay: (s) => overlays.push(s),
     log: () => undefined,
@@ -102,6 +103,7 @@ describe('Dictation', () => {
       inserter: {
         insert: async () => Promise.reject(new Error('paste')),
         undoLast: async () => undefined,
+        press: async () => undefined,
       },
     });
     await d.keyDown();
@@ -126,5 +128,36 @@ describe('Dictation', () => {
     n = 0;
     await say(); // command now has something to undo
     expect(calls.filter((c) => c === 'undo')).toHaveLength(1);
+  });
+  it('spoken key commands press the key and show a label', async () => {
+    let command: 'select-all' | 'press-enter' = 'select-all';
+    const { d, calls, overlays } = setup({
+      process: async (): Promise<PipelineResult> => ({ kind: 'command', command }),
+    });
+    await d.keyDown();
+    await d.keyUp();
+    command = 'press-enter';
+    await d.keyDown();
+    await d.keyUp();
+    expect(calls.filter((c) => c.startsWith('press:'))).toEqual([
+      'press:select-all',
+      'press:enter',
+    ]);
+    expect(
+      overlays.filter((o) => o.state === 'done').map((o) => (o as { message?: string }).message),
+    ).toEqual(['Selected all', 'Enter']);
+  });
+
+  it('"press enter" after dictated text inserts the text and then presses Enter', async () => {
+    const { d, calls } = setup({
+      process: async (t): Promise<PipelineResult> => ({
+        kind: 'insert',
+        text: t,
+        pressEnter: true,
+      }),
+    });
+    await d.keyDown();
+    await d.keyUp();
+    expect(calls).toEqual(['mic.start', 'mic.stop', 'insert:hello', 'press:enter']);
   });
 });

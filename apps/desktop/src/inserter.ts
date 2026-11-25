@@ -1,5 +1,6 @@
 import { clipboard, type NativeImage } from 'electron';
 import { uIOhook, UiohookKey } from 'uiohook-napi';
+import type { KeyAction } from './dictation';
 
 const MOD = process.platform === 'darwin' ? UiohookKey.Meta : UiohookKey.Ctrl;
 /** Time for the target app to read the clipboard before we put the old contents back. */
@@ -55,6 +56,27 @@ export class Inserter {
     // If the user copied something meanwhile, theirs wins.
     if (clipboard.readText() === text) restore(saved);
     this.lastInsertAt = Date.now();
+  }
+
+  /** Presses a key or shortcut in the focused app, for spoken commands like "press enter". */
+  async press(key: KeyAction): Promise<void> {
+    switch (key) {
+      case 'enter':
+        uIOhook.keyTap(UiohookKey.Enter);
+        break;
+      case 'tab':
+        uIOhook.keyTap(UiohookKey.Tab);
+        break;
+      case 'escape':
+        uIOhook.keyTap(UiohookKey.Escape);
+        break;
+      case 'select-all':
+        uIOhook.keyTap(UiohookKey.A, [MOD]);
+        break;
+      case 'undo':
+        uIOhook.keyTap(UiohookKey.Z, [MOD]);
+        break;
+    }
   }
 
   async undoLast(): Promise<void> {

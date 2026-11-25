@@ -13,7 +13,7 @@ mic (16 kHz PCM) -> Gemini Live transcription -> `gemini-3.5-flash-lite` cleanup
 - Auto cleanup offers **None** (raw transcript), **Auto** (chooses the smallest needed edit for each dictation), **Light** (fillers, false starts, grammar) and **Medium** (also rephrases tangled speech for clarity). Light remains the default for existing and new settings. Auto makes its choice in the same cleanup request, without an extra API call. The cleanup step treats what you said as text to edit, never as instructions.
 - **Hindi** is typed as Hinglish (Hindi in English letters, like "main kal office jaunga") by default. English stays English and other languages are written as spoken. Settings can switch Hindi to Devanagari.
 - If cleanup fails or is slow, the raw transcript is inserted instead.
-- Per-app tone (casual / professional / literal / code), a dictionary, snippets, spoken commands ("new line", "new paragraph", "delete that") and a writing-style paragraph are all editable in Settings.
+- Per-app tone (casual / professional / literal / code), a dictionary, snippets, spoken commands ("new line", "new paragraph", "delete that", "select all", "undo", "press enter", "press tab", "press escape"; say "press enter" after a message to send it) and a writing-style paragraph are all editable in Settings.
 
 ## Download and install (Windows)
 

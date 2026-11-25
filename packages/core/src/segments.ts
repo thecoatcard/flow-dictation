@@ -6,7 +6,9 @@ export type Segment =
   | { kind: 'literal'; text: string }
   | { kind: 'break'; text: string };
 
-export type Command = 'delete-last';
+/** Spoken actions. `delete-last` removes the last dictation; the rest press a key or shortcut. */
+export type Command =
+  'delete-last' | 'select-all' | 'undo' | 'press-enter' | 'press-tab' | 'press-escape';
 
 const BREAKS: Array<[string, string]> = [
   ['new paragraph', '\n\n'],
@@ -15,6 +17,12 @@ const BREAKS: Array<[string, string]> = [
 const COMMANDS: Array<[string, Command]> = [
   ['delete that', 'delete-last'],
   ['scratch that', 'delete-last'],
+  ['select all', 'select-all'],
+  ['undo that', 'undo'],
+  ['undo', 'undo'],
+  ['press enter', 'press-enter'],
+  ['press tab', 'press-tab'],
+  ['press escape', 'press-escape'],
 ];
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -31,6 +39,16 @@ export function detectCommand(transcript: string): Command | null {
     .toLowerCase()
     .replace(/[.,!?;:\s]+$/g, '');
   return COMMANDS.find(([p]) => p === t)?.[1] ?? null;
+}
+
+/**
+ * "Reply sounds good press enter": the words before are dictated, and Enter is pressed after them.
+ * Only a trailing "press enter" counts, so the phrase inside a sentence is still just text.
+ */
+export function splitTrailingEnter(transcript: string): { text: string; enter: boolean } {
+  const m = /[\s,.;:!?]*\bpress enter\b[\s.!?,;:]*$/i.exec(transcript);
+  if (!m || !transcript.slice(0, m.index).trim()) return { text: transcript, enter: false };
+  return { text: transcript.slice(0, m.index), enter: true };
 }
 
 /** Split a transcript on spoken breaks and snippet triggers. Deterministic; the LLM never sees them. */

@@ -22,6 +22,8 @@ Launch: `$env:GEMINI_API_KEY="..."; pnpm dev`. Hold right Ctrl (right Option on 
 - [ ] No network shows an error, inserts nothing
 - [ ] Wrong API key shows an error, inserts nothing
 - [ ] "delete that" removes the last insertion
+- [ ] "select all", "undo", "press enter", "press tab" and "press escape" press that key when they are the whole utterance
+- [ ] "reply sounds good press enter" inserts the text, then presses Enter
 - [ ] Tray "Copy last dictation" works
 - [ ] Per-stage timings appear in `%APPDATA%/@flow/desktop/flow-debug.log` (no transcripts)
 

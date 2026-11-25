@@ -1,4 +1,15 @@
-import type { PipelineResult, SttResult, UsageTotals } from '@flow/core';
+import type { Command, PipelineResult, SttResult, UsageTotals } from '@flow/core';
+
+/** Keys and shortcuts the inserter can press for spoken commands. */
+export type KeyAction = 'enter' | 'tab' | 'escape' | 'select-all' | 'undo';
+
+const COMMAND_KEYS: Record<Exclude<Command, 'delete-last'>, { key: KeyAction; label: string }> = {
+  'select-all': { key: 'select-all', label: 'Selected all' },
+  undo: { key: 'undo', label: 'Undone' },
+  'press-enter': { key: 'enter', label: 'Enter' },
+  'press-tab': { key: 'tab', label: 'Tab' },
+  'press-escape': { key: 'escape', label: 'Escape' },
+};
 
 export type OverlayStatus =
   { state: 'hidden' } | { state: 'listening' | 'processing' | 'done' | 'error'; message?: string };
@@ -10,7 +21,11 @@ export interface DictationDeps {
   process(transcript: string, appId?: string): Promise<PipelineResult>;
   /** Id of the focused app, for tone selection. Called at key-down, while the user's app still has focus. */
   activeApp?(): Promise<string | undefined>;
-  inserter: { insert(text: string): Promise<void>; undoLast(): Promise<void> };
+  inserter: {
+    insert(text: string): Promise<void>;
+    undoLast(): Promise<void>;
+    press(key: KeyAction): Promise<void>;
+  };
   overlay(s: OverlayStatus): void;
   /** Timings and error types only. Never transcripts. */
   log(event: string, data?: Record<string, number | string | boolean>): void;
@@ -74,17 +89,26 @@ export class Dictation {
       this.d.log('cleanup', { ms: this.d.now() - t1 });
 
       if (result.kind === 'command') {
-        if (this.lastInserted) await this.d.inserter.undoLast();
-        this.lastInserted = false;
-        return this.finish({ state: 'done', message: 'Removed' });
+        if (result.command === 'delete-last') {
+          if (this.lastInserted) await this.d.inserter.undoLast();
+          this.lastInserted = false;
+          return this.finish({ state: 'done', message: 'Removed' });
+        }
+        const action = COMMAND_KEYS[result.command];
+        this.state = 'inserting';
+        await this.d.inserter.press(action.key);
+        return this.finish({ state: 'done', message: action.label });
       }
-      if (!result.text) return this.finish({ state: 'hidden' });
+      if (!result.text && !result.pressEnter) return this.finish({ state: 'hidden' });
 
-      this.lastText = result.text;
       this.state = 'inserting';
       const t2 = this.d.now();
-      await this.d.inserter.insert(result.text);
-      this.lastInserted = true;
+      if (result.text) {
+        this.lastText = result.text;
+        await this.d.inserter.insert(result.text);
+        this.lastInserted = true;
+      }
+      if (result.pressEnter) await this.d.inserter.press('enter');
       this.d.log('insert', { ms: this.d.now() - t2, total: this.d.now() - t0 });
       this.finish({ state: 'done' });
     } catch (e) {

@@ -4,10 +4,16 @@ import { type FlowConfig, resolveTone } from './config';
 import { classifyError } from './errors';
 import { guardOutput } from './guard';
 import { buildSystemPrompt, buildUserMessage, TRANSLITERATE_PROMPT } from './prompt';
-import { detectCommand, joinSegments, segmentTranscript, type Command } from './segments';
+import {
+  detectCommand,
+  joinSegments,
+  segmentTranscript,
+  splitTrailingEnter,
+  type Command,
+} from './segments';
 
 export type PipelineResult =
-  { kind: 'insert'; text: string } | { kind: 'command'; command: Command };
+  { kind: 'insert'; text: string; pressEnter?: boolean } | { kind: 'command'; command: Command };
 
 export interface PipelineOptions {
   config: FlowConfig;
@@ -50,10 +56,15 @@ export async function processTranscript(
   const command = detectCommand(transcript);
   if (command) return { kind: 'command', command };
 
+  // A trailing "press enter" is not dictated text; Enter is pressed after the text is inserted.
+  const { text: spoken, enter } = splitTrailingEnter(transcript);
+  const inserted = (text: string): PipelineResult =>
+    enter ? { kind: 'insert', text, pressEnter: true } : { kind: 'insert', text };
+
   const text =
     o.config.cleanupLevel === 'none'
-      ? transcript
-      : repairSentenceBoundary(resolveTimeBacktrack(transcript));
+      ? spoken
+      : repairSentenceBoundary(resolveTimeBacktrack(spoken));
   const segments = segmentTranscript(text, o.config.snippets);
   if (o.config.cleanupLevel === 'none') {
     // None skips the editing model, but Hindi must still come out in Roman letters when asked.
@@ -65,7 +76,7 @@ export async function processTranscript(
           : s,
       ),
     );
-    return { kind: 'insert', text: joinSegments(romanized).trim() };
+    return inserted(joinSegments(romanized).trim());
   }
   const system = buildSystemPrompt(o.config, resolveTone(o.config, o.appId));
   const cleaned = await Promise.all(
@@ -73,5 +84,5 @@ export async function processTranscript(
       s.kind === 'text' ? { ...s, text: await cleanOne(s.text, system, o) } : s,
     ),
   );
-  return { kind: 'insert', text: joinSegments(cleaned) };
+  return inserted(joinSegments(cleaned));
 }
