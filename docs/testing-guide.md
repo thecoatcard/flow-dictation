@@ -293,6 +293,7 @@ Select text, hold the **Command Mode shortcut** (default **Ctrl+Alt+E**, change 
 | 12.22 | **Snooze** one | It leaves the queue and returns 10 minutes later |
 | 12.23 | Settings → **Notes and reminders**: turn off "Let Ask read my notes", ask "what is my locker code" | It says it has no note about that (only the question was sent), but "remember ..." and "remind me ..." still work |
 | 12.24 | Close Flow with a reminder due, then open it | The icon is red straight away: reminders that came due while Flow was closed are not lost |
+| 12.25 | Watch the floating pill while you hold the dictation key, speak, and let go | A red ring around the pill swells with your voice (faint and slowly breathing when you are quiet). On release the ring turns blue and the arc spins in place while it works. When the text lands the pill tints green, gives a small pop, a ring ripples out and the check draws itself. A failure tints amber and shakes once. Hover grows it slightly; pressing shrinks it; when idle it shrinks a little as it fades |
 | 12.13 | Select some text and say "delete this" (or "remove the last text that it has entered") | The selection disappears and the overlay says **Deleted**. "Undo" brings it back. No model call |
 
 The overlay shows **Editing…** while it works and **Edited** when it is done. If the model is slow or fails, your text stays as it was and the overlay says **Could not edit that text**.

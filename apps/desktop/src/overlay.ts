@@ -33,6 +33,7 @@
 
   const resetWaveform = () => {
     recent.fill(0);
+    icon.style.removeProperty('--level');
     bars.forEach((bar) => bar.style.removeProperty('transform'));
   };
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -95,6 +96,7 @@
     recent.shift();
     recent.push(v);
     paint();
+    icon.style.setProperty('--level', v.toFixed(2)); // the ring around the pill swells with the voice
   });
   reduced.addEventListener('change', () => {
     resize?.cancel();
